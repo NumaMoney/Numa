@@ -23,7 +23,7 @@ async function main () {
 
     await contract.SetFee(10);
     await contract.SetFeeTriggerer(pairAddress,true);
-    await contract.SetWlTransferer(uniswapV2Router,true);
+    await contract.SetWlSpender(uniswapV2Router,true);
    
 
 }

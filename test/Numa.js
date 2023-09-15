@@ -26,7 +26,7 @@ describe('NUMA', function () {
     const fee = 10;
     await myToken.connect(owner).SetFee(fee);
     await myToken.connect(owner).SetFeeTriggerer(UniswapV2Pair, true);
-    await myToken.connect(owner).SetWlTransferer(UniswapV2Router, true);
+    await myToken.connect(owner).SetWlSpender(UniswapV2Router, true);
 
   });
 
@@ -158,7 +158,7 @@ describe('NUMA', function () {
 
   it('setting fee wl spender should only be possible by owner', async function () {
     const wlSpender = addr2.address;
-    await expect(myToken.connect(addr1).SetWlTransferer(wlSpender, true)).to.be.reverted;
+    await expect(myToken.connect(addr1).SetWlSpender(wlSpender, true)).to.be.reverted;
   });
 
 

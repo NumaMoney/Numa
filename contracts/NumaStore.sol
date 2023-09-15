@@ -7,7 +7,7 @@ contract NumaStore
     {
         uint sellFeePercentage;
         mapping (address => bool) isIncludedInFees;
-        mapping (address => bool) wlTransferers;
+        mapping (address => bool) wlSpenders;
     }
 
     bytes32 private constant STORAGE_SLOT = keccak256("numa.erc20.storage");

@@ -45,10 +45,10 @@ contract NUMA is NumaStore, Initializable, ERC20Upgradeable, ERC20BurnableUpgrad
         NumaStorage storage ns = numaStorage();
         ns.isIncludedInFees[_dexAddress] = _isFee;
     }
-    function SetWlTransferer(address _address,bool _isWl) external onlyRole(DEFAULT_ADMIN_ROLE)
+    function SetWlSpender(address _address,bool _isWl) external onlyRole(DEFAULT_ADMIN_ROLE)
     {
         NumaStorage storage ns = numaStorage();
-        ns.wlTransferers[_address] = _isWl;
+        ns.wlSpenders[_address] = _isWl;
     }
 
 
@@ -83,7 +83,7 @@ contract NUMA is NumaStore, Initializable, ERC20Upgradeable, ERC20BurnableUpgrad
         // spend allowance
         _spendAllowance(from, spender, value);
         // cancel fee for some spenders. Typically, this will be used for UniswapV2Router which is used when adding liquidity
-        if (ns.wlTransferers[spender])
+        if (ns.wlSpenders[spender])
         {
             ns.sellFeePercentage = 0;
         }
