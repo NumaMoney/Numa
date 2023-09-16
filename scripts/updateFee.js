@@ -21,7 +21,7 @@ async function main () {
 
     const [owner,other] = await ethers.getSigners();
 
-    await contract.SetFee(10);
+    await contract.SetFee(1000);
     await contract.SetFeeTriggerer(pairAddress,true);
     await contract.SetWlSpender(uniswapV2Router,true);
    

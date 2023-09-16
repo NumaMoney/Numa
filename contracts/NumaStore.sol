@@ -5,7 +5,7 @@ contract NumaStore
 {
     struct NumaStorage
     {
-        uint sellFeePercentage;
+        uint sellFeeBips;
         mapping (address => bool) isIncludedInFees;
         mapping (address => bool) wlSpenders;
     }

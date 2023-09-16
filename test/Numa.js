@@ -23,7 +23,7 @@ describe('NUMA', function () {
     await myToken.mint(owner.address, initialSupply);
 
     // setup sell fees
-    const fee = 10;
+    const fee = 1000;
     await myToken.connect(owner).SetFee(fee);
     await myToken.connect(owner).SetFeeTriggerer(UniswapV2Pair, true);
     await myToken.connect(owner).SetWlSpender(UniswapV2Router, true);

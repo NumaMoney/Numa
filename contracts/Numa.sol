@@ -33,11 +33,11 @@ contract NUMA is NumaStore, Initializable, ERC20Upgradeable, ERC20BurnableUpgrad
         _grantRole(UPGRADER_ROLE, msg.sender);
     }
 
-    function SetFee(uint _newFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE)
+    function SetFee(uint _newFeeBips) external onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        require(_newFeePercentage <= 100, "Fee percentage must be 100 or less");
+        require(_newFeeBips <= 10000, "Fee percentage must be 100 or less");
         NumaStorage storage ns = numaStorage();
-        ns.sellFeePercentage = _newFeePercentage;
+        ns.sellFeeBips = _newFeeBips;
     }
 
     function SetFeeTriggerer(address _dexAddress,bool _isFee) external onlyRole(DEFAULT_ADMIN_ROLE)
@@ -75,41 +75,49 @@ contract NUMA is NumaStore, Initializable, ERC20Upgradeable, ERC20BurnableUpgrad
         super._beforeTokenTransfer(from, to, amount);
     }
 
-
-    function transferFrom(address from, address to, uint256 value) public virtual override returns (bool) {
+     function transferFrom(address from, address to, uint256 value) public virtual override returns (bool) {
         address spender = _msgSender();
         NumaStorage storage ns = numaStorage();
-        uint fee = ns.sellFeePercentage;
+        uint fee = ns.sellFeeBips;
         // spend allowance
         _spendAllowance(from, spender, value);
         // cancel fee for some spenders. Typically, this will be used for UniswapV2Router which is used when adding liquidity
-        if (ns.wlSpenders[spender])
+        if ((!ns.wlSpenders[spender]) && (fee > 0) && ns.isIncludedInFees[to])
         {
-            ns.sellFeePercentage = 0;
+           _transferWithFee(from, to, value, fee);
+        }
+        else
+        {
+            super._transfer(from,to,value);
         }
 
-        _transfer(from, to, value);
-        // put back fee after transfer
-        ns.sellFeePercentage = fee;
         return true;
     }
-
     function _transfer(address from, address to, uint256 amount) internal virtual override 
     {
         // uniswap sell fee
         NumaStorage storage ns = numaStorage();
-        uint fee = ns.sellFeePercentage;
+        uint fee = ns.sellFeeBips;
         // apply (burn) fee on some receivers. Typically, the UniswapV2Pair, to apply fee when selling on Uniswap.
-        if ((fee > 0) && ns.isIncludedInFees[to])
+        if ( (fee > 0) && ns.isIncludedInFees[to])
         {
-            uint256 amountToBurn = (amount*fee) / 100;
-            amount -= amountToBurn;
-            _burn(from,amountToBurn);
+            _transferWithFee(from,to,amount,fee);
+        }
+        else
+        {
+            super._transfer(from,to,amount);
         }
 
-        super._transfer(from,to,amount);
 
     }
+    function _transferWithFee(address from, address to, uint256 amount,uint256 fee) internal virtual  
+    {
+        uint256 amountToBurn = (amount*fee) / 10000;
+        amount -= amountToBurn;
+        _burn(from,amountToBurn);
+        super._transfer(from,to,amount);
+    }
+
 
     function _authorizeUpgrade(address newImplementation) internal onlyRole(UPGRADER_ROLE) override
     {
