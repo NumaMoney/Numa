@@ -1,0 +1,273 @@
+1) upgradeable erc20 project
+tester:
+
+ - mint
+ - burn
+ - 
+ - upgrade (cf article) --> remove fee test fee before and no fee after, tester que upgradable est revocable
+
+ - pool uniswap on sepolia
+    - avant upgrade 
+    - apres upgrade
+
+ 
+
+
+2) from offshift
+
+
+3) fee on transfer from 0 knowledge and dhold
+test on uniswap
+
+
+Notes:
+
+github
+
+matiere a article
+
+- openzeppelin tool
+- upgradable et hardhat plugin
+- tests hardhat
+- fee on transfer
+
+
+
+
+Questions:
+
+- owner ou roles: l'idée est que le mintpourrait être restreint au contrat numa
+mais la mise en pause un autre owner (multisig ou autre)
+
+(l'upgrade un autre ?)
+
+Notes:
+
+- _balance en protected est-ce le seul moyen de faire du fee on transfer
+
+
+- verfier que a la creation de la pool, on ne va pas burn les tokens (il y a un risque qu'on n'ai pas le choix, ou alors modifier le fee setting avant/apres)
+
+- swap ok on uniV2 mais il faut specifier un slippage de 10% (si tax de 10%)
+
+
+
+
+TODO: 
+
+- hardhat tests: test standarts, test upgrade, test fee before/After upgrade, test not upgradable anymore, test swap on uniswap etc...
+--> dire à drew que ça prendra du temps de faire des tests propres et bien finalisés
+
+
+
+
+
+nb hours: 
+jeudi 1.5
+vendredi 1.5
+
+mercredi 1.5
+
+
+vendredi 1
+
+mercredi 3
+jeudi 5
+
+
+
+
+
+
+
+
+
+
+
+******************************
+
+tarif horaire?: 50 ou 60
+Mardi 26/09 3h
+mercredi 1h
+jeudi 2h
+vendredi 2h
+
+
+
+
+
+
+
+************************************
+
+
+sushiswap:
+
+1) GOERLI
+retster sur goerli et si ça marche, checker que c'est la même archi sur arbritrum
+
+
+creation pool OK
+
+
+PB: uniswapV2Router est aussi utilisé pour swapper!
+
+--> KO goerli
+
+
+2) ARBITRUM GOERLI
+
+front marche pas?
+
+3) tests arbitrum
+
+magic/eth sur V2
+
+swap
+
+ajout liquidité
+
+
+OK devrait marcher marchera car même archi que univ2 et univ2 frontend 
+
+MAIS:
+
+- pas sur que le swap fonctionnera avec le front end car slippage à 10% et est-ce que le font end de sushi swap le permet?
+
+- possible de bypasser la fee en passant par le routerV2 (celui utilisé pour l'ajout de liquidité) mais technique (en code ou avec etherscan)
+
+mais ça j'avais déjà prévenu
+
+
+Conclusion:
+- si on ne veut pas que la fee soit bypassable du tout, il faudra que l'ajout de liquidité soit pénalisant aussi
+- il faudrait tester sur arbitrum que le swap fonctionne pour êrte sur à 100%
+
+
+*********************************************************
+
+
+
+ROADMAP - quote en temps et devis
+
+***************** Quote général
+
+Biggest contracts
+
+.\offshift\contracts\Oracle.sol                                                   26             29            192
+.\offshift\contracts\Verifier.sol                                                 30             49            139
+.\offshift\contracts\MerkleTreeWithHistory.sol                                    14             15            119
+.\offshift\contracts\XFTanon.sol                                                   8              2            112
+.\offshift\contracts\Interfaces\INonfungiblePositionManager.sol                   15             76             96
+.\offshift\contracts\Shifter.sol                                                  15             32             88
+.\offshift\contracts\Storage.sol                                                  17              3             57
+.\offshift\contracts\Interfaces\IQuoterV2.sol                                      6             42             50
+.\offshift\contracts\Interfaces\ISwapRouter.sol                                    9             15             43
+.\offshift\contracts\Interfaces\IOracle.sol                                        7              4             38
+.\offshift\contracts\TokenSwap.sol                                                 4              1             38
+
+
+TODO: 
+
+- check luna tokenomics
+- check jrt tokenomics
+
+
+***************** Work start
+
+16/10/2023 start
+
+
+
+***************** Quote / liste Drew
+
+
+
+
+- Burn $NUMA to mint either $nuUSD or $nuBTC
+
+- Burn either $nuUSD or $nuBTC to mint $NUMA 
+
+- More currencies will come in the future, so we need to be prepared for that
+
+- Chainlink should be used as an oracle
+
+
+- Charge 0.3% fee for any minting transaction, paid in either nu money or $NUMA, depending on which token is being burnt. The tokens that are collected as fees should be permanently burnt. 
+
+***** + 3 weeks
+***** + 2 weeks for tests
+
+- We need arbitrage functions that are exempt from these fees, too. There should be two arbitrage transactions for each nu money:
+    - To bring the price down: ETH>NUMA>nuUSD>ETH
+    - To bring the price up: ETH>nuUSD>NUMA>ETH
+
+- The arbitrage dashboard should display the current prices of each nu money. The interface will only present the arbitrage transactions that are currently available. Eg.
+ if the price of nuUSD is $1.01, it will present the user with the ability to bring the price down and vice versa.
+  There should be two of these interfaces displayed at all times (nuBTC and nuUSD)
+
+- Add LP - users should be able to add LP for either the NUMA/ETH pool or one of the nu money pools, such as nuUSD/ETH. This shouldn’t charge a tax.
+
+--> note xcz: si on fait les add liquidity nous-même --> nécessite du temps (+2 semaines)
+
+
+***** + 1.5 weeks for arbs
+***** + 1.5 weeks if specific functions to add liquidity
+***** + 2 weeks for tests
+
+
+
+- Stake LP token for rewards - users should be able to stake their LP tokens for rewards, which will be paid in $NUMA. 
+
+- Unstake LP token and claim rewards simultaneously 
+
+- Claim rewards without unstaking LP token 
+
+
+***** + 2 weeks 
+***** + 1 weeks for tests
+
+- Synthetic swaps - the user should be able to swap between any two nu money. For example, the user should be able to go $nuUSD to $nuBTC and vice versa. 
+The user will be able to do this between any of the synthetics we release in the future, too. Importantly, they should only pay the 0.3% fee one time.
+ I imagine that the transaction will have to go nuUSD>NUMA>nuBTC, but let me know if we have any other options here. 
+
+***** + 1 weeks 
+***** + 1 weeks for tests
+
+
+- This is a lower priority, so let me know how much effort this would take: Users should be able to mint nu money from ETH.
+ That means that our interface should allow the user to select ETH as the input, and it will automatically buy NUMA and then burn it and mint whatever nu money they select. 
+ So the transaction is ETH>NUMA>nu money. Let me know how difficult this is. 
+
+***** + 0.5 weeks 
+***** + 0.5 weeks for tests
+
+
+- I think I told you that we had an issue with Gigaswap where a friend of mine lost $10k in ETH? I have been in contact with the founder, and he said he doesn’t have the money
+ to pay me back right now, so he’s doing some work for us on the dapp to pay it off.
+  He’s writing it in vue, which I hope is ok? I attached a couple screenshots of the work he’s completed so far. 
+  Do I need to connect you guys to talk about anything? Or will we simply have him deliver the code, and we’ll figure out what to do with it on our end? 
+
+
+
+
+
+*******************
+
+- pas mal de diffs avec offshift: pas de notion de hash/notes/merkle --> utilisé pour la partie privacy
+--> plus simple mais aussi différent donc pas vraiment un fork
+
+- leur oracle utilise des pools uniswap V3, comment Drew veut il gérer l'oracle? chainlink? si oui pareil ça modifie 
+modifie pas mal le code
+
+
+- arbitrage function that brings the price up will suffer our sell tax, should we try to whitelist it?
+
+- abritrage interface --> this is front-end job mostly
+
+- add LP, I think we should implement our own functions so that we are sure it's whitelisted and ALL sell are blacklisted
+
+
+- Synthetic swaps --> will go through burn/min, am-I right?
+
+- mint nuMoney from Eth --> presque pareil que arb (bring price down)? --> should be easy

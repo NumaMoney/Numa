@@ -6,11 +6,11 @@ async function main () {
 
 
     // token address
-    let deployedAddress = "0x15B2F0Df5659585b3030274168319185CFC9a9f4";
+    let deployedAddress = "0x1521c67fDFDb670fa21407ebDbBda5F41591646c";
     // uniswap pair that will trigger fee when receiver
-    let pairAddress = "0xbD6C83365410AAe54d6dbafb7D813C55e2d72F58";
+    let pairAddress = "0x58293Da3cA7c9F9c28d503036d1A8f335A2b0Bc3";
     // uniswap V2 router that is whitelisted as a spend (for adding liquidity)
-    let uniswapV2Router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+    let uniswapV2Router = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
 
     // we can use following code if we use an already deployed version
     const contract = await Numa.attach(
