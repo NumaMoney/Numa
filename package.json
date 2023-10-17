@@ -13,6 +13,7 @@
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.2",
     "@nomicfoundation/hardhat-ledger": "^1.0.1",
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@nomicfoundation/hardhat-verify": "^1.1.1",
     "@onmychain/hardhat-uniswap-v2-deploy-plugin": "^1.0.4",
     "dotenv": "^16.3.1",
     "hardhat": "^2.17.2"
