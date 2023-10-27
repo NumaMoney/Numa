@@ -114,11 +114,14 @@ contract NumaOracle is Ownable {
        
             require(_intervalLong > intervalShort, "intervalLong must be longer than intervalShort");
             
+           
+
             //Spot price of the token
             (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
 
             //TWAP prices for short and long intervals
             uint160 sqrtPriceX96Short = getV3SqrtPriceAvg(uniswapV3Pool, _intervalShort);
+
             uint160 sqrtPriceX96Long = getV3SqrtPriceAvg(uniswapV3Pool, _intervalLong);
 
 
@@ -143,16 +146,18 @@ contract NumaOracle is Ownable {
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = _interval; // from (before)
         secondsAgo[1] = 0; // to (now)
+       
         (int56[] memory tickCumulatives, ) = IUniswapV3Pool(uniswapV3Pool).observe(secondsAgo);
+
         // tick(imprecise as it's an integer) to sqrtPriceX96
         return TickMath.getSqrtRatioAtTick(int24((tickCumulatives[1] - tickCumulatives[0]) / int56(int32(_interval))));// TODO: added the int56(int32( cast, check it
-
     }
 
 
     //Uses getTokensForAmountCeiling to round up number of NUMA burned
-    function getCost(uint256 _amount, address _chainlinkFeed, address _numaPool) external view returns (uint256) {
-        return getTokensForAmountCeiling(_numaPool, intervalShort, intervalLong, _chainlinkFeed, _amount, weth9);
+    function getCost(uint256 _amount, address _chainlinkFeed, address _numaPool) external view returns (uint256) 
+    {       
+       return getTokensForAmountCeiling(_numaPool, intervalShort, intervalLong, _chainlinkFeed, _amount, weth9);
     }
 
     // Uses mulDivRoundingUp instead of mulDiv. Will round up number of numa to be burned.
