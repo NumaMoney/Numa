@@ -1,32 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "../interfaces/INuAsset.sol";
 
-contract nuUSD is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
+contract nuUSD is INuAsset {
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize() initializer public {
-        __ERC20_init("nuUSD", "NUSD");
+    function initialize(address defaultAdmin, address minter, address upgrader) initializer public virtual override
+    {
+        __ERC20_init("NuUSD", "NUSD");
         __ERC20Burnable_init();
-        __Ownable_init();
+        __AccessControl_init();
         __UUPSUpgradeable_init();
-    }
 
-    function mint(address to, uint256 amount) public onlyOwner {
-        _mint(to, amount);
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+        _grantRole(MINTER_ROLE, minter);
+        _grantRole(UPGRADER_ROLE, upgrader);
     }
-
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        onlyOwner
-        override
-    {}
 }

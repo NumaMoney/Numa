@@ -19,8 +19,12 @@ module.exports = {
       {
         version: "0.8.20",
       },
+      {
+        version: "0.8.0",
+      },
     ],
   },
+  defaultNetwork: "goerli",
   networks: {
     sepolia: {
       url: process.env.URL,
@@ -30,13 +34,10 @@ module.exports = {
       url: process.env.URL2,
       accounts: [process.env.PKEY],
     },
-    arbitest: {
-      url: process.env.URL3,
-      accounts: [process.env.PKEY],
-    },
+
     hardhat: {
       forking: {
-        url: "https://arbitrum-mainnet.infura.io/v3/916abfc599974040abfd299a6889c49d",
+        url: process.env.URL4,
       }
     }
   },
