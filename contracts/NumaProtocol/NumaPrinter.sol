@@ -94,7 +94,7 @@ contract NumaPrinter is Pausable, Ownable
 
     function getCost(uint256 _amount) public view returns (uint256,uint256) 
     {
-        uint256 cost = oracle.getCost(_amount, chainlinkFeed, numaPool);
+        uint256 cost = oracle.getNbOfNumaNeeded(_amount, chainlinkFeed, numaPool);
         // print fee
         uint256 amountToBurn = (_amount*printAssetFeeBps) / 10000;
         return (cost,amountToBurn);
@@ -103,7 +103,7 @@ contract NumaPrinter is Pausable, Ownable
     // TODO: rename
     function getNumaFromAsset(uint256 _amount) public view returns (uint256,uint256) 
     {
-        uint256 _output = oracle.getCostSimpleShift(_amount, chainlinkFeed, numaPool, tokenPool);
+        uint256 _output = oracle.getNbOfNumaFromAsset(_amount, chainlinkFeed, numaPool, tokenPool);
         // burn fee                
         uint256 amountToBurn = (_output*burnAssetFeeBps) / 10000;
         return (_output,amountToBurn);
