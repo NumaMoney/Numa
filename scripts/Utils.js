@@ -34,7 +34,7 @@ let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungib
   }
   else 
   {
-      price = BigInt(2**96/sqrtPrice)
+      price = BigInt(2**96/sqrtPrice);
   }
 
   await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee, price)

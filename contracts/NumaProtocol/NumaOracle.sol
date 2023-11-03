@@ -7,7 +7,7 @@ import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
+import "hardhat/console.sol";
 contract NumaOracle is Ownable {
     address public immutable weth9;
     uint32 public intervalShort;
@@ -59,7 +59,7 @@ contract NumaOracle is Ownable {
         uint160 sqrtPriceX96Short = getV3SqrtPriceAvg(uniswapV3Pool, _intervalShort);
         uint160 sqrtPriceX96Long = getV3SqrtPriceAvg(uniswapV3Pool, _intervalLong);
 
-        //Takes the lowest token price denominated in WETH
+        //Takes the biggest token price denominated in WETH
         //Condition checks to see if WETH is in denominator of pair, ie: token1/token0
         if (IUniswapV3Pool(uniswapV3Pool).token0() == weth9) {
             sqrtPriceX96 = (sqrtPriceX96Long <= sqrtPriceX96Short ? sqrtPriceX96Long : sqrtPriceX96Short);
@@ -109,34 +109,35 @@ contract NumaOracle is Ownable {
         return uint256(price);
     }
 
+    // TODO: rename (something with "min")
     function getV3SqrtPrice(address uniswapV3Pool, uint32 _intervalShort, uint32 _intervalLong) public view returns (uint160 sqrtPriceX96) 
     {
+    
+        require(_intervalLong > intervalShort, "intervalLong must be longer than intervalShort");
+        
        
-            require(_intervalLong > intervalShort, "intervalLong must be longer than intervalShort");
-            
-           
 
-            //Spot price of the token
-            (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
+        //Spot price of the token
+        (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
 
-            //TWAP prices for short and long intervals
-            uint160 sqrtPriceX96Short = getV3SqrtPriceAvg(uniswapV3Pool, _intervalShort);
+        //TWAP prices for short and long intervals
+        uint160 sqrtPriceX96Short = getV3SqrtPriceAvg(uniswapV3Pool, _intervalShort);
 
-            uint160 sqrtPriceX96Long = getV3SqrtPriceAvg(uniswapV3Pool, _intervalLong);
+        uint160 sqrtPriceX96Long = getV3SqrtPriceAvg(uniswapV3Pool, _intervalLong);
 
 
 
-            //Takes the lowest token price denominated in WETH
-            //Condition checks to see if WETH is in denominator of pair, ie: token1/token0
-            if (IUniswapV3Pool(uniswapV3Pool).token0() == weth9) {
-                sqrtPriceX96 = (sqrtPriceX96Long >= sqrtPriceX96Short ? sqrtPriceX96Long : sqrtPriceX96Short);
-                sqrtPriceX96 = (sqrtPriceX96 >= sqrtPriceX96Spot ? sqrtPriceX96 : sqrtPriceX96Spot);
-            } else {
-                sqrtPriceX96 = (sqrtPriceX96Long <= sqrtPriceX96Short ? sqrtPriceX96Long : sqrtPriceX96Short);
-                sqrtPriceX96 = (sqrtPriceX96 <= sqrtPriceX96Spot ? sqrtPriceX96 : sqrtPriceX96Spot);
-            }
-            return sqrtPriceX96;
+        //Takes the lowest token price denominated in WETH
+        //Condition checks to see if WETH is in denominator of pair, ie: token1/token0
+        if (IUniswapV3Pool(uniswapV3Pool).token0() == weth9) {
+            sqrtPriceX96 = (sqrtPriceX96Long >= sqrtPriceX96Short ? sqrtPriceX96Long : sqrtPriceX96Short);
+            sqrtPriceX96 = (sqrtPriceX96 >= sqrtPriceX96Spot ? sqrtPriceX96 : sqrtPriceX96Spot);
+        } else {
+            sqrtPriceX96 = (sqrtPriceX96Long <= sqrtPriceX96Short ? sqrtPriceX96Long : sqrtPriceX96Short);
+            sqrtPriceX96 = (sqrtPriceX96 <= sqrtPriceX96Spot ? sqrtPriceX96 : sqrtPriceX96Spot);
         }
+        return sqrtPriceX96;
+    }
 
     //Helper function to fetch average price over an interval
     //Will revert if interval is older than oldest pool observation
@@ -145,7 +146,7 @@ contract NumaOracle is Ownable {
         //Returns TWAP prices for short and long intervals
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = _interval; // from (before)
-        secondsAgo[1] = 0; // to (now)
+        secondsAgo[1] = 0; // to (now) 
        
         (int56[] memory tickCumulatives, ) = IUniswapV3Pool(uniswapV3Pool).observe(secondsAgo);
 
@@ -162,16 +163,17 @@ contract NumaOracle is Ownable {
 
     // Uses mulDivRoundingUp instead of mulDiv. Will round up number of numa to be burned.
     function getTokensForAmountCeiling(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount,  address _weth9) public view returns (uint256)
-     {
+    {
        
         uint160 sqrtPriceX96 = getV3SqrtPrice(_pool, _intervalShort, _intervalLong);
       
         uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
         uint256 denominator = (numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96);
         //numa per ETH, times _amount
+        // TODO xcz: why the 2nd denominator usage???
         uint256 numaPerETH = FullMath.mulDivRoundingUp(FullMath.mulDivRoundingUp(numerator, numerator, denominator), _amount, denominator);
 
-       
+       console.log(numaPerETH);
 
         if (_chainlinkFeed == address(0)) return numaPerETH;// TODO: ?? why? dangerous no?
         uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
@@ -180,10 +182,12 @@ contract NumaOracle is Ownable {
         //if ETH is on the left side of the fraction in the price feed
         if (ethLeftSide(_chainlinkFeed))
         {
+             console.log("here");
             tokensForAmount = FullMath.mulDivRoundingUp(numaPerETH, 10**decimalPrecision, linkFeed);
         }
         else
         {
+             console.log("there");
             tokensForAmount = FullMath.mulDivRoundingUp(numaPerETH, linkFeed, 10**decimalPrecision);
         }
         return tokensForAmount;
@@ -226,16 +230,15 @@ contract NumaOracle is Ownable {
 
     function getCostSimpleShift(uint256 _amount, address _chainlinkFeed, address _numaPool, address _tokenPool) external view returns (uint256) {
         uint256 _output;
-        
-        // TODO: flexfeepool etc...
-        // TODO: not working for now: hardhat error
-        // if (isTokenBelowThreshold(flexFeeThreshold, _tokenPool, intervalShort, intervalLong, _chainlinkFeed, weth9)) 
-        // {
-        //   _output = getTokensRaw(_numaPool, _tokenPool, intervalShort, intervalLong, _amount, weth9);
-        // } 
-        // else {
+    
+        if (isTokenBelowThreshold(flexFeeThreshold, _tokenPool, intervalShort, intervalLong, _chainlinkFeed, weth9)) 
+        {
+          _output = getTokensRaw(_numaPool, _tokenPool, intervalShort, intervalLong, _amount, weth9);
+        } 
+        else 
+        {
           _output = getTokensForAmountSimpleShift(_numaPool, intervalShort, intervalLong, _chainlinkFeed, _amount, weth9);
-        //}
+        }
         return _output;
     }
 

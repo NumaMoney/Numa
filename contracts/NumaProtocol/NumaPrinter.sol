@@ -119,7 +119,7 @@ contract NumaPrinter is Pausable, Ownable
         // how much numa should we burn to get this nuAsset amount
         uint256 numaCost;
         uint256 numaFee;
-        (numaCost,numaFee) = getCost(_amount);// TODO
+        (numaCost,numaFee) = getCost(_amount);
 
         uint256 depositCost = numaCost + numaFee;
 

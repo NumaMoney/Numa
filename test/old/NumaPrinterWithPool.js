@@ -1,5 +1,5 @@
-const { getPoolData, initPoolETH, addLiquidity, weth9, artifacts } = require("../scripts/Utils.js");
-const { deployPrinterTestFixture,config } = require("./NumaPrinterTestFixture.js");
+const { getPoolData, initPoolETH, addLiquidity, weth9, artifacts } = require("../../scripts/Utils.js");
+const { deployPrinterTestFixture,config } = require("../fixtures/old/NumaPrinterTestFixture.js");
 const { time, loadFixture, } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");

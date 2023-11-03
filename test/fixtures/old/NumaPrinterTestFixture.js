@@ -1,13 +1,12 @@
-const { getPoolData,initPoolETH,initPool,addLiquidity,weth9,artifacts } = require("../scripts/Utils.js");
-const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { getPoolData,initPoolETH,addLiquidity,weth9,artifacts } = require("../../../scripts/Utils.js");
 const fs = require('fs');
 //const configRelativePath = fs.existsSync('./configTestSepolia.json') ? './configTestSepolia.json' : '../configTestSepolia.json';
-const configRelativePath = '../configTestSepolia.json';
+const configRelativePath = '../../configTestSepolia.json';
 const config = require(configRelativePath);
 
 
 
-let {WETH_ADDRESS,FACTORY_ADDRESS,
+let {NUMA_ADDRESS,UNIV3_NUMAETH_ADDRESS,WETH_ADDRESS,FACTORY_ADDRESS,
   POSITION_MANAGER_ADDRESS,PRICEFEEDETHUSD,INTERVAL_SHORT,INTERVAL_LONG,FLEXFEETHRESHOLD} = config;
 
 async function deployPrinterTestFixture() {
@@ -36,6 +35,16 @@ async function deployPrinterTestFixture() {
 
      [signer,signer2] = await ethers.getSigners();
 
+     //  impersonating NUMA deployer's account on Sepolia
+     let deployerAddress = "0x6aeC8F3EeA17D903CCEcbC4FA9aAB67Fa1F0D264";
+     await network.provider.request({
+       method: "hardhat_impersonateAccount",
+       params: [deployerAddress],
+     });
+     // get associated signer
+     numaOwner = await ethers.getSigner(deployerAddress);
+
+
 
      // TODO: move parameters in fixture/config
      // Min and Max tick numbers, as a multiple of 60
@@ -52,80 +61,10 @@ async function deployPrinterTestFixture() {
      nonfungiblePositionManager = await hre.ethers.getContractAt(artifacts.NonfungiblePositionManager.abi, POSITION_MANAGER_ADDRESS);
      wethContract = await hre.ethers.getContractAt(weth9.WETH9.abi, WETH_ADDRESS);
 
-          // get pool price from chainlink USD/ETH PRICEFEEDETHUSD
-          let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, PRICEFEEDETHUSD);
-          let latestRoundData = await chainlinkInstance.latestRoundData();
-          let latestRoundPrice = Number(latestRoundData.answer);
-          let decimals = Number(await chainlinkInstance.decimals());
-          let price = latestRoundPrice / 10**decimals;
-          console.log(`Chainlink Price USD/ETH: ${price}`)
      
-          // get some weth
-          await wethContract.connect(signer).deposit({
-            value: ethers.parseEther('100'),
-          });
-
-          const factory = await hre.ethers.getContractAt(artifacts.UniswapV3Factory.abi, FACTORY_ADDRESS);
-
-     
-     // *** Numa deploy
-     const Numa = await ethers.getContractFactory('NUMA')
-     numa = await upgrades.deployProxy(
-       Numa,
-         [],
-         {
-             initializer: 'initialize',
-             kind:'uups'
-         }
-     )
-     await numa.waitForDeployment();
- 
-     await numa.mint(
-         signer.getAddress(),
-         ethers.parseEther("10000000.0")
-      );
-
-      numaOwner  = signer;
-     let numa_address = await numa.getAddress();
-
-      // numa at 0.5 usd     
-      let EthPriceInNuma = price * 2;
-      // create numa/eth univ3 pool
-     await initPool(WETH_ADDRESS,numa_address,_fee,EthPriceInNuma,nonfungiblePositionManager);
-
-     // 10 ethers
-     let nbEthers = 10;
-     let EthAmountNumaPool = ethers.parseEther(nbEthers.toString());
-     let NumaAmountNumaPool = ethers.parseEther((nbEthers * EthPriceInNuma).toString());
-
-      
-     await addLiquidity(
-         WETH_ADDRESS,
-         numa_address,
-         wethContract,
-         numa,
-         _fee,
-         tickMin,
-         tickMax,
-         EthAmountNumaPool,
-         NumaAmountNumaPool,
-         BigInt(0),
-         BigInt(0),
-         signer,
-         defaultTimestamp,
-         nonfungiblePositionManager
-       );
-
-    
-       let NUMA_ETH_POOL_ADDRESS = await factory.getPool(
-         WETH_ADDRESS,
-         numa_address,
-         _fee,
-       );
-      
-       const poolContractNuma = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
-       const poolDataNuma = await getPoolData(poolContractNuma);
-       console.log(poolDataNuma);
+     // *** Numa get from fork
+     const Numa = await ethers.getContractFactory('NUMA');
+     numa =  await Numa.attach(NUMA_ADDRESS);
 
      // *** nuUSD deploy
      const NuUSD = await ethers.getContractFactory('nuUSD');
@@ -143,6 +82,17 @@ async function deployPrinterTestFixture() {
      await nuUSD.waitForDeployment();
      NUUSD_ADDRESS = await nuUSD.getAddress();
 
+   
+
+     // get pool price from chainlink USD/ETH PRICEFEEDETHUSD
+     let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, PRICEFEEDETHUSD);
+     let latestRoundData = await chainlinkInstance.latestRoundData();
+     let latestRoundPrice = Number(latestRoundData.answer);
+     let decimals = Number(await chainlinkInstance.decimals());
+     let price = latestRoundPrice / 10**decimals;
+     console.log(`Chainlink Price USD/ETH: ${price}`)
+
+
 
      // Create nuUSD/ETH pool 
      await initPoolETH(WETH_ADDRESS,NUUSD_ADDRESS,_fee,price,nonfungiblePositionManager);
@@ -153,6 +103,10 @@ async function deployPrinterTestFixture() {
      let USDAmount = 10*price;
      USDAmount = ethers.parseEther(USDAmount.toString());
 
+     // get some weth
+     await wethContract.connect(signer).deposit({
+         value: ethers.parseEther('100'),
+       });
 
      // TODO: get nuUSD from printer before setting pool 
      // ... or not, here we only want to test printer
@@ -179,6 +133,7 @@ async function deployPrinterTestFixture() {
          nonfungiblePositionManager
        );
 
+       const factory = await hre.ethers.getContractAt(artifacts.UniswapV3Factory.abi, FACTORY_ADDRESS);
 
        NUUSD_ETH_POOL_ADDRESS = await factory.getPool(
          WETH_ADDRESS,
@@ -195,9 +150,9 @@ async function deployPrinterTestFixture() {
        await oracle.waitForDeployment();
        oracleAddress = await oracle.getAddress();
 
-       // Deploy printerUSD      
+       // Deploy printerUSD
        moneyPrinter = await ethers.deployContract("NumaPrinter",
-       [numa_address,NUUSD_ADDRESS,NUMA_ETH_POOL_ADDRESS,oracleAddress,PRICEFEEDETHUSD]);
+       [NUMA_ADDRESS,NUUSD_ADDRESS,UNIV3_NUMAETH_ADDRESS,oracleAddress,PRICEFEEDETHUSD]);
        await moneyPrinter.waitForDeployment();
        MONEY_PRINTER_ADDRESS = await moneyPrinter.getAddress();
 
@@ -214,20 +169,7 @@ async function deployPrinterTestFixture() {
         await nuUSD.connect(signer).grantRole(roleMinter, MONEY_PRINTER_ADDRESS);// owner is NuUSD deployer
         // set printer as a NUMA minter
         await numa.connect(numaOwner).grantRole(roleMinter, MONEY_PRINTER_ADDRESS);// signer is Numa deployer
-
-
-        // IMPORTANT: for the uniswap V3 avg price calculations, we need this
-        // or else it will revert
-
-        // Get the pools to be as old as INTERVAL_LONG    
-        //await advanceTimeAndBlock(INTERVAL_LONG)
-        // advance time by N sec and mine a new block
-        await time.increase(1800);
-        let cardinality = 10;
-        await poolContractNuma.increaseObservationCardinalityNext(cardinality);
-        await poolContract.increaseObservationCardinalityNext(cardinality);
-
-        return { signer,signer2, numaOwner, numa,NUMA_ETH_POOL_ADDRESS, nuUSD,NUUSD_ADDRESS,NUUSD_ETH_POOL_ADDRESS,moneyPrinter,MONEY_PRINTER_ADDRESS,nonfungiblePositionManager,
+        return { signer,signer2, numaOwner, numa, nuUSD,NUUSD_ADDRESS,NUUSD_ETH_POOL_ADDRESS,moneyPrinter,MONEY_PRINTER_ADDRESS,nonfungiblePositionManager,
             wethContract,oracleAddress,numaAmount };
 }
 

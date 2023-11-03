@@ -2,7 +2,7 @@
 // en l'affectant au printer
 
 
-const { deployPrinterTestFixture,config } = require("./NumaPrinterTestFixtureDeployNuma.js");
+const { deployPrinterTestFixture,config } = require("./fixtures/NumaPrinterTestFixtureDeployNuma.js");
 const { time, loadFixture, } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
