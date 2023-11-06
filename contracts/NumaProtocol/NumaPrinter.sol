@@ -9,7 +9,9 @@ import "../interfaces/INumaOracle.sol";
 
 import "hardhat/console.sol";
 
-
+/// @title NumaPrinter
+/// @notice Responsible for minting/burning Numa for nuAsset
+/// @dev 
 contract NumaPrinter is Pausable, Ownable
 {
 
@@ -51,38 +53,60 @@ contract NumaPrinter is Pausable, Ownable
         _pause();
     }
 
-    function setChainlinkFeed(address _chainlinkFeed) external onlyOwner whenNotPaused 
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /**
+     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     */   
+    function setChainlinkFeed(address _chainlinkFeed) external onlyOwner  
     {
         chainlinkFeed = _chainlinkFeed;
         emit SetChainlinkFeed(_chainlinkFeed); 
     }
     
-    function setOracle(INumaOracle _oracle) external onlyOwner whenNotPaused 
+    /**
+     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     */       
+    function setOracle(INumaOracle _oracle) external onlyOwner  
     {
         oracle = _oracle;
         emit SetOracle(address(_oracle));
     }
 
-    function setNumaPool(address _numaPool) external onlyOwner whenNotPaused 
+    /**
+     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     */   
+    function setNumaPool(address _numaPool) external onlyOwner  
     {
         numaPool = _numaPool;
         emit SetNumaPool(address(_numaPool));
     }
 
-    function setTokenPool(address _tokenPool) external onlyOwner whenNotPaused 
+    /**
+     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     */   
+    function setTokenPool(address _tokenPool) external onlyOwner  
     {
         tokenPool = _tokenPool;
         emit SetTokenPool(address(_tokenPool));
     }
 
-    function setPrintAssetFeeBps(uint _printAssetFeeBps) external onlyOwner whenNotPaused 
+    /**
+     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     */   
+    function setPrintAssetFeeBps(uint _printAssetFeeBps) external onlyOwner  
     {
         require(_printAssetFeeBps <= 10000, "Fee percentage must be 100 or less");
         printAssetFeeBps = _printAssetFeeBps;
         emit PrintAssetFeeBps(_printAssetFeeBps);
     }
 
-    function setBurnAssetFeeBps(uint _burnAssetFeeBps) external onlyOwner whenNotPaused 
+    /**
+     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     */   
+    function setBurnAssetFeeBps(uint _burnAssetFeeBps) external onlyOwner  
     {
         require(_burnAssetFeeBps <= 10000, "Fee percentage must be 100 or less");
         burnAssetFeeBps = _burnAssetFeeBps;
@@ -92,16 +116,15 @@ contract NumaPrinter is Pausable, Ownable
 
 
 
-    function getCost(uint256 _amount) public view returns (uint256,uint256) 
+    function getNbOfNumaNeededWithFee(uint256 _amount) public view returns (uint256,uint256) 
     {
         uint256 cost = oracle.getNbOfNumaNeeded(_amount, chainlinkFeed, numaPool);
         // print fee
-        uint256 amountToBurn = (_amount*printAssetFeeBps) / 10000;
+        uint256 amountToBurn = (cost*printAssetFeeBps) / 10000;
         return (cost,amountToBurn);
     }
 
-    // TODO: rename
-    function getNumaFromAsset(uint256 _amount) public view returns (uint256,uint256) 
+    function getNbOfNumaFromAssetWithFee(uint256 _amount) public view returns (uint256,uint256) 
     {
         uint256 _output = oracle.getNbOfNumaFromAsset(_amount, chainlinkFeed, numaPool, tokenPool);
         // burn fee                
@@ -119,7 +142,7 @@ contract NumaPrinter is Pausable, Ownable
         // how much numa should we burn to get this nuAsset amount
         uint256 numaCost;
         uint256 numaFee;
-        (numaCost,numaFee) = getCost(_amount);
+        (numaCost,numaFee) = getNbOfNumaNeededWithFee(_amount);
 
         uint256 depositCost = numaCost + numaFee;
 
@@ -143,7 +166,7 @@ contract NumaPrinter is Pausable, Ownable
         uint256 _output;
         uint256 amountToBurn;
 
-        (_output,amountToBurn) = getNumaFromAsset(_amount);
+        (_output,amountToBurn) = getNbOfNumaFromAssetWithFee(_amount);
 
         // burn amount
         nuAsset.burnFrom(msg.sender, _amount);

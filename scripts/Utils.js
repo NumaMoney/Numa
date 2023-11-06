@@ -10,7 +10,7 @@ const artifacts = {
 const weth9 = require('@ethereum-artifacts/weth9');
 
 
-let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungiblePositionManager) {
+let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungiblePositionManager,wethAddress) {
   // const pool = await IUniswapV3Pool.at(pool_) //Pool we're fetching init price from
   // const slot0 = await pool.slot0()
   // const price = slot0.sqrtPriceX96
@@ -26,9 +26,10 @@ let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungib
     token0 = token1_
   }
 
+
   let sqrtPrice = Math.sqrt(EthPriceInNuma_)
 
-  if (token0 === weth9) 
+  if (token0 === wethAddress) 
   {
       price = BigInt(sqrtPrice*2**96);
   }
@@ -37,29 +38,37 @@ let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungib
       price = BigInt(2**96/sqrtPrice);
   }
 
+
   await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee, price)
 }
 
 
-let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePositionManager) {
+let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePositionManager,wethAddress) {
   // Uniswap reverts pool initialization if you don't sort by address number, beware!
-  let sqrtPrice = Math.sqrt(price_)
-  let token0, token1, price
-  if (token1_ > token0_) {
+  let sqrtPrice = Math.sqrt(price_);
+  let token0, token1, price;
+
+  if (token1_ > token0_) 
+  {
     token1 = token1_
     token0 = token0_
-  } else {
-    token1 = token0_
-    token0 = token1_
-  }
-  if (token0 === weth9) 
-  {
-      price = BigInt(sqrtPrice*2**96);
   }
   else 
   {
-      price = BigInt(2**96/sqrtPrice)
+    token1 = token0_
+    token0 = token1_
   }
+
+  if (token0 === wethAddress) 
+  {
+      price = BigInt(sqrtPrice*2**96);
+     
+  }
+  else 
+  {
+      price = BigInt(2**96/sqrtPrice);
+  }
+ 
   await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee_, price)
 }
 

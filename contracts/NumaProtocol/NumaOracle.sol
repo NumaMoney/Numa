@@ -108,7 +108,7 @@ contract NumaOracle is Ownable
         (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(_uniswapV3Pool).slot0();
 
         //TWAP prices for short and long intervals
-        uint160 sqrtPriceX96Short = getV3SqrtPriceAvg(_uniswapV3Pool, _intervalShort);
+        uint160 sqrtPriceX96Short = getV3SqrtPriceAvg(_uniswapV3Pool, _intervalShort);        
         uint160 sqrtPriceX96Long = getV3SqrtPriceAvg(_uniswapV3Pool, _intervalLong);
         //Takes the lowest token price denominated in WETH
         //Condition checks to see if WETH is in denominator of pair, ie: token1/token0
@@ -224,12 +224,24 @@ contract NumaOracle is Ownable
      {
        
         uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
-      
+
+console.log(IUniswapV3Pool(_pool).token0());
+console.log(IUniswapV3Pool(_pool).token1());
+console.log("***");
+console.log(_weth9);
+console.log("***");
+
+
+      console.log(sqrtPriceX96);
+
         uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
+        console.log(numerator);
         uint256 denominator = (numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96);
+        console.log(denominator);
         //numa per ETH, times _amount
         uint256 numaPerETH = FullMath.mulDivRoundingUp(FullMath.mulDivRoundingUp(numerator, numerator, denominator), _amount, denominator);
-
+        
+        console.log(numaPerETH);
         if (_chainlinkFeed == address(0)) return numaPerETH;// TODO: ?? why? dangerous no?
         uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
         uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
@@ -243,6 +255,7 @@ contract NumaOracle is Ownable
         {
             tokensForAmount = FullMath.mulDivRoundingUp(numaPerETH, linkFeed, 10**decimalPrecision);
         }
+        console.log(tokensForAmount);
         return tokensForAmount;
     }
         

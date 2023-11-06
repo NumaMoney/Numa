@@ -34,7 +34,7 @@ async function deployPrinterTestFixture() {
 
 
 
-     [signer,signer2] = await ethers.getSigners();
+     [signer,signer2,signer3] = await ethers.getSigners();
 
 
      // TODO: move parameters in fixture/config
@@ -91,7 +91,7 @@ async function deployPrinterTestFixture() {
       // numa at 0.5 usd     
       let EthPriceInNuma = price * 2;
       // create numa/eth univ3 pool
-     await initPool(WETH_ADDRESS,numa_address,_fee,EthPriceInNuma,nonfungiblePositionManager);
+     await initPool(WETH_ADDRESS,numa_address,_fee,EthPriceInNuma,nonfungiblePositionManager,WETH_ADDRESS);
 
      // 10 ethers
      let nbEthers = 10;
@@ -128,7 +128,7 @@ async function deployPrinterTestFixture() {
       
        const poolContractNuma = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
        const poolDataNuma = await getPoolData(poolContractNuma);
-       console.log(poolDataNuma);
+      // console.log(poolDataNuma);
 
      // *** nuUSD deploy
      const NuUSD = await ethers.getContractFactory('nuUSD');
@@ -213,7 +213,7 @@ async function deployPrinterTestFixture() {
      
   
        // Create nuUSD/ETH pool 
-       await initPoolETH(WETH_ADDRESS,NUUSD_ADDRESS,_fee,price,nonfungiblePositionManager);
+       await initPoolETH(WETH_ADDRESS,NUUSD_ADDRESS,_fee,price,nonfungiblePositionManager,WETH_ADDRESS);
   
        // 10 ethers
        let EthAmount = "10000000000000000000";
@@ -294,8 +294,8 @@ async function deployPrinterTestFixture() {
        await poolContract.increaseObservationCardinalityNext(cardinality);
 
 
-        return { signer,signer2, numaOwner, numa,NUMA_ETH_POOL_ADDRESS, nuUSD,NUUSD_ADDRESS,NUUSD_ETH_POOL_ADDRESS,moneyPrinter,MONEY_PRINTER_ADDRESS,nonfungiblePositionManager,
-            wethContract,oracleAddress,numaAmount };
+        return { signer,signer2, signer3,numaOwner, numa,NUMA_ETH_POOL_ADDRESS, nuUSD,NUUSD_ADDRESS,NUUSD_ETH_POOL_ADDRESS,moneyPrinter,MONEY_PRINTER_ADDRESS,nonfungiblePositionManager,
+            wethContract,oracleAddress,numaAmount,cardinality  };
 }
 
 

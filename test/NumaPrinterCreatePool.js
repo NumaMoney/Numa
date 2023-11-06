@@ -8,7 +8,7 @@ const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 const { upgrades } = require("hardhat");
 
-// ********************* Numa printer test using sepolia fork for chainlink & numa/ETH univ3 pool *************************
+// ********************* Numa printer test using sepolia fork for chainlink *************************
 
 
 
@@ -40,6 +40,7 @@ describe('NUMA NUASSET PRINTER', function () {
   
     signer = testData.signer;
     signer2 = testData.signer2;
+    signer3 = testData.signer3;
     numaOwner = testData.numaOwner;
     numa = testData.numa;
     nuUSD = testData.nuUSD;
@@ -77,54 +78,89 @@ describe('NUMA NUASSET PRINTER', function () {
     // Minting nuUSD
     // how many numa should be burnt to get 1000 dollars
     let amount = ethers.parseEther('1000');
-    let costs = await moneyPrinter.getCost(amount);
+    let costs = await moneyPrinter.getNbOfNumaNeededWithFee(amount);
+    console.log(costs);
 
-    // TODO: how to check the values
-    // we can setup our price on our local NUMA/ETH pool
-    // but for we will need to handle complex cases also (avg, lower tick, etc...)
-    // we need to compute it manually and check results to be sure (cf oracle tests and oracle documentation)
+    // 1 Numa epsilon as Numa is 50 cts for our tests
+    const epsilon = ethers.parseEther('1');//BigInt(1); 
+    const epsilonFee = ethers.parseEther('0.01');//BigInt(1);
+
+    // Now, compare the result with a tolerance (epsilon)
+    const expectedValue =  ethers.parseEther('2000');
+    expect(costs[0]).to.be.closeTo(expectedValue, epsilon);
+
+    const expectedValueFee =  costs[0]*BigInt(500)/BigInt(10000);
+    expect(costs[1]).to.be.closeTo(expectedValueFee, epsilonFee);
 
     // Burning nuUSD, how many numas would we get back
-    let numaQuantity = await moneyPrinter.getNumaFromAsset(amount);
+    let numaQuantity = await moneyPrinter.getNbOfNumaFromAssetWithFee(amount);
+    console.log(numaQuantity);
+
+    // 1 Numa epsilon as Numa is 50 cts for our tests
+    const epsilon2 = ethers.parseEther('1');//BigInt(1); 
+    const epsilon2Fee = ethers.parseEther('0.01');//BigInt(1);
+
+    // Now, compare the result with a tolerance (epsilon)
+    const expectedValue2 =  costs[0];
+    expect(numaQuantity[0]).to.be.closeTo(expectedValue2, epsilon2);
+
+    const expectedValueFee2 =  numaQuantity[0]*BigInt(800)/BigInt(10000);
+    expect(numaQuantity[1]).to.be.closeTo(expectedValueFee2, epsilon2Fee);
   });
 
 
   it('Should be able to mint nuUSD with fee', async function () {
     // Minting nuUSD       
     let amount = ethers.parseEther('1000');
-    let costs = await moneyPrinter.getCost(amount);
+    let costs = await moneyPrinter.getNbOfNumaNeededWithFee(amount);
+
+    await expect(moneyPrinter.connect(signer2).mintAssetFromNuma(amount, signer2.getAddress()))
+    .to.be.reverted;// insufficient balance
+
 
     // transfer numa to signer
-    await numa.connect(numaOwner).transfer(signer.getAddress(), numaAmount);
+    await numa.connect(numaOwner).transfer(signer2.getAddress(), numaAmount);
 
-    let balanceNumaBefore = await numa.balanceOf(signer.getAddress());
-    // expect(balanceNuma).to.equal(numaAmount);
+    let balanceNumaBefore = await numa.balanceOf(signer2.getAddress());
+    expect(balanceNumaBefore).to.equal(numaAmount);
+
+    await expect(moneyPrinter.connect(signer2).mintAssetFromNuma(amount, signer2.getAddress()))
+    .to.be.reverted;// insufficient allowance
 
     // signer has to approve Numa to be burnt
     let approvalAmount = ethers.parseEther(numaAmount.toString());
+    await numa.connect(signer2).approve(MONEY_PRINTER_ADDRESS, approvalAmount);
 
-    await numa.connect(signer).approve(MONEY_PRINTER_ADDRESS, approvalAmount);
-
-    await expect(moneyPrinter.mintAssetFromNuma(amount, signer2.getAddress()))
+    await expect(moneyPrinter.connect(signer2).mintAssetFromNuma(amount, signer2.getAddress()))
       .to.emit(moneyPrinter, "AssetMint").withArgs(await nuUSD.getAddress(), amount)
       .to.emit(moneyPrinter, "PrintFee").withArgs(costs[1]);
 
-    balanceNuma = await numa.balanceOf(signer.getAddress());
+    balanceNuma = await numa.balanceOf(signer2.getAddress());
     let balanceNuUSD = await nuUSD.balanceOf(signer2.getAddress());
 
     expect(balanceNuma).to.equal(balanceNumaBefore - costs[0] - costs[1]);
     expect(balanceNuUSD).to.equal(amount);
   });
 
-  it('Should be able to burn nuUSD with fee', async function () {
+  it('Should be able to burn nuUSD with fee', async function () 
+  {
+    let amount = ethers.parseEther('1000');
+    let approvalAmount = ethers.parseEther(amount.toString());
     let balanceNumaBefore = await numa.balanceOf(signer.getAddress());
 
     // burning nuUSD
-    let amount = ethers.parseEther('1000');
-    let numaToBeRedeemed = await moneyPrinter.getNumaFromAsset(amount);
+    let numaToBeRedeemed = await moneyPrinter.getNbOfNumaFromAssetWithFee(amount);
 
+    // testing insufficient balance with signer3
+    await nuUSD.connect(signer3).approve(MONEY_PRINTER_ADDRESS, approvalAmount);
+    await expect(moneyPrinter.connect(signer3).mintAssetFromNuma(amount, signer3.getAddress()))
+    .to.be.reverted;// insufficient balance
+
+
+    await expect(moneyPrinter.connect(signer2).burnAssetToNuma(amount, signer.getAddress()))
+    .to.be.reverted;// insufficient allowance
     // signer has to approve nuUSD to be burnt
-    let approvalAmount = ethers.parseEther(amount.toString());
+    
     await nuUSD.connect(signer2).approve(MONEY_PRINTER_ADDRESS, approvalAmount);
 
     await expect(moneyPrinter.connect(signer2).burnAssetToNuma(amount, signer.getAddress()))
@@ -172,14 +208,56 @@ describe('NUMA NUASSET PRINTER', function () {
 
   });
 
-  it('Others', async function () {
-    // TODO
-    // access control
-    // oracle values
-    // pausable
-    // insufficient balance
-    // recipients
-    // etc...
+  it('Should implement Pausable', async function () 
+  {
+    // pause
+    await expect( moneyPrinter.connect(signer).pause()).to.not.be.reverted;
+    
+    // test mint
+    let amount = ethers.parseEther('1000');
+    await expect(moneyPrinter.mintAssetFromNuma(amount, signer2.getAddress()))
+    .to.be.revertedWithCustomError(moneyPrinter,"EnforcedPause");
+    // test burn
+    await expect(moneyPrinter.connect(signer2).burnAssetToNuma(amount, signer2.getAddress()))
+    .to.be.revertedWithCustomError(moneyPrinter,"EnforcedPause");
+
+    // unpause
+    await expect( moneyPrinter.connect(signer).unpause()).to.not.be.reverted;
+    await expect(moneyPrinter.mintAssetFromNuma(amount, signer2.getAddress()));
+  });
+
+  it('Should implement Ownable', async function () 
+  {
+    let addy4 = "0x0000000000000000000000000000000000000004";
+    expect(await moneyPrinter.owner()).to.equal(await signer.getAddress());  
+    //
+    await expect( moneyPrinter.connect(signer2).pause()).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+     
+    await expect( moneyPrinter.connect(signer2).unpause()).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+
+    await expect( moneyPrinter.connect(signer2).setChainlinkFeed(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+
+    await expect( moneyPrinter.connect(signer2).setOracle(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+
+    await expect( moneyPrinter.connect(signer2).setNumaPool(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+
+    await expect( moneyPrinter.connect(signer2).setTokenPool(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+
+    await expect( moneyPrinter.connect(signer2).setPrintAssetFeeBps(0)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+
+    await expect( moneyPrinter.connect(signer2).setBurnAssetFeeBps(0)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    .withArgs(await signer2.getAddress());
+    //
+    await moneyPrinter.connect(signer).transferOwnership(await signer2.getAddress());
+    await expect( moneyPrinter.connect(signer2).setBurnAssetFeeBps(0)).to.not.be.reverted;
+
 
   });
 
