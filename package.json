@@ -24,10 +24,14 @@
     "@openzeppelin/contracts": "^5.0.0",
     "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "@openzeppelin/hardhat-upgrades": "^2.2.1",
+    "@uniswap/router-sdk": "^1.7.1",
     "@uniswap/sdk-core": "^4.0.9",
+    "@uniswap/universal-router-sdk": "^2.0.1",
+    "@uniswap/v2-sdk": "^3.2.3",
     "@uniswap/v3-core": "^1.0.2-solc-0.8-simulate",
     "@uniswap/v3-periphery": "^1.4.4",
     "@uniswap/v3-sdk": "^3.10.0",
-    "bignumber.js": "^4.0.4"
+    "bignumber.js": "^4.0.4",
+    "jsbi": "^3.2.5"
   }
 }

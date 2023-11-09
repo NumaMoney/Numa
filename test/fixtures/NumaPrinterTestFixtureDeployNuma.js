@@ -270,6 +270,12 @@ async function deployPrinterTestFixture() {
            NUUSD_ADDRESS,
            _fee,
          )
+         console.log("****************************");
+         console.log(NUUSD_ETH_POOL_ADDRESS);
+         console.log(WETH_ADDRESS);
+         console.log(NUUSD_ADDRESS);
+         console.log(_fee);
+         console.log("****************************");
         
          const poolContract = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
          const poolData = await getPoolData(poolContract);

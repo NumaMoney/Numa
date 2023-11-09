@@ -1,7 +1,16 @@
 
+const { SwapRouter } = require('@uniswap/universal-router-sdk');
+const { TradeType, Ether, Token, CurrencyAmount, Percent } = require('@uniswap/sdk-core');
+const { Trade: V2Trade } = require('@uniswap/v2-sdk');
+const { Pool, nearestUsableTick, TickMath, TICK_SPACINGS, FeeAmount, Trade: V3Trade, Route: RouteV3  } = require('@uniswap/v3-sdk');
+const { MixedRouteTrade, Trade: RouterTrade } = require('@uniswap/router-sdk');
+const IUniswapV3Pool = require('@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
+const JSBI = require('jsbi');
+const erc20Abi = require('../abis/erc20.json');
 
 const artifacts = {
   UniswapV3Factory: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"),
+  SwapRouter: require("@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json"),
   NonfungiblePositionManager: require("@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json"),
   UniswapV3Pool: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json"),
   AggregatorV3: require("@chainlink/contracts/abi/v0.8/AggregatorV3Interface.json"),
@@ -148,14 +157,87 @@ async function getPoolData(poolContract) {
       tick: slot0[1],
     }
   }
+
+
+  // SWAP
+  async function getPool(tokenA, tokenB, feeAmount) {
+    const [token0, token1] = tokenA.sortsBefore(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA]
+
+    const poolAddress = Pool.getAddress(token0, token1, feeAmount)
+
+    const contract = new hardhat.ethers.Contract(poolAddress, IUniswapV3Pool.abi, provider)
+
+    let liquidity = await contract.liquidity()
+
+    let { sqrtPriceX96, tick } = await contract.slot0()
+
+    liquidity = JSBI.BigInt(liquidity.toString())
+    sqrtPriceX96 = JSBI.BigInt(sqrtPriceX96.toString())
+
+    return new Pool(token0, token1, feeAmount, sqrtPriceX96, liquidity, tick, [
+        {
+            index: nearestUsableTick(TickMath.MIN_TICK, TICK_SPACINGS[feeAmount]),
+            liquidityNet: liquidity,
+            liquidityGross: liquidity,
+        },
+        {
+            index: nearestUsableTick(TickMath.MAX_TICK, TICK_SPACINGS[feeAmount]),
+            liquidityNet: JSBI.multiply(liquidity, JSBI.BigInt('-1')),
+            liquidityGross: liquidity,
+        },
+    ])
+}
+
+
+function swapOptions(options) {
+    return Object.assign(
+        {
+            slippageTolerance: new Percent(5, 100),
+            recipient: RECIPIENT,
+        },
+        options
+    )
+}
+
+
+function buildTrade(trades) {
+    return new RouterTrade({
+        v2Routes: trades
+            .filter((trade) => trade instanceof V2Trade)
+            .map((trade) => ({
+                routev2: trade.route,
+                inputAmount: trade.inputAmount,
+                outputAmount: trade.outputAmount,
+        })),
+        v3Routes: trades
+            .filter((trade) => trade instanceof V3Trade)
+            .map((trade) => ({
+                routev3: trade.route,
+                inputAmount: trade.inputAmount,
+                outputAmount: trade.outputAmount,
+            })),
+        mixedRoutes: trades
+            .filter((trade) => trade instanceof MixedRouteTrade)
+            .map((trade) => ({
+                    mixedRoute: trade.route,
+                    inputAmount: trade.inputAmount,
+                outputAmount: trade.outputAmount,
+            })),
+    tradeType: trades[0].tradeType,
+    })
+}
   
 
   
   // Export it to make it available outside
+  module.exports.getPool = getPool;
+  module.exports.swapOptions = swapOptions;
+  module.exports.buildTrade = buildTrade;
   module.exports.getPoolData = getPoolData;
   module.exports.initPoolETH = initPoolETH;
   module.exports.initPool = initPool;
   module.exports.addLiquidity = addLiquidity;
   module.exports.weth9 = weth9;
   module.exports.artifacts = artifacts;
-
+  module.exports.SwapRouter = SwapRouter;
+  module.exports.Token = Token;
