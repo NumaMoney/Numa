@@ -102,10 +102,10 @@ describe('NUMA ORACLE', function () {
 
 
       let sender = await signer2.getAddress();
-      //await nuUSD.mint(sender, BigInt(1e22));
-      await nuUSD.mint(sender, BigInt(1e50));// test
+      await nuUSD.mint(sender, BigInt(1e23));
 
-            // testing deploying as I can't find address on sepolia
+
+      // deploying our own SwapRouter as I can't find address on sepolia
       let SwapRouter = new ethers.ContractFactory(artifacts.SwapRouter.abi, artifacts.SwapRouter.bytecode, signer);
       swapRouter = await SwapRouter.deploy(config.FACTORY_ADDRESS, config.WETH_ADDRESS);
 
@@ -161,53 +161,107 @@ describe('NUMA ORACLE', function () {
       let offset = 3600*10000000;// TODO 
       deadline = Math.round((Date.now() / 1000 + 300+offset)).toString(); // Deadline five minutes from 'now'
       deadline+=1800; // Time advanced 30min in migration to allow for the long interval
-      //amountOut = BigInt(5e17).toString(); // 0.5 ETH
-      amountOut = BigInt(5e10).toString();
+
+
+      // amount of ETH we want to get 
+      amountOut = BigInt(5e17).toString(); // 0.5 ETH 
       amountInMaximum = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
       sqrtPriceLimitX96 = "0x0";
       input = await nuUSD.balanceOf(sender);
-      console.log("+++++++++++++++++++++++");
-console.log(tokenIn);
-console.log(tokenOut);
-console.log(fee);
-console.log(NUUSD_ETH_POOL_ADDRESS);
+      let ethBalance;
+      let wethBalance;
+      let nuusdcBalance;
+      // ethBalance = await ethers.provider.getBalance(sender);
+      // wethBalance = await wethContract.balanceOf(sender);
+      // nuusdcBalance = await nuUSD.balanceOf(sender);
+
+      // console.log('---------------------------- BEFORE');
+      // console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+      // console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+      // console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+      // await nuUSD.connect(signer2).approve(routerAddress, amountInMaximum);
+
+
+      // //const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, input, sqrtPriceLimitX96];
+      // const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];      
+      // //let amountCall = await swapRouter.exactOutputSingle.call(paramsCall, {from: sender});
+      // await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+
+      // ethBalance = await ethers.provider.getBalance(sender);
+      // wethBalance = await wethContract.balanceOf(sender);
+      // nuusdcBalance = await nuUSD.balanceOf(sender);
+
+      // console.log('---------------------------- AFTER');
+      // console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+      // console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+      // console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+
+
+      let threshold = config.FLEXFEETHRESHOLD;
+      let intervalShort = 180;
+      let intervalLong = 1800;
+
+      // let chainlinkFeed = tokenStyle.anonUSD.chainlink
+       let tokenBelowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+
+      let uniSqrtPriceLow = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let uniPriceLow = BigInt(uniSqrtPriceLow.toString())*BigInt(uniSqrtPriceLow.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniSqrtPriceHigh = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let uniPriceHigh = BigInt(uniSqrtPriceHigh.toString())*BigInt(uniSqrtPriceHigh.toString())*BigInt(1e18)/BigInt(2**192);
+      console.log(`Swap price low of pool before swap: ${hre.ethers.formatUnits(uniPriceLow,18)}`);
+      console.log(`Swap price high of pool before swap: ${hre.ethers.formatUnits(uniPriceHigh,18)}`);
+
+      console.log(`Token below threshold before swap: ${tokenBelowThreshold}`);
+      // TODO: what's this for?
+      let tokensForAmount = await oracle.getTokensForAmount(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, BigInt(1e18), config.WETH_ADDRESS);
+      tokensForAmount = tokensForAmount.toString()
+      let numaForAmount = await oracle.getTokensForAmount(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, BigInt(1e18), config.WETH_ADDRESS);
+      numaForAmount = numaForAmount.toString();
+
+      console.log(`Tokens for amount, NUMA for 1 nuUSD, in Wei: ${numaForAmount}`);
+      console.log(`Tokens for amount, ETH for 1 USD, in Wei: ${tokensForAmount}`);
+
+      // execute SWAP
+      ethBalance = await ethers.provider.getBalance(sender);
+      wethBalance = await wethContract.balanceOf(sender);
+      nuusdcBalance = await nuUSD.balanceOf(sender);
+
+      console.log('---------------------------- BEFORE');
+      console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+      console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+      console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
       await nuUSD.connect(signer2).approve(routerAddress, amountInMaximum);
 
 
+      let allow1 = await nuUSD.allowance(await signer2.getAddress(),routerAddress);
+      console.log('router allowance', allow1);
+
       //const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, input, sqrtPriceLimitX96];
-      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      
-     // mauvais sens?
-     //const paramsCall = [tokenOut,tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      console.log(paramsCall);
-      //let amountCall = await swapRouter.exactOutputSingle.call(paramsCall, {from: sender});
+      // TODO: STF after many calls
+      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];      
       await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
 
-      //amountInMaximum = amountCall.toString();
-      //console.log(`Amount of nuUSD to swap for 0.5 WETH, in Wei: ${amountInMaximum}`);
+      ethBalance = await ethers.provider.getBalance(sender);
+      wethBalance = await wethContract.balanceOf(sender);
+      nuusdcBalance = await nuUSD.balanceOf(sender);
 
-      // let threshold = tokenStyle.anonUSD.threshold
-      // let intervalShort = 180
-      // let intervalLong = 1800
-      // let chainlinkFeed = tokenStyle.anonUSD.chainlink
-      // let tokenBelowThreshold = await oracle.isTokenBelowThreshold.call(threshold, anonUSDPool, intervalShort, intervalLong, chainlinkFeed, weth9, {from: sender})
-      // let uniSqrtPrice = await oracle.getV3SqrtPrice.call(anonUSDPool, intervalShort, intervalLong, {from: sender})
-      // let uniPrice = BigInt(uniSqrtPrice.toString())*BigInt(uniSqrtPrice.toString())*BigInt(1e18)/BigInt(2**192)
-      // console.log(`Swap price of pool, in Wei: ${uniPrice.toString()}`)
-      // console.log(`Token below threshold before swap: ${tokenBelowThreshold}`)
-      // let tokensForAmount = await oracle.getTokensForAmount.call(anonUSDPool, intervalShort, intervalLong, chainlinkFeed, BigInt(1e18), weth9)
-      // tokensForAmount = tokensForAmount.toString()
-      // let xftForAmount = await oracle.getTokensForAmount.call(xftPool, intervalShort, intervalLong, chainlinkFeed, BigInt(1e18), weth9)
-      // xftForAmount = xftForAmount.toString()
-      // console.log(`Tokens for amount, XFT for 1 anonUSD, in Wei: ${xftForAmount}`)
-      // console.log(`Tokens for amount, ETH for 1 USD, in Wei: ${tokensForAmount}`)
-      // let params = [tokenIn, tokenOut, fee, recipient, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96]
-      // await router.exactOutputSingle.sendTransaction(params, {from: sender})
-      // let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold.call(threshold, anonUSDPool, intervalShort, intervalLong, chainlinkFeed, weth9, {from: sender})
-      // let uniSqrtPriceAfter = await oracle.getV3SqrtPrice.call(anonUSDPool, intervalShort, intervalLong, {from: sender})
-      // let uniPriceAfter = BigInt(uniSqrtPriceAfter.toString())*BigInt(uniSqrtPriceAfter.toString())*BigInt(1e18)/BigInt(2**192)
-      // console.log(`Swap price of pool after swap, in Wei: ${uniPriceAfter.toString()}`)
-      // console.log(`Token below threshold, after swap: ${tokenBelowThresholdAfter}`)
+      console.log('---------------------------- AFTER');
+      console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+      console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+      console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+
+
+
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+
+      uniSqrtPriceLow = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      uniPriceLow = BigInt(uniSqrtPriceLow.toString())*BigInt(uniSqrtPriceLow.toString())*BigInt(1e18)/BigInt(2**192);
+      uniSqrtPriceHigh = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      uniPriceHigh = BigInt(uniSqrtPriceHigh.toString())*BigInt(uniSqrtPriceHigh.toString())*BigInt(1e18)/BigInt(2**192);
+
+      console.log(`Swap price low of pool after swap: ${hre.ethers.formatUnits(uniPriceLow,18)}`);
+      console.log(`Swap price high of pool after swap: ${hre.ethers.formatUnits(uniPriceHigh,18)}`);
+      console.log(`Token below threshold, after swap: ${tokenBelowThresholdAfter}`);
     })
   })
 
