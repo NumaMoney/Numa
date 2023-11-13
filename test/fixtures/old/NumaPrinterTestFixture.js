@@ -133,7 +133,10 @@ async function deployPrinterTestFixture() {
          nonfungiblePositionManager
        );
 
-       const factory = await hre.ethers.getContractAt(artifacts.UniswapV3Factory.abi, FACTORY_ADDRESS);
+       //const factory = await hre.ethers.getContractAt(artifacts.UniswapV3Factory.abi, FACTORY_ADDRESS);
+
+       const Factory = new ContractFactory(artifacts.UniswapV3Factory.abi, artifacts.UniswapV3Factory.bytecode, await signer.getAddress());
+       const factory = await Factory.deploy();
 
        NUUSD_ETH_POOL_ADDRESS = await factory.getPool(
          WETH_ADDRESS,
@@ -170,7 +173,7 @@ async function deployPrinterTestFixture() {
         // set printer as a NUMA minter
         await numa.connect(numaOwner).grantRole(roleMinter, MONEY_PRINTER_ADDRESS);// signer is Numa deployer
         return { signer,signer2, numaOwner, numa, nuUSD,NUUSD_ADDRESS,NUUSD_ETH_POOL_ADDRESS,moneyPrinter,MONEY_PRINTER_ADDRESS,nonfungiblePositionManager,
-            wethContract,oracleAddress,numaAmount };
+            wethContract,oracleAddress,numaAmount,factory };
 }
 
 

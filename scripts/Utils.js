@@ -11,12 +11,39 @@ const erc20Abi = require('../abis/erc20.json');
 const artifacts = {
   UniswapV3Factory: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"),
   SwapRouter: require("@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json"),
+  NFTDescriptor: require("@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json"),
+  NonfungibleTokenPositionDescriptor: require("@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json"),
   NonfungiblePositionManager: require("@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json"),
   UniswapV3Pool: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json"),
   AggregatorV3: require("@chainlink/contracts/abi/v0.8/AggregatorV3Interface.json"),
 };
 
 const weth9 = require('@ethereum-artifacts/weth9');
+
+const linkLibraries = ({ bytecode, linkReferences }, libraries) => {
+  Object.keys(linkReferences).forEach((fileName) => {
+    Object.keys(linkReferences[fileName]).forEach((contractName) => {
+      if (!libraries.hasOwnProperty(contractName)) {
+        throw new Error(`Missing link library name ${contractName}`)
+      }
+      const address = ethers
+        .getAddress(libraries[contractName])
+        .toLowerCase()
+        .slice(2)
+      linkReferences[fileName][contractName].forEach(
+        ({ start, length }) => {
+          const start2 = 2 + start * 2
+          const length2 = length * 2
+          bytecode = bytecode
+            .slice(0, start2)
+            .concat(address)
+            .concat(bytecode.slice(start2 + length2, bytecode.length))
+        }
+      )
+    })
+  })
+  return bytecode
+}
 
 
 let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungiblePositionManager,wethAddress) {
@@ -61,22 +88,29 @@ let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePosi
   {
     token1 = token1_
     token0 = token0_
+    console.log("titi");
   }
   else 
   {
     token1 = token0_
     token0 = token1_
+    console.log("tutu");
   }
 
   if (token0 === wethAddress) 
   {
+    console.log("toto");
       price = BigInt(sqrtPrice*2**96);
      
   }
   else 
   {
+    console.log("tata");
       price = BigInt(2**96/sqrtPrice);
   }
+  console.log(token0);
+  console.log(token1);
+  console.log(price);
  
   await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee_, price)
 }
@@ -241,3 +275,4 @@ function buildTrade(trades) {
   module.exports.artifacts = artifacts;
   module.exports.SwapRouter = SwapRouter;
   module.exports.Token = Token;
+  module.exports.linkLibraries = linkLibraries;

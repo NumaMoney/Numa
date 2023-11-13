@@ -1,4 +1,4 @@
-const { getPoolData,initPoolETH,initPool,addLiquidity,weth9,artifacts } = require("../../scripts/Utils.js");
+const { getPoolData,initPoolETH,initPool,addLiquidity,weth9,artifacts,linkLibraries } = require("../../scripts/Utils.js");
 const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const fs = require('fs');
 //const configRelativePath = fs.existsSync('./configTestSepolia.json') ? './configTestSepolia.json' : '../configTestSepolia.json';
@@ -48,8 +48,49 @@ async function deployPrinterTestFixture() {
 
  
 
-     // *** Uniswap from fork
+     // *** Uniswap ******************************
+    //  let NFTDescriptor = new ethers.ContractFactory(artifacts.NFTDescriptor.abi, artifacts.NFTDescriptor.bytecode, signer);
+    //  let nftDescriptor = await NFTDescriptor.deploy();
+   
+    //  let NFTDescriptorAddress = await nftDescriptor.getAddress();
+   
+    //  const linkedBytecode = linkLibraries(
+    //    {
+    //      bytecode: artifacts.NonfungibleTokenPositionDescriptor.bytecode,
+    //      linkReferences: {
+    //        "NFTDescriptor.sol": {
+    //          NFTDescriptor: [
+    //            {
+    //              length: 20,
+    //              start: 1681,
+    //            },
+    //          ],
+    //        },
+    //      },
+    //    },
+    //    {
+    //      NFTDescriptor: NFTDescriptorAddress,
+    //    }
+    //  );
+   
+    //  NonfungibleTokenPositionDescriptor = new ethers.ContractFactory(artifacts.NonfungibleTokenPositionDescriptor.abi, linkedBytecode, signer);
+   
+    //  const nativeCurrencyLabelBytes = ethers.encodeBytes32String('WETH');
+    //  nonfungibleTokenPositionDescriptor = await NonfungibleTokenPositionDescriptor.deploy(WETH_ADDRESS, nativeCurrencyLabelBytes);
+   
+    //  let nonfungibleTokenPositionDescriptorAddress = await nonfungibleTokenPositionDescriptor.getAddress();
+
+
+     const factory = await hre.ethers.getContractAt(artifacts.UniswapV3Factory.abi, FACTORY_ADDRESS);
+     // KO
+    //  const Factory = new ethers.ContractFactory(artifacts.UniswapV3Factory.abi, artifacts.UniswapV3Factory.bytecode, signer);
+    //  const factory = await Factory.deploy();
+    FACTORY_ADDRESS = await factory.getAddress();
      nonfungiblePositionManager = await hre.ethers.getContractAt(artifacts.NonfungiblePositionManager.abi, POSITION_MANAGER_ADDRESS);
+    //  let NonfungiblePositionManager = new ethers.ContractFactory(artifacts.NonfungiblePositionManager.abi, artifacts.NonfungiblePositionManager.bytecode, signer);
+    //  nonfungiblePositionManager = await NonfungiblePositionManager.deploy(await factory.getAddress(), WETH_ADDRESS, nonfungibleTokenPositionDescriptorAddress);
+
+     
      wethContract = await hre.ethers.getContractAt(weth9.WETH9.abi, WETH_ADDRESS);
 
      // get pool price from chainlink USD/ETH PRICEFEEDETHUSD
@@ -65,9 +106,7 @@ async function deployPrinterTestFixture() {
        value: ethers.parseEther('100'),
      });
 
-     const factory = await hre.ethers.getContractAt(artifacts.UniswapV3Factory.abi, FACTORY_ADDRESS);
 
-     
      // *** Numa deploy
      const Numa = await ethers.getContractFactory('NUMA')
      numa = await upgrades.deployProxy(
@@ -125,6 +164,7 @@ async function deployPrinterTestFixture() {
          numa_address,
          _fee,
        );
+       console.log('numa eth pool: ',NUMA_ETH_POOL_ADDRESS);
       
        const poolContractNuma = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
        const poolDataNuma = await getPoolData(poolContractNuma);
@@ -145,7 +185,23 @@ async function deployPrinterTestFixture() {
      );
      await nuUSD.waitForDeployment();
      NUUSD_ADDRESS = await nuUSD.getAddress();
-     console.log(`nuUSD deployed to: ${NUUSD_ADDRESS}`);
+     // temp fix for issues when swapping
+     while (NUUSD_ADDRESS < WETH_ADDRESS)
+     {
+      nuUSD = await upgrades.deployProxy(
+        NuUSD,
+        [defaultAdmin,minter,upgrader],
+        {
+          initializer: 'initialize',
+          kind:'uups'
+        }
+      );
+      await nuUSD.waitForDeployment();
+      NUUSD_ADDRESS = await nuUSD.getAddress();
+      console.log(`TOBEFIXED nuUSD deployed to: ${NUUSD_ADDRESS}`);
+     }
+   
+    console.log(`nuUSD deployed to: ${NUUSD_ADDRESS}`);
 
     //  // Create nuUSD/ETH pool 
     //  await initPoolETH(WETH_ADDRESS,NUUSD_ADDRESS,_fee,price,nonfungiblePositionManager);
@@ -299,9 +355,14 @@ async function deployPrinterTestFixture() {
        await poolContractNuma.increaseObservationCardinalityNext(cardinality);
        await poolContract.increaseObservationCardinalityNext(cardinality);
 
+      // deploying our own SwapRouter as I can't find address on sepolia
+
+      let SwapRouter = new ethers.ContractFactory(artifacts.SwapRouter.abi, artifacts.SwapRouter.bytecode, signer);
+      swapRouter = await SwapRouter.deploy(await factory.getAddress(), config.WETH_ADDRESS);
+
 
         return { signer,signer2, signer3,numaOwner, numa,NUMA_ETH_POOL_ADDRESS, nuUSD,NUUSD_ADDRESS,NUUSD_ETH_POOL_ADDRESS,moneyPrinter,MONEY_PRINTER_ADDRESS,nonfungiblePositionManager,
-            wethContract,oracleAddress,numaAmount,cardinality  };
+            wethContract,oracleAddress,numaAmount,cardinality ,factory,swapRouter };
 }
 
 

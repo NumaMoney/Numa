@@ -23,12 +23,14 @@ module.exports = {
         version: "0.8.0",
       },
     ],
+    
   },
   defaultNetwork: "goerli",
+  
   networks: {
     sepolia: {
       url: process.env.URL,
-      accounts: [process.env.PKEY],
+      accounts: [process.env.PKEY,process.env.PKEY,process.env.PKEY],
     },
     goerli: {
       url: process.env.URL2,
@@ -38,7 +40,8 @@ module.exports = {
     hardhat: {
       forking: {
         url: process.env.URL4,
-      }
+      },
+      allowUnlimitedContractSize: true
     }
   },
 };
