@@ -1,7 +1,3 @@
-// TODO: tester la création de la pool en mintant les nUSD puis en creant la pool et
-// en l'affectant au printer
-
-
 const { deployPrinterTestFixture,config } = require("./fixtures/NumaPrinterTestFixtureDeployNuma.js");
 const { time, loadFixture, } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");

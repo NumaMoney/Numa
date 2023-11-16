@@ -7,7 +7,6 @@ import "../Numa.sol";
 import "../nuAssets/nuUSD.sol";
 import "../interfaces/INumaOracle.sol";
 
-import "hardhat/console.sol";
 
 /// @title NumaPrinter
 /// @notice Responsible for minting/burning Numa for nuAsset
@@ -58,7 +57,7 @@ contract NumaPrinter is Pausable, Ownable
     }
 
     /**
-     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     * @notice not using whenNotPaused as we may want to pause contract to set these values
      */   
     function setChainlinkFeed(address _chainlinkFeed) external onlyOwner  
     {
@@ -67,7 +66,7 @@ contract NumaPrinter is Pausable, Ownable
     }
     
     /**
-     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     * @notice not using whenNotPaused as we may want to pause contract to set these values
      */       
     function setOracle(INumaOracle _oracle) external onlyOwner  
     {
@@ -76,7 +75,7 @@ contract NumaPrinter is Pausable, Ownable
     }
 
     /**
-     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     * @notice not using whenNotPaused as we may want to pause contract to set these values
      */   
     function setNumaPool(address _numaPool) external onlyOwner  
     {
@@ -85,7 +84,7 @@ contract NumaPrinter is Pausable, Ownable
     }
 
     /**
-     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     * @notice not using whenNotPaused as we may want to pause contract to set these values
      */   
     function setTokenPool(address _tokenPool) external onlyOwner  
     {
@@ -94,7 +93,7 @@ contract NumaPrinter is Pausable, Ownable
     }
 
     /**
-     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     * @notice not using whenNotPaused as we may want to pause contract to set these values
      */   
     function setPrintAssetFeeBps(uint _printAssetFeeBps) external onlyOwner  
     {
@@ -104,7 +103,7 @@ contract NumaPrinter is Pausable, Ownable
     }
 
     /**
-     * @notice not using whenNotPaused as w may want to pause contract to set these values
+     * @notice not using whenNotPaused as we may want to pause contract to set these values
      */   
     function setBurnAssetFeeBps(uint _burnAssetFeeBps) external onlyOwner  
     {
@@ -115,7 +114,11 @@ contract NumaPrinter is Pausable, Ownable
 
 
 
-
+    /**
+     * @dev returns amount of Numa needed and fee to mint an amount of nuAsset
+     * @param {uint256} _amount amount we want to mint
+     * @return {uint256,uint256} amount of Numa that will be needed and fee to be burnt
+     */
     function getNbOfNumaNeededWithFee(uint256 _amount) public view returns (uint256,uint256) 
     {
         uint256 cost = oracle.getNbOfNumaNeeded(_amount, chainlinkFeed, numaPool);
@@ -124,6 +127,11 @@ contract NumaPrinter is Pausable, Ownable
         return (cost,amountToBurn);
     }
 
+    /**
+     * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
+     * @param {uint256} _amount amount we want to burn
+     * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
+     */
     function getNbOfNumaFromAssetWithFee(uint256 _amount) public view returns (uint256,uint256) 
     {
         uint256 _output = oracle.getNbOfNumaFromAsset(_amount, chainlinkFeed, numaPool, tokenPool);
@@ -132,10 +140,14 @@ contract NumaPrinter is Pausable, Ownable
         return (_output,amountToBurn);
     }
 
-    // Notes:
-    // - Numa should be approved
-    // - contract should have the nuAsset minter role
-    function mintAssetFromNuma(uint _amount,address recipient) external whenNotPaused 
+
+    /**
+     * dev burn Numa to mint nuAsset
+     * notice contract should be nuAsset minter, and should have allowance from sender to burn Numa
+     * param {uint256} _amount amount of nuAsset to mint
+     * param {address} _recipient recipient of minted nuAsset tokens
+     */
+    function mintAssetFromNuma(uint _amount,address _recipient) external whenNotPaused 
     {
         require(address(oracle) != address(0),"oracle not set");
         require(numaPool != address(0),"uniswap pool not set");
@@ -150,15 +162,18 @@ contract NumaPrinter is Pausable, Ownable
         // burn
         numa.burnFrom(msg.sender, depositCost);
         // mint token
-        nuAsset.mint(recipient,_amount);
+        nuAsset.mint(_recipient,_amount);
         emit AssetMint(address(nuAsset), _amount);
         emit PrintFee(numaFee);// NUMA burnt
     }
 
-    // Notes: 
-    // - contract should be approved for nuAsset
-    // - contract should be Numa minter
-    function burnAssetToNuma(uint _amount,address recipient) external whenNotPaused 
+    /**
+     * dev burn nuAsset to mint Numa
+     * notice contract should be Numa minter, and should have allowance from sender to burn nuAsset
+     * param {uint256} _amount amount of nuAsset that we want to burn
+     * param {address} _recipient recipient of minted Numa tokens
+     */   
+    function burnAssetToNuma(uint256 _amount,address _recipient) external whenNotPaused 
     {
         //require (tokenPool != address(0),"No nuAsset pool");
         require(nuAsset.balanceOf(msg.sender) >= _amount, "Insufficient balance");
@@ -174,7 +189,7 @@ contract NumaPrinter is Pausable, Ownable
         // burn fee
         _output -= amountToBurn;
 
-        numa.mint(recipient, _output);
+        numa.mint(_recipient, _output);
         emit AssetBurn(address(nuAsset), _amount);
         emit BurntFee(amountToBurn);// NUMA burnt (not minted)
     }

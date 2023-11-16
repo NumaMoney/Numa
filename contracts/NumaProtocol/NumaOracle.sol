@@ -7,7 +7,6 @@ import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "hardhat/console.sol";
 
 /// @title NumaOracle
 /// @notice Responsible for getting prices from chainlink and uniswap V3 pools
@@ -194,15 +193,13 @@ contract NumaOracle is Ownable
         //ETH per Token, times 1e18
         uint256 ethPerToken = FullMath.mulDiv(FullMath.mulDiv(numerator, numerator, denominator), 1e18, denominator);
 
-        // TODO: remove
-        console.log(ethPerToken);
+
         if (_chainlinkFeed == address(0)) return ethPerToken < _threshold;
         uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
         uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
         uint256 tokensForAmount;
 
-         // TODO: remove
-        console.log(linkFeed);
+
 
         //if ETH is on the left side of the fraction in the price feed
         if (ethLeftSide(_chainlinkFeed)) {
@@ -210,9 +207,7 @@ contract NumaOracle is Ownable
         } else {
             tokensForAmount = FullMath.mulDiv(ethPerToken, 10**decimalPrecision, linkFeed);
         }
-          // TODO: remove
-        console.log(tokensForAmount);
- console.log(_threshold);
+
         return tokensForAmount < _threshold;
     }
 
@@ -227,30 +222,16 @@ contract NumaOracle is Ownable
      * @param {address} _weth9 weth address
      * @return {uint256} amount needed to be burnt
      */
-    // Uses mulDivRoundingUp instead of mulDiv. Will round up number of numa to be burned.
     function getTokensForAmountCeiling(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount,  address _weth9) public view returns (uint256)
      {
        
         uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
-
-console.log(IUniswapV3Pool(_pool).token0());
-console.log(IUniswapV3Pool(_pool).token1());
-console.log("***");
-console.log(_weth9);
-console.log("***");
-
-
-      console.log(sqrtPriceX96);
-
         uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
-        console.log(numerator);
         uint256 denominator = (numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96);
-        console.log(denominator);
         //numa per ETH, times _amount
         uint256 numaPerETH = FullMath.mulDivRoundingUp(FullMath.mulDivRoundingUp(numerator, numerator, denominator), _amount, denominator);
         
-        console.log(numaPerETH);
-        if (_chainlinkFeed == address(0)) return numaPerETH;// TODO: ?? why? dangerous no?
+        if (_chainlinkFeed == address(0)) return numaPerETH;// TODO: could be removed as it would be used for nuETH which we will not implement
         uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
         uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
         uint256 tokensForAmount;
@@ -263,7 +244,7 @@ console.log("***");
         {
             tokensForAmount = FullMath.mulDivRoundingUp(numaPerETH, linkFeed, 10**decimalPrecision);
         }
-        console.log(tokensForAmount);
+
         return tokensForAmount;
     }
         
@@ -349,7 +330,7 @@ console.log("***");
         return tokensForAmount;
     }
 
-        /**
+    /**
      * @dev number of numa tokens needed to mint this amount of nuAsset
      * @param {uint256} _amount amount we want to mint
      * @param {address} _chainlinkFeed chainlink feed
@@ -386,7 +367,16 @@ console.log("***");
         return _output;
     }
 
-
+    /**
+     * @dev number of Numa that will be minted by burning this amount of nuAsset using numa pool and chainlink
+     * @notice same as getTokensForAmountCeiling but without rounding up
+     * @param {address} _pool Numa pool address
+     * @param {uint32} _intervalShort the short interval
+     * @param {uint32} _intervalLong the long interval
+     * @param {address} _chainlinkFeed chainlink feed
+     * @param {uint256} _amount amount we want to burn
+     * @param {address} _weth9 weth address
+     */
     function getTokensForAmount(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount, address _weth9) public view returns (uint256) {
         uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
         uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);

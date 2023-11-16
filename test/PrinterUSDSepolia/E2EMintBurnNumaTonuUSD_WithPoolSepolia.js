@@ -42,8 +42,6 @@ async function main () {
     // Use sepolia fork chainlink pricefeeds
     
     // Deploy Oracle
-
-    // TODO: check these values coming from Offshift
     let INTERVAL_SHORT = 180;
     let INTERVAL_LONG = 1800;
     let flexFeeThreshold = 0;// TODO
