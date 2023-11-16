@@ -166,7 +166,6 @@ describe('NUMA ORACLE', function () {
      
       // amount of ETH we want to get 
       amountOut = BigInt(5e17).toString(); // 0.5 ETH 
-     
       input = await nuUSD.balanceOf(sender);
 
 
@@ -183,8 +182,9 @@ describe('NUMA ORACLE', function () {
       // //ETH per Token, times 1e18
       // uint256 ethPerToken = FullMath.mulDiv(FullMath.mulDiv(numerator, numerator, denominator), 1e18, denominator);
 
-      let uniPriceLow = BigInt(uniSqrtPriceLow.toString())*BigInt(uniSqrtPriceLow.toString())/BigInt(2**192);     
-      let uniPriceHigh = BigInt(uniSqrtPriceHigh.toString())*BigInt(uniSqrtPriceHigh.toString())/BigInt(2**192);
+      let uniPriceLow = BigInt(uniSqrtPriceLow.toString())*BigInt(uniSqrtPriceLow.toString())*BigInt(1e18)/BigInt(2**192);     
+      let uniPriceHigh = BigInt(uniSqrtPriceHigh.toString())*BigInt(uniSqrtPriceHigh.toString())*BigInt(1e18)/BigInt(2**192);
+
 
       // console.log(`Swap price low of pool before swap: ${hre.ethers.formatUnits(uniPriceLow,18)}`);
       // console.log(`Swap price high of pool before swap: ${hre.ethers.formatUnits(uniPriceHigh,18)}`);
@@ -194,12 +194,14 @@ describe('NUMA ORACLE', function () {
       if (NUUSD_ADDRESS > config.WETH_ADDRESS)
       {
         // change numerator/denominator
-        uniPriceLow = 1.0/Number(uniPriceLow);
-        uniPriceHigh =1.0/Number(uniPriceHigh); 
+        uniPriceLow = Math.pow(10, 36)/Number(uniPriceLow);
+        uniPriceHigh =Math.pow(10, 36)/Number(uniPriceHigh); 
+      }
+      else
+      {
+        // do nothing
       }
   
-      uniPriceLow = Number(uniPriceLow)*Math.pow(10, 18);
-      uniPriceHigh = Number(uniPriceHigh)*Math.pow(10, 18);
 
 
      
@@ -227,9 +229,12 @@ describe('NUMA ORACLE', function () {
       let uniPriceBefore = uniPriceLow;
       let ratio = (Number(uniPriceBefore)/(1.0/price));
       let priceBelowThresholdBefore = ( ratio < threshold);
+
+
       expect(priceBelowThresholdBefore).to.equal(false);
       expect(tokenBelowThreshold).to.equal(priceBelowThresholdBefore);
       
+
 
       // 
       // SWAP
@@ -252,24 +257,25 @@ describe('NUMA ORACLE', function () {
       uniSqrtPriceLow = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       uniSqrtPriceHigh = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
 
-      uniPriceLow = BigInt(uniSqrtPriceLow.toString())*BigInt(uniSqrtPriceLow.toString())/BigInt(2**192);
-      uniPriceHigh = BigInt(uniSqrtPriceHigh.toString())*BigInt(uniSqrtPriceHigh.toString())/BigInt(2**192);
-      // console.log(`Swap price low of pool after swap: ${hre.ethers.formatUnits(uniPriceLow,18)}`);
-      // console.log(`Swap price high of pool after swap: ${hre.ethers.formatUnits(uniPriceHigh,18)}`);
-      // console.log(`Token below threshold, after swap: ${tokenBelowThresholdAfter}`);
+      uniPriceLow = BigInt(uniSqrtPriceLow.toString())*BigInt(uniSqrtPriceLow.toString())*BigInt(1e18)/BigInt(2**192);     
+      uniPriceHigh = BigInt(uniSqrtPriceHigh.toString())*BigInt(uniSqrtPriceHigh.toString())*BigInt(1e18)/BigInt(2**192);
+
+
+      // console.log(`Swap price low of pool before swap: ${hre.ethers.formatUnits(uniPriceLow,18)}`);
+      // console.log(`Swap price high of pool before swap: ${hre.ethers.formatUnits(uniPriceHigh,18)}`);
+      // console.log(`Token below threshold before swap: ${tokenBelowThreshold}`);
+
 
       if (NUUSD_ADDRESS > config.WETH_ADDRESS)
       {
         // change numerator/denominator
-        uniPriceLow = 1.0/Number(uniPriceLow);
-        uniPriceHigh =1.0/Number(uniPriceHigh); 
+        uniPriceLow = Math.pow(10, 36)/Number(uniPriceLow);
+        uniPriceHigh =Math.pow(10, 36)/Number(uniPriceHigh); 
       }
-  
-      uniPriceLow = Number(uniPriceLow)*Math.pow(10, 18);
-      uniPriceHigh = Number(uniPriceHigh)*Math.pow(10, 18);
-
-
-     
+      else
+      {
+        // do nothing
+      }
 
       // 
       let uniPriceAfter = uniPriceLow;
@@ -465,18 +471,23 @@ describe('NUMA ORACLE', function () {
 
 
       // Eth price for debug
-      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())/BigInt(2**192);
-      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())/BigInt(2**192);
-      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())/BigInt(2**192);
+      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())*BigInt(1e18)/BigInt(2**192);
      
-      if (NUUSD_ADDRESS < config.WETH_ADDRESS)
+      if (NUUSD_ADDRESS > config.WETH_ADDRESS)
       {
         // change numerator/denominator
-        uniPriceShort = 1.0/Number(uniPriceShort);
-        uniPriceLong = 1.0/Number(uniPriceLong);
-        uniPriceSpot = 1.0/Number(uniPriceSpot);
-       
+        uniPriceShort = Math.pow(10, 36)/Number(uniPriceShort);
+        uniPriceLong =Math.pow(10, 36)/Number(uniPriceLong); 
+        uniPriceSpot =Math.pow(10, 36)/Number(uniPriceSpot); 
       }
+      else
+      {
+        // do nothing
+      }
+  
+
 
       
       console.log(uniPriceLong);
@@ -560,20 +571,23 @@ describe('NUMA ORACLE', function () {
 
    
          // Eth price for debug
-         let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())/BigInt(2**192);
-         let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())/BigInt(2**192);
-         let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())/BigInt(2**192);
+         let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())*BigInt(1e18)/BigInt(2**192);
+         let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())*BigInt(1e18)/BigInt(2**192);
+         let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())*BigInt(1e18)/BigInt(2**192);
         
-         if (NUUSD_ADDRESS < config.WETH_ADDRESS)
+         if (NUUSD_ADDRESS > config.WETH_ADDRESS)
          {
            // change numerator/denominator
-           uniPriceShort = 1.0/Number(uniPriceShort);
-           uniPriceLong = 1.0/Number(uniPriceLong);
-           uniPriceSpot = 1.0/Number(uniPriceSpot);
-          
+           uniPriceShort = Math.pow(10, 36)/Number(uniPriceShort);
+           uniPriceLong =Math.pow(10, 36)/Number(uniPriceLong); 
+           uniPriceSpot =Math.pow(10, 36)/Number(uniPriceSpot); 
          }
+         else
+         {
+           // do nothing
+         }
+     
    
-         
          console.log(uniPriceLong);
          console.log(uniPriceShort);
          console.log(uniPriceSpot);
@@ -658,18 +672,22 @@ describe('NUMA ORACLE', function () {
          
 
          // Eth price for debug
-         let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())/BigInt(2**192);
-         let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())/BigInt(2**192);
-         let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())/BigInt(2**192);
+         let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())*BigInt(1e18)/BigInt(2**192);
+         let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())*BigInt(1e18)/BigInt(2**192);
+         let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())*BigInt(1e18)/BigInt(2**192);
         
-         if (NUUSD_ADDRESS < config.WETH_ADDRESS)
+         if (NUUSD_ADDRESS > config.WETH_ADDRESS)
          {
            // change numerator/denominator
-           uniPriceShort = 1.0/Number(uniPriceShort);
-           uniPriceLong = 1.0/Number(uniPriceLong);
-           uniPriceSpot = 1.0/Number(uniPriceSpot);
-          
+           uniPriceShort = Math.pow(10, 36)/Number(uniPriceShort);
+           uniPriceLong =Math.pow(10, 36)/Number(uniPriceLong); 
+           uniPriceSpot =Math.pow(10, 36)/Number(uniPriceSpot); 
          }
+         else
+         {
+           // do nothing
+         }
+     
    
          
          console.log(uniPriceLong);
@@ -752,18 +770,23 @@ describe('NUMA ORACLE', function () {
 
 
       // Eth price for debug
-      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())/BigInt(2**192);
-      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())/BigInt(2**192);
-      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())/BigInt(2**192);
+      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())*BigInt(1e18)/BigInt(2**192);
      
-      if (NUUSD_ADDRESS < config.WETH_ADDRESS)
+      if (NUUSD_ADDRESS > config.WETH_ADDRESS)
       {
         // change numerator/denominator
-        uniPriceShort = 1.0/Number(uniPriceShort);
-        uniPriceLong = 1.0/Number(uniPriceLong);
-        uniPriceSpot = 1.0/Number(uniPriceSpot);
-       
+        uniPriceShort = Math.pow(10, 36)/Number(uniPriceShort);
+        uniPriceLong =Math.pow(10, 36)/Number(uniPriceLong); 
+        uniPriceSpot =Math.pow(10, 36)/Number(uniPriceSpot); 
       }
+      else
+      {
+        // do nothing
+      }
+  
+
 
       
       console.log(uniPriceLong);
@@ -849,18 +872,23 @@ describe('NUMA ORACLE', function () {
 
    
       // Eth price for debug
-      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())/BigInt(2**192);
-      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())/BigInt(2**192);
-      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())/BigInt(2**192);
+      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())*BigInt(1e18)/BigInt(2**192);
         
-      if (NUUSD_ADDRESS < config.WETH_ADDRESS)
+      if (NUUSD_ADDRESS > config.WETH_ADDRESS)
       {
         // change numerator/denominator
-        uniPriceShort = 1.0/Number(uniPriceShort);
-        uniPriceLong = 1.0/Number(uniPriceLong);
-        uniPriceSpot = 1.0/Number(uniPriceSpot);
-       
+        uniPriceShort = Math.pow(10, 36)/Number(uniPriceShort);
+        uniPriceLong =Math.pow(10, 36)/Number(uniPriceLong); 
+        uniPriceSpot =Math.pow(10, 36)/Number(uniPriceSpot); 
       }
+      else
+      {
+        // do nothing
+      }
+  
+
    
      
       console.log(uniPriceLong);
@@ -947,18 +975,23 @@ describe('NUMA ORACLE', function () {
 
    
       // Eth price for debug
-      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())/BigInt(2**192);
-      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())/BigInt(2**192);
-      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())/BigInt(2**192);
+      let uniPriceShort = BigInt(getV3SqrtPriceShort.toString())*BigInt(getV3SqrtPriceShort.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceLong = BigInt(getV3SqrtPriceLong.toString())*BigInt(getV3SqrtPriceLong.toString())*BigInt(1e18)/BigInt(2**192);
+      let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString())*BigInt(sqrtPriceX96Spot.toString())*BigInt(1e18)/BigInt(2**192);
         
-      if (NUUSD_ADDRESS < config.WETH_ADDRESS)
+      if (NUUSD_ADDRESS > config.WETH_ADDRESS)
       {
         // change numerator/denominator
-        uniPriceShort = 1.0/Number(uniPriceShort);
-        uniPriceLong = 1.0/Number(uniPriceLong);
-        uniPriceSpot = 1.0/Number(uniPriceSpot);
-       
+        uniPriceShort = Math.pow(10, 36)/Number(uniPriceShort);
+        uniPriceLong =Math.pow(10, 36)/Number(uniPriceLong); 
+        uniPriceSpot =Math.pow(10, 36)/Number(uniPriceSpot); 
       }
+      else
+      {
+        // do nothing
+      }
+  
+
    
      
       console.log(uniPriceLong);
