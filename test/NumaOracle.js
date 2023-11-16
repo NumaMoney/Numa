@@ -94,7 +94,7 @@ describe('NUMA ORACLE', function () {
     amountInMaximum = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
     tokenIn = NUUSD_ADDRESS;
     tokenOut = config.WETH_ADDRESS;
-    fee = "500";// TODO: put it in config
+    fee = Number(config.FEE);
     sqrtPriceLimitX96 = "0x0";
 
     // chainlink price ETHUSD
@@ -134,26 +134,18 @@ describe('NUMA ORACLE', function () {
   describe('#pool check', () => {
 
     it('should work USD', async () => {
-      let tokenPool = await moneyPrinter.tokenPool();
+
       let pool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
-      //let pool = await UniV3Pool.at(tokenPool);
-     // console.log(pool);
       let cardinality = 100 + cardinalityLaunch;
-      //let { logs } = await pool.increaseObservationCardinalityNext.sendTransaction(cardinality, {from: signer});
       let { logs } = await pool.increaseObservationCardinalityNext(cardinality);
       //console.log(logs);
      
       const {sqrtPriceX96, unlocked} = await pool.slot0();
-
       expect(sqrtPriceX96).to.not.equal(BigInt(0));
       expect(unlocked).to.equal(true);
-
     });
   });
 
- 
-
- 
   describe('#swap check nuUSD & tokenBelowThreshold', () => {
     it('should change after swapping nuUSD for 0.5 WETH', async () => {
 
