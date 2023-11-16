@@ -7,8 +7,8 @@ const config = require(configRelativePath);
 
 
 
-let { DEPLOY_UNISWAP,WETH_ADDRESS, FACTORY_ADDRESS,
-  POSITION_MANAGER_ADDRESS, PRICEFEEDETHUSD, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD,FEE } = config;
+let { DEPLOY_UNISWAP, WETH_ADDRESS, FACTORY_ADDRESS,
+  POSITION_MANAGER_ADDRESS, PRICEFEEDETHUSD, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, FEE } = config;
 
 async function deployPrinterTestFixture() {
   let signer, signer2;
@@ -24,13 +24,16 @@ async function deployPrinterTestFixture() {
 
   // uniswap
   let nonfungiblePositionManager;
-  let factory;
   let wethContract;
   // oracle
   let oracleAddress;
+  let factory;
 
   // amount to be transfered to signer
   let numaAmount = ethers.parseEther('100000');
+
+
+
 
   [signer, signer2, signer3] = await ethers.getSigners();
 
@@ -47,54 +50,52 @@ async function deployPrinterTestFixture() {
 
 
   // *** Uniswap ******************************
-  if (DEPLOY_UNISWAP === "TRUE")
-  {
-   let NFTDescriptor = new ethers.ContractFactory(artifacts.NFTDescriptor.abi, artifacts.NFTDescriptor.bytecode, signer);
-   let nftDescriptor = await NFTDescriptor.deploy();
+  if (DEPLOY_UNISWAP == "TRUE") {
+    let NFTDescriptor = new ethers.ContractFactory(artifacts.NFTDescriptor.abi, artifacts.NFTDescriptor.bytecode, signer);
+    let nftDescriptor = await NFTDescriptor.deploy();
 
-   let NFTDescriptorAddress = await nftDescriptor.getAddress();
+    let NFTDescriptorAddress = await nftDescriptor.getAddress();
 
-   const linkedBytecode = linkLibraries(
-     {
-       bytecode: artifacts.NonfungibleTokenPositionDescriptor.bytecode,
-       linkReferences: {
-         "NFTDescriptor.sol": {
-           NFTDescriptor: [
-             {
-               length: 20,
-               start: 1681,
-             },
-           ],
-         },
-       },
-     },
-     {
-       NFTDescriptor: NFTDescriptorAddress,
-     }
-   );
+    const linkedBytecode = linkLibraries(
+      {
+        bytecode: artifacts.NonfungibleTokenPositionDescriptor.bytecode,
+        linkReferences: {
+          "NFTDescriptor.sol": {
+            NFTDescriptor: [
+              {
+                length: 20,
+                start: 1681,
+              },
+            ],
+          },
+        },
+      },
+      {
+        NFTDescriptor: NFTDescriptorAddress,
+      }
+    );
 
-   NonfungibleTokenPositionDescriptor = new ethers.ContractFactory(artifacts.NonfungibleTokenPositionDescriptor.abi, linkedBytecode, signer);
+    NonfungibleTokenPositionDescriptor = new ethers.ContractFactory(artifacts.NonfungibleTokenPositionDescriptor.abi, linkedBytecode, signer);
 
-   const nativeCurrencyLabelBytes = ethers.encodeBytes32String('WETH');
-   nonfungibleTokenPositionDescriptor = await NonfungibleTokenPositionDescriptor.deploy(WETH_ADDRESS, nativeCurrencyLabelBytes);
+    const nativeCurrencyLabelBytes = ethers.encodeBytes32String('WETH');
+    nonfungibleTokenPositionDescriptor = await NonfungibleTokenPositionDescriptor.deploy(WETH_ADDRESS, nativeCurrencyLabelBytes);
 
-   let nonfungibleTokenPositionDescriptorAddress = await nonfungibleTokenPositionDescriptor.getAddress();
-   
-   const Factory = new ethers.ContractFactory(artifacts.UniswapV3Factory.abi, artifacts.UniswapV3Factory.bytecode, signer);
-   factory = await Factory.deploy();
-   let NonfungiblePositionManager = new ethers.ContractFactory(artifacts.NonfungiblePositionManager.abi, artifacts.NonfungiblePositionManager.bytecode, signer);
-   nonfungiblePositionManager = await NonfungiblePositionManager.deploy(await factory.getAddress(), WETH_ADDRESS, nonfungibleTokenPositionDescriptorAddress);
+    let nonfungibleTokenPositionDescriptorAddress = await nonfungibleTokenPositionDescriptor.getAddress();
+    const Factory = new ethers.ContractFactory(artifacts.UniswapV3Factory.abi, artifacts.UniswapV3Factory.bytecode, signer);
+    factory = await Factory.deploy();
+    let NonfungiblePositionManager = new ethers.ContractFactory(artifacts.NonfungiblePositionManager.abi, artifacts.NonfungiblePositionManager.bytecode, signer);
+    nonfungiblePositionManager = await NonfungiblePositionManager.deploy(await factory.getAddress(), WETH_ADDRESS, nonfungibleTokenPositionDescriptorAddress);
+
 
   }
-  else
-  {
+  else {
     factory = await hre.ethers.getContractAt(artifacts.UniswapV3Factory.abi, FACTORY_ADDRESS);
     nonfungiblePositionManager = await hre.ethers.getContractAt(artifacts.NonfungiblePositionManager.abi, POSITION_MANAGER_ADDRESS);
-
   }
 
   FACTORY_ADDRESS = await factory.getAddress();
- 
+
+
 
   wethContract = await hre.ethers.getContractAt(weth9.WETH9.abi, WETH_ADDRESS);
 
@@ -191,68 +192,23 @@ async function deployPrinterTestFixture() {
   await nuUSD.waitForDeployment();
   NUUSD_ADDRESS = await nuUSD.getAddress();
   // temp fix for issues when swapping
-  while (NUUSD_ADDRESS < WETH_ADDRESS) {
-    nuUSD = await upgrades.deployProxy(
-      NuUSD,
-      [defaultAdmin, minter, upgrader],
-      {
-        initializer: 'initialize',
-        kind: 'uups'
-      }
-    );
-    await nuUSD.waitForDeployment();
-    NUUSD_ADDRESS = await nuUSD.getAddress();
-    console.log(`TOBEFIXED nuUSD deployed to: ${NUUSD_ADDRESS}`);
-  }
+  // while (NUUSD_ADDRESS > WETH_ADDRESS) {
+  //   nuUSD = await upgrades.deployProxy(
+  //     NuUSD,
+  //     [defaultAdmin, minter, upgrader],
+  //     {
+  //       initializer: 'initialize',
+  //       kind: 'uups'
+  //     }
+  //   );
+  //   await nuUSD.waitForDeployment();
+  //   NUUSD_ADDRESS = await nuUSD.getAddress();
+  //   console.log(`TOBEFIXED nuUSD deployed to: ${NUUSD_ADDRESS}`);
+  // }
 
   console.log(`nuUSD deployed to: ${NUUSD_ADDRESS}`);
 
-  //  // Create nuUSD/ETH pool 
-  //  await initPoolETH(WETH_ADDRESS,NUUSD_ADDRESS,_fee,price,nonfungiblePositionManager);
-
-  //  // 10 ethers
-  //  let EthAmount = "10000000000000000000";
-
-  //  let USDAmount = 10*price;
-  //  USDAmount = ethers.parseEther(USDAmount.toString());
-
-
-  //  // TODO: get nuUSD from printer before setting pool 
-  //  // ... or not, here we only want to test printer
-  //  // the other script would test that initial minting works and that we can create pool from it
-
-  //  // get some nuUSD
-  //  await nuUSD.connect(signer).mint(signer.getAddress(),USDAmount);
-
-
-  //  await addLiquidity(
-  //      WETH_ADDRESS,
-  //      NUUSD_ADDRESS,
-  //      wethContract,
-  //      nuUSD,
-  //      _fee,
-  //      tickMin,
-  //      tickMax,
-  //      EthAmount,
-  //      USDAmount,
-  //      BigInt(0),
-  //      BigInt(0),
-  //      signer,
-  //      defaultTimestamp,
-  //      nonfungiblePositionManager
-  //    );
-
-
-  //    NUUSD_ETH_POOL_ADDRESS = await factory.getPool(
-  //      WETH_ADDRESS,
-  //      NUUSD_ADDRESS,
-  //      _fee,
-  //    )
-
-  //    const poolContract = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
-  //    const poolData = await getPoolData(poolContract);
-
-
+ 
   // Deploy numa oracle
   const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, signer.getAddress()]);
   await oracle.waitForDeployment();

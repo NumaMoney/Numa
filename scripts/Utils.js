@@ -88,30 +88,21 @@ let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePosi
   {
     token1 = token1_
     token0 = token0_
-    console.log("titi");
   }
   else 
   {
     token1 = token0_
     token0 = token1_
-    console.log("tutu");
   }
 
   if (token0 === wethAddress) 
   {
-    console.log("toto");
       price = BigInt(sqrtPrice*2**96);
-     
   }
   else 
   {
-    console.log("tata");
       price = BigInt(2**96/sqrtPrice);
   }
-  console.log(token0);
-  console.log(token1);
-  console.log(price);
- 
   await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee_, price)
 }
 
@@ -133,16 +124,27 @@ let addLiquidity = async function (
   {
       let nonfungiblePositionManagerAddress = await nonfungiblePositionManager.getAddress();
       // Uniswap reverts pool initialization if you don't sort by address number, beware!
-      let token0, token1
+      let token0, token1;
+      let amount0ToMint,amount1ToMint;
+      let amount0Min,amount1Min;
+
       if (token1_ > token0_) 
       {
           token1 = token1Contract;
           token0 = token0Contract;
+          amount0ToMint = amount0ToMint_;
+          amount1ToMint = amount1ToMint_;
+          amount0Min = amount0Min_;
+          amount1Min = amount1Min_;
       }
       else 
       {
           token1 = token0Contract;
           token0 = token1Contract;
+          amount0ToMint = amount1ToMint_;
+          amount1ToMint = amount0ToMint_;
+          amount0Min = amount1Min_;
+          amount1Min = amount0Min_;
       }
       let mintParams = [
         await token0.getAddress(), 
@@ -150,19 +152,19 @@ let addLiquidity = async function (
         fee_, 
         tickLower_, 
         tickUpper_, 
-        BigInt(amount0ToMint_), 
-        BigInt(amount1ToMint_),
-        amount0Min_,
-        amount1Min_,
+        BigInt(amount0ToMint), 
+        BigInt(amount1ToMint),
+        amount0Min,
+        amount1Min,
         recipient_,
         timestamp_
       ];
-      await token0.approve(nonfungiblePositionManagerAddress, amount0ToMint_);
-      await token1.approve(nonfungiblePositionManagerAddress, amount1ToMint_);
+      await token0.approve(nonfungiblePositionManagerAddress, amount0ToMint);
+      await token1.approve(nonfungiblePositionManagerAddress, amount1ToMint);
 
       const tx = await nonfungiblePositionManager.mint(
           mintParams,
-          { gasLimit: '1000000' }
+          { gasLimit: '30000000' }
           );
       const receipt = await tx.wait();
       //console.log(receipt);
