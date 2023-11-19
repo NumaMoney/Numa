@@ -193,4 +193,29 @@ contract NumaPrinter is Pausable, Ownable
         emit AssetBurn(address(nuAsset), _amount);
         emit BurntFee(amountToBurn);// NUMA burnt (not minted)
     }
+
+
+    // Specific function to burn without fee 
+    // TODO: only swapper can call
+    function burnAssetToNumaWithoutFee(uint256 _amount,address _recipient) external whenNotPaused returns (uint256)
+    {
+        //require (tokenPool != address(0),"No nuAsset pool");
+        require(nuAsset.balanceOf(msg.sender) >= _amount, "Insufficient balance");
+
+        uint256 _output;
+        uint256 amountToBurn;
+
+        (_output,amountToBurn) = getNbOfNumaFromAssetWithFee(_amount);
+
+        // burn amount
+        nuAsset.burnFrom(msg.sender, _amount);
+
+
+
+        numa.mint(_recipient, _output);
+        emit AssetBurn(address(nuAsset), _amount);
+        emit BurntFee(amountToBurn);// NUMA burnt (not minted)
+        return _output;
+    }
+
 }
