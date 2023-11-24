@@ -1003,6 +1003,24 @@ describe('NUMA ORACLE', function () {
     })
   })
 
+
+  describe('#nbOfNuAssetFromNuma', () => {
+   
+
+    it('nbOfNuAssetFromNuma == ', async () => {
+
+      // TODO: expect
+
+      let amount = BigInt(1000e18) // 1000 numa
+      let output = await oracle.nbOfNuAssetFromNuma(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);  
+      console.log(output);
+    
+      let output2 = await oracle.getTokensForAmountCeiling(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, output, config.WETH_ADDRESS);  
+      console.log(output2);
+
+    })
+  })
+
   describe('#view function results', () => {
     it('Should be able to call view functions with appropriate results', async function () {
       // get price from chainlink USD/ETH PRICEFEEDETHUSD

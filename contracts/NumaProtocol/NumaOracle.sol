@@ -217,7 +217,7 @@ contract NumaOracle is Ownable
      * @param {address} _pool the pool to be used
      * @param {uint32} _intervalShort the short interval
      * @param {uint32} _intervalLong the long interval
-     * @param {address} _chainlinkFeed chianlink feed
+     * @param {address} _chainlinkFeed chainlink feed
      * @param {uint256} _amount amount we want to mint
      * @param {address} _weth9 weth address
      * @return {uint256} amount needed to be burnt
@@ -368,14 +368,15 @@ contract NumaOracle is Ownable
     }
 
     /**
-     * @dev number of Numa that will be minted by burning this amount of nuAsset using numa pool and chainlink
+     * @dev number of numa tokens needed to mint amount 
      * @notice same as getTokensForAmountCeiling but without rounding up
-     * @param {address} _pool Numa pool address
+     * @param {address} _pool the pool to be used
      * @param {uint32} _intervalShort the short interval
      * @param {uint32} _intervalLong the long interval
      * @param {address} _chainlinkFeed chainlink feed
-     * @param {uint256} _amount amount we want to burn
+     * @param {uint256} _amount amount we want to mint
      * @param {address} _weth9 weth address
+     * @return {uint256} amount needed to be burnt
      */
     function getTokensForAmount(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount, address _weth9) public view returns (uint256) {
         uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
@@ -397,6 +398,61 @@ contract NumaOracle is Ownable
         return tokensForAmount;
     }
 
+
+
+
+    function getNbOfNuAsset(uint256 _amount, address _chainlinkFeed, address _numaPool) external view returns (uint256) 
+    {       
+       return nbOfNuAssetFromNuma(_numaPool, intervalShort, intervalLong, _chainlinkFeed, _amount, weth9);
+    }
+
+
+
+    // TODO: test me 
+    // TODO: ceiling too?  --> should be round down as it's inverted but mulDiv already rounds down
+    /**
+     * @dev number of output tokens when burning an amount of Numa
+     * @notice 
+     * @param {address} _pool the pool to be used
+     * @param {uint32} _intervalShort the short interval
+     * @param {uint32} _intervalLong the long interval
+     * @param {address} _chainlinkFeed chainlink feed
+     * @param {uint256} _amount amount of Numa we want to burn
+     * @param {address} _weth9 weth address
+     * @return {uint256} amount of output tokens
+     */
+    function nbOfNuAssetFromNuma(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount, address _weth9) public view returns (uint256) {
+        uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
+        uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
+        uint256 denominator = (numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96);
+        //numa per ETH, times _amount
+        //uint256 numaPerETH = FullMath.mulDiv(FullMath.mulDiv(numerator, numerator, denominator), _amount, denominator);
+        uint256 EthPerNuma = FullMath.mulDiv(FullMath.mulDiv(denominator, denominator, numerator), _amount, numerator);
+
+        if (_chainlinkFeed == address(0)) return EthPerNuma;
+        uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
+        uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
+        uint256 tokensForAmount;
+        //if ETH is on the left side of the fraction in the price feed
+        // if (ethLeftSide(_chainlinkFeed)) {
+        //     tokensForAmount = FullMath.mulDiv(numaPerETH, 10**decimalPrecision, linkFeed);
+        // } else {
+        //     tokensForAmount = FullMath.mulDiv(numaPerETH, linkFeed, 10**decimalPrecision);
+        // }
+
+        if (ethLeftSide(_chainlinkFeed)) 
+        {
+            tokensForAmount = FullMath.mulDiv(EthPerNuma, linkFeed,10**decimalPrecision);
+        }
+        else
+        {
+            tokensForAmount = FullMath.mulDiv(EthPerNuma, 10**decimalPrecision,linkFeed);
+        }
+
+
+
+        return tokensForAmount;
+    }
 
 
 
