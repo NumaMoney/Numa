@@ -73,6 +73,7 @@ contract MasterChef is Ownable {
     uint256 public startBlock;
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event Claim(address indexed user, uint256 indexed pid, uint256 pending);
     event EmergencyWithdraw(
         address indexed user,
         uint256 indexed pid,
@@ -234,6 +235,20 @@ contract MasterChef is Ownable {
         user.rewardDebt = (user.amount *pool.accSushiPerShare)/1e12;
         pool.lpToken.safeTransfer(address(msg.sender), _amount);
         emit Withdraw(msg.sender, _pid, _amount);
+    }
+
+
+
+     // Claim: todo: test it
+    function claim(uint256 _pid) public {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.amount >= 0, "claim: not good");
+        updatePool(_pid);
+        uint256 pending = (user.amount *pool.accSushiPerShare)/1e12 - user.rewardDebt;
+        safeSushiTransfer(msg.sender, pending);     
+        user.rewardDebt = (user.amount *pool.accSushiPerShare)/1e12;
+        emit Claim(msg.sender, _pid, pending);
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
