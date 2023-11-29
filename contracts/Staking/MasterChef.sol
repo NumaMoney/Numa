@@ -7,23 +7,26 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../Numa.sol";
 
+
+
+
 // interface IMigratorChef {
-//     // Perform LP token migration from legacy UniswapV2 to SushiSwap.
+//     // Perform LP token migration from legacy UniswapV2 to NumaSwap.
 //     // Take the current LP token address and return the new LP token address.
 //     // Migrator should have full access to the caller's LP token.
 //     // Return the new LP token address.
 //     //
 //     // XXX Migrator must have allowance access to UniswapV2 LP tokens.
-//     // SushiSwap must mint EXACTLY the same amount of SushiSwap LP tokens or
+//     // NumaSwap must mint EXACTLY the same amount of NumaSwap LP tokens or
 //     // else something bad will happen. Traditional UniswapV2 does not
 //     // do that so be careful!
 //     function migrate(IERC20 token) external returns (IERC20);
 // }
 
-// MasterChef is the master of Sushi. He can make Sushi and he is a fair guy.
+// MasterChef is the master of Numa. He can make Numa and he is a fair guy.
 //
 // Note that it's ownable and the owner wields tremendous power. The ownership
-// will be transferred to a governance smart contract once SUSHI is sufficiently
+// will be transferred to a governance smart contract once NUMA is sufficiently
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
@@ -35,13 +38,13 @@ contract MasterChef is Ownable {
         uint256 amount; // How many LP tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
         //
-        // We do some fancy math here. Basically, any point in time, the amount of SUSHIs
+        // We do some fancy math here. Basically, any point in time, the amount of NUMAs
         // entitled to a user but is pending to be distributed is:
         //
-        //   pending reward = (user.amount * pool.accSushiPerShare) - user.rewardDebt
+        //   pending reward = (user.amount * pool.accNumaPerShare) - user.rewardDebt
         //
         // Whenever a user deposits or withdraws LP tokens to a pool. Here's what happens:
-        //   1. The pool's `accSushiPerShare` (and `lastRewardBlock`) gets updated.
+        //   1. The pool's `accNumaPerShare` (and `lastRewardBlock`) gets updated.
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
@@ -49,19 +52,19 @@ contract MasterChef is Ownable {
     // Info of each pool.
     struct PoolInfo {
         IERC20 lpToken; // Address of LP token contract.
-        uint256 allocPoint; // How many allocation points assigned to this pool. SUSHIs to distribute per block.
-        uint256 lastRewardBlock; // Last block number that SUSHIs distribution occurs.
-        uint256 accSushiPerShare; // Accumulated SUSHIs per share, times 1e12. See below.
+        uint256 allocPoint; // How many allocation points assigned to this pool. NUMAs to distribute per block.
+        uint256 lastRewardBlock; // Last block number that NUMAs distribution occurs.
+        uint256 accNumaPerShare; // Accumulated NUMAs per share, times 1e12. See below.
     }
     // The NUMA TOKEN!
     NUMA public numa;
   
-    // Block number when bonus SUSHI period ends.
-    uint256 public bonusEndBlock;
-    // SUSHI tokens created per block.
-    uint256 public sushiPerBlock;
-    // Bonus muliplier for early sushi makers.
-    uint256 public constant BONUS_MULTIPLIER = 10;
+    // Block number when bonus NUMA period ends.
+    //uint256 public bonusEndBlock;
+    // NUMA tokens created per block.
+    uint256 public numaPerBlock;
+    // Bonus muliplier for early numa makers.
+    //uint256 public constant BONUS_MULTIPLIER = 10;
   
     // Info of each pool.
     PoolInfo[] public poolInfo;
@@ -69,7 +72,7 @@ contract MasterChef is Ownable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // The block number when SUSHI mining starts.
+    // The block number when NUMA mining starts.
     uint256 public startBlock;
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -81,20 +84,31 @@ contract MasterChef is Ownable {
     );
 
     constructor(
-        NUMA _numa,
-        uint256 _sushiPerBlock,
+        address _numaAddress,
+        uint256 _numaPerBlock,
         uint256 _startBlock,
-        uint256 _bonusEndBlock,address initialOwner
+       // uint256 _bonusEndBlock,address initialOwner
+        address initialOwner
     ) Ownable(initialOwner)
     {
-        numa = _numa;
-        sushiPerBlock = _sushiPerBlock;
-        bonusEndBlock = _bonusEndBlock;
+        numa = NUMA(_numaAddress);
+        numaPerBlock = _numaPerBlock;
+       // bonusEndBlock = _bonusEndBlock;
         startBlock = _startBlock;
     }
 
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
+    }
+
+    function updateNumaPerBlock(uint256 _newNumaPerBlock, bool _withUpdate) public onlyOwner
+    {
+        if (_withUpdate) 
+        {
+            massUpdatePools();
+        }
+        numaPerBlock = _newNumaPerBlock;
+
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
@@ -115,12 +129,12 @@ contract MasterChef is Ownable {
                 lpToken: _lpToken,
                 allocPoint: _allocPoint,
                 lastRewardBlock: lastRewardBlock,
-                accSushiPerShare: 0
+                accNumaPerShare: 0
             })
         );
     }
 
-    // Update the given pool's SUSHI allocation point. Can only be called by the owner.
+    // Update the given pool's NUMA allocation point. Can only be called by the owner.
     function set(
         uint256 _pid,
         uint256 _allocPoint,
@@ -141,43 +155,43 @@ contract MasterChef is Ownable {
         view
         returns (uint256)
     {
-        if (_to <= bonusEndBlock) 
-        {
-            return (_to - _from)*BONUS_MULTIPLIER;
-        } 
-        else if (_from >= bonusEndBlock) 
-        {
+        // if (_to <= bonusEndBlock) 
+        // {
+        //     return (_to - _from)*BONUS_MULTIPLIER;
+        // } 
+        // else if (_from >= bonusEndBlock) 
+        // {
             return _to - _from;
-        }
-        else
-        {
-            return (bonusEndBlock - _from) * BONUS_MULTIPLIER + (_to - bonusEndBlock);
-        }
+        // }
+        // else
+        // {
+        //     return (bonusEndBlock - _from) * BONUS_MULTIPLIER + (_to - bonusEndBlock);
+        // }
     }
 
-    // View function to see pending SUSHIs on frontend.
-    function pendingSushi(uint256 _pid, address _user)
+    // View function to see pending NUMAs on frontend.
+    function pendingNuma(uint256 _pid, address _user)
         external
         view
         returns (uint256)
     {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
-        uint256 accSushiPerShare = pool.accSushiPerShare;
+        uint256 accNumaPerShare = pool.accNumaPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0)
         {
             uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 sushiReward = (multiplier*sushiPerBlock*pool.allocPoint) / totalAllocPoint;
+            uint256 numaReward = (multiplier*numaPerBlock*pool.allocPoint) / totalAllocPoint;
                 
-            accSushiPerShare += (sushiReward * 1e12) / lpSupply;
+            accNumaPerShare += (numaReward * 1e12) / lpSupply;
 
         }
-        return (user.amount *accSushiPerShare)/1e12 - user.rewardDebt;
+        return (user.amount *accNumaPerShare)/1e12 - user.rewardDebt;
     }
 
     // Update reward vairables for all pools. Be careful of gas spending!
-    function massUpdatePools() public {
+    function massUpdatePools() public {// TODO: carefull if we have too many pools
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
             updatePool(pid);
@@ -196,22 +210,22 @@ contract MasterChef is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 sushiReward = (multiplier*sushiPerBlock*pool.allocPoint) / totalAllocPoint;
+        uint256 numaReward = (multiplier*numaPerBlock*pool.allocPoint) / totalAllocPoint;
 
-        numa.mint(address(this), sushiReward);
-        pool.accSushiPerShare += (sushiReward * 1e12) / lpSupply;
+        numa.mint(address(this), numaReward);
+        pool.accNumaPerShare += (numaReward * 1e12) / lpSupply;
 
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MasterChef for SUSHI allocation.
+    // Deposit LP tokens to MasterChef for NUMA allocation.
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = (user.amount *pool.accSushiPerShare)/1e12 - user.rewardDebt;
-            safeSushiTransfer(msg.sender, pending);
+            uint256 pending = (user.amount *pool.accNumaPerShare)/1e12 - user.rewardDebt;
+            safeNumaTransfer(msg.sender, pending);
         }
         pool.lpToken.safeTransferFrom(
             address(msg.sender),
@@ -219,7 +233,7 @@ contract MasterChef is Ownable {
             _amount
         );
         user.amount = user.amount + _amount;
-        user.rewardDebt = (user.amount *pool.accSushiPerShare)/1e12;
+        user.rewardDebt = (user.amount *pool.accNumaPerShare)/1e12;
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -229,10 +243,10 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
-        uint256 pending = (user.amount *pool.accSushiPerShare)/1e12 - user.rewardDebt;
-        safeSushiTransfer(msg.sender, pending);
+        uint256 pending = (user.amount *pool.accNumaPerShare)/1e12 - user.rewardDebt;
+        safeNumaTransfer(msg.sender, pending);
         user.amount = user.amount - _amount;
-        user.rewardDebt = (user.amount *pool.accSushiPerShare)/1e12;
+        user.rewardDebt = (user.amount *pool.accNumaPerShare)/1e12;
         pool.lpToken.safeTransfer(address(msg.sender), _amount);
         emit Withdraw(msg.sender, _pid, _amount);
     }
@@ -245,9 +259,9 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= 0, "claim: not good");
         updatePool(_pid);
-        uint256 pending = (user.amount *pool.accSushiPerShare)/1e12 - user.rewardDebt;
-        safeSushiTransfer(msg.sender, pending);     
-        user.rewardDebt = (user.amount *pool.accSushiPerShare)/1e12;
+        uint256 pending = (user.amount *pool.accNumaPerShare)/1e12 - user.rewardDebt;
+        safeNumaTransfer(msg.sender, pending);     
+        user.rewardDebt = (user.amount *pool.accNumaPerShare)/1e12;
         emit Claim(msg.sender, _pid, pending);
     }
 
@@ -261,11 +275,11 @@ contract MasterChef is Ownable {
         user.rewardDebt = 0;
     }
 
-    // Safe sushi transfer function, just in case if rounding error causes pool to not have enough SUSHIs.
-    function safeSushiTransfer(address _to, uint256 _amount) internal {
-        uint256 sushiBal = numa.balanceOf(address(this));
-        if (_amount > sushiBal) {
-            numa.transfer(_to, sushiBal);
+    // Safe numa transfer function, just in case if rounding error causes pool to not have enough NUMAs.
+    function safeNumaTransfer(address _to, uint256 _amount) internal {
+        uint256 numaBal = numa.balanceOf(address(this));
+        if (_amount > numaBal) {
+            numa.transfer(_to, numaBal);
         } else {
             numa.transfer(_to, _amount);
         }

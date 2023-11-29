@@ -8,7 +8,7 @@ const config = require(configRelativePath);
 
 
 let { DEPLOY_UNISWAP, WETH_ADDRESS, FACTORY_ADDRESS,
-  POSITION_MANAGER_ADDRESS, PRICEFEEDETHUSD, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, FEE } = config;
+  POSITION_MANAGER_ADDRESS, PRICEFEEDETHUSD, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, FEE,TICKMIN,TICKMAX } = config;
 
 async function deployPrinterTestFixture() {
   let signer, signer2;
@@ -40,8 +40,8 @@ async function deployPrinterTestFixture() {
 
   // TODO: move parameters in fixture/config
   // Min and Max tick numbers, as a multiple of 60
-  const tickMin = -887220;
-  const tickMax = 887220;
+  const tickMin = Number(TICKMIN);//-887220;
+  const tickMax = Number(TICKMAX);//887220;
 
   // uniswap v3 pool fee
   let _fee = Number(FEE);
