@@ -185,7 +185,7 @@ contract NumaPrinter is Pausable, Ownable
      * param {uint256} _amount amount of nuAsset that we want to burn
      * param {address} _recipient recipient of minted Numa tokens
      */   
-    function burnAssetToNuma(uint256 _amount,address _recipient) external whenNotPaused 
+    function burnAssetToNuma(uint256 _amount,address _recipient) external whenNotPaused returns (uint)
     {
         //require (tokenPool != address(0),"No nuAsset pool");
         require(nuAsset.balanceOf(msg.sender) >= _amount, "Insufficient balance");
@@ -202,10 +202,13 @@ contract NumaPrinter is Pausable, Ownable
         _output -= amountToBurn;
 
         numa.mint(_recipient, _output);
+       
         emit AssetBurn(address(nuAsset), _amount);
         emit BurntFee(amountToBurn);// NUMA burnt (not minted)
+        return (_output);
     }
 
+    // NEW FUNCTIONS FOR SYNTHETIC SWAP: TODO: add to printer&oracle tests
 
     function burnAssetToNumaWithoutFee(uint256 _amount,address _recipient) external whenNotPaused returns (uint)
     {
@@ -243,6 +246,19 @@ contract NumaPrinter is Pausable, Ownable
      
     }
 
+
+    function GetNbOfnuAssetNeededForNuma(uint _amount) public view returns (uint256,uint256)
+    {
+        uint256 input =  oracle.getNbOfAssetneeded(_amount, chainlinkFeed, numaPool,tokenPool);
+
+        uint256 amountToBurn = (_amount*burnAssetFeeBps) / 10000;
+
+        return (input,amountToBurn);
+
+
+
+    }
+
     /**
      * dev 
      * notice 
@@ -270,60 +286,7 @@ contract NumaPrinter is Pausable, Ownable
         return assetAmount;
     }
 
-    function ArbitragePossible() public returns (uint)
-    {
-        // get nuAsset price from pool
-
-        // get "real" price
-
-        // amount difference
-
-        // simulate arb, which amount would be optimal
-
-        // 1. nuAsset pegged down < chainlink price
-
-        // a. buy from pool with ETH
-        // b. mint Numa
-        // c. swap Numa to ETH
-        // d. profit 
 
 
-        // 2. nuAsset pegged up
-        //
-        // a. buy NUMA from NUMA/ETH
-        // b. mint nuAsset from NUMA
-        // c. sell it to ETH
-        // d. profit
-
-
-        // 
-
-    }
-
-    // Q:
-    // - use smart contract and transaction VS bot that calls our functions, souvent c'est plus des bots qui font ça (mais auront des fees)
-    
-    // - calls our functions for mint/burn? (with prices that use highest/lowest) 
-    // - can't compare with offshift because I don't see code that does that, how do they do it? doc?
-    // - if function: to be called by sending some ETH?, how inputs/outputs would work?
-    // - ces functions sont prévues pour les arb "normaux" ou bien aussi quand sous threshold?
-    // - toujours pas sur de comment offshift repeg quand below threshold ou alors il faut attendre 30 min après avoir fait slipp le prix
-    // mais si beaucoup de liquidité comment on fait slip le prix??
-    // --> cas d'une pool nuUSD/ETH très liquide mais ETH perd 50 % de sa valeur
-
-    // Arb specs:
-    // We need arbitrage functions that are exempt from these fees, too. There should be two arbitrage transactions for each nu money:
-    // To bring the price down: ETH>NUMA>nuUSD>ETH
-    // To bring the price up: ETH>nuUSD>NUMA>ETH
-    // The arbitrage dashboard should display the current prices of each nu money. The interface will only present the arbitrage transactions that are currently available. Eg., if the price of nuUSD is $1.01, it will present the user with the ability to bring the price down and vice versa. There should be two of these interfaces displayed at all times (nuBTC and nuUSD)
-    // devrait-on pas les exempter aussi de la flex fee?
-    // la flex fee est faite pour empêcher les gens de se débarasser de leur nuAsset mais pour un arb il s'agit d'un achat?
-
-
-    // - offshift doc:
-    // When zkAssets are burned, XFT is minted in whatever quantity necessary to satisfy a 1:1 exit. 
-    // Market making and other arbitrage-related incentive mechanisms are not employed.
-
-    // Price Parity via Flex Fee
 
 }

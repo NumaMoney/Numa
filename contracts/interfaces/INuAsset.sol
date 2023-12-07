@@ -16,8 +16,9 @@ abstract contract INuAsset is Initializable, ERC20Upgradeable, ERC20BurnableUpgr
         _disableInitializers();
     }
 
-    function initialize(address defaultAdmin, address minter, address upgrader) public virtual;
+    //function initialize(address defaultAdmin, address minter, address upgrader) public virtual;
 
+    function initialize(string memory name,string memory symbol,address defaultAdmin, address minter, address upgrader) public virtual;
 
     function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
         _mint(to, amount);

@@ -1,5 +1,5 @@
 const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../scripts/Utils.js");
-const { deployPrinterTestFixture, config } = require("./fixtures/NumaPrinterTestFixtureDeployNuma.js");
+const { deployPrinterTestFixture, config } = require("./fixtures/NumaTestFixture.js");
 const { time, loadFixture, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
@@ -47,6 +47,7 @@ describe('NUMA ORACLE', function () {
   let tokenOut;
   let fee;
   let sqrtPriceLimitX96;
+
   afterEach(async function () {
     //console.log("reseting snapshot");
     await snapshot.restore();
@@ -88,8 +89,8 @@ describe('NUMA ORACLE', function () {
 
     // code that could be put in beforeEach but as we snapshot and restore, we
     // can put it here
-    intervalShort = 180;
-    intervalLong = 1800;
+    intervalShort = config.INTERVAL_SHORT;
+    intervalLong = config.INTERVAL_LONG;
     amountInMaximum = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
     tokenIn = NUUSD_ADDRESS;
     tokenOut = config.WETH_ADDRESS;
@@ -1005,21 +1006,122 @@ describe('NUMA ORACLE', function () {
 
 
   describe('#nbOfNuAssetFromNuma', () => {
-   
 
-    it('nbOfNuAssetFromNuma == ', async () => {
 
-      // TODO: expect
+    it('nbOfNuAssetFromNuma matches getNbOfNumaNeeded', async () => {
 
+      // how many nu asset do we get by burning N Numas
       let amount = BigInt(1000e18) // 1000 numa
-      let output = await oracle.nbOfNuAssetFromNuma(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);  
+      let output = await oracle.nbOfNuAssetFromNuma(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);
       console.log(output);
-    
-      let output2 = await oracle.getTokensForAmountCeiling(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, output, config.WETH_ADDRESS);  
+      // how many numas are need to get this amount
+      let output2 = await oracle.getNbOfNumaNeeded(output, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
       console.log(output2);
+      const epsilon = ethers.parseEther('0.000000000001');
+      expect(output2).to.be.closeTo(amount, epsilon);// TODO: we have a diff is this normal?
 
     })
   })
+  describe('#getNbOfAssetneeded', () => {
+
+
+    it('getNbOfAssetneeded matches getNbOfNumaFromAsset at or above threshold', async () => {
+
+
+      let deadline, amountOut;
+
+      // recipient = sender
+      let offset = 3600 * 10000000;// TODO 
+      deadline = Math.round((Date.now() / 1000 + 300 + offset)).toString(); // Deadline five minutes from 'now'
+      deadline += 1800; // Time advanced 30min in migration to allow for the long interval
+
+
+      // amount of ETH we want to get 
+      amountOut = BigInt(12e16).toString(); // 0.12 ETH 
+      input = await nuUSD.balanceOf(sender);
+      let ethBalance;
+      let wethBalance;
+      let nuusdcBalance;
+
+
+
+      let threshold = config.FLEXFEETHRESHOLD;
+
+
+      // execute SWAP
+      ethBalance = await ethers.provider.getBalance(sender);
+      wethBalance = await wethContract.balanceOf(sender);
+      nuusdcBalance = await nuUSD.balanceOf(sender);
+
+
+      // SWAP
+      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
+      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+
+
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+
+
+
+      let amount = BigInt(1e18);
+      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      console.log(costSimpleShift);
+      // 
+      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      const epsilon = ethers.parseEther('0.000000000001');
+
+      expect(amount).to.be.closeTo(assetNeeded, epsilon);
+
+
+    })
+
+    it('getNbOfAssetneeded matches getNbOfNumaFromAsset below threshold', async () => {
+
+      let deadline, amountOut;
+
+      // recipient = sender
+      let offset = 3600 * 10000000;// TODO 
+      deadline = Math.round((Date.now() / 1000 + 300 + offset)).toString(); // Deadline five minutes from 'now'
+      deadline += 1800; // Time advanced 30min in migration to allow for the long interval
+
+
+      // amount of ETH we want to get 
+      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
+      input = await nuUSD.balanceOf(sender);
+      let ethBalance;
+      let wethBalance;
+      let nuusdcBalance;
+
+
+
+      let threshold = config.FLEXFEETHRESHOLD;
+
+
+      // execute SWAP
+      ethBalance = await ethers.provider.getBalance(sender);
+      wethBalance = await wethContract.balanceOf(sender);
+      nuusdcBalance = await nuUSD.balanceOf(sender);
+
+      // SWAP
+      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
+      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+
+
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+
+
+      let amount = BigInt(1e18);
+      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      console.log(costSimpleShift);
+      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      const epsilon = ethers.parseEther('0.000000000001');
+      expect(amount).to.be.closeTo(assetNeeded, epsilon);
+
+    });
+
+
+  })
+
 
   describe('#view function results', () => {
     it('Should be able to call view functions with appropriate results', async function () {

@@ -1,4 +1,4 @@
-const { deployPrinterTestFixture,config } = require("./fixtures/NumaPrinterTestFixtureDeployNuma.js");
+const { deployPrinterTestFixture,config } = require("./fixtures/NumaTestFixture.js");
 const { time, loadFixture, } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
@@ -25,11 +25,11 @@ describe('NUMA NUASSET PRINTER', function () {
   let oracleAddress;
   // amount to be transfered to signer
   let numaAmount;
-
-  let testData;// TODO: use mocha context?
-
+  let testData;
   let numa_address;
   let NUMA_ETH_POOL_ADDRESS;
+
+
   before(async function () 
   {
     testData = await loadFixture(deployPrinterTestFixture);

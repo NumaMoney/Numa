@@ -401,6 +401,8 @@ contract NumaOracle is Ownable
 
 
 
+    // NEW FUNCTIONS FOR SYNTHETIC SWAP
+    // TODO: TESTS PRINTER&ORACLE
     function getNbOfNuAsset(uint256 _amount, address _chainlinkFeed, address _numaPool) external view returns (uint256) 
     {       
        return nbOfNuAssetFromNuma(_numaPool, intervalShort, intervalLong, _chainlinkFeed, _amount, weth9);
@@ -410,17 +412,6 @@ contract NumaOracle is Ownable
 
     // TODO: test me 
     // TODO: ceiling too?  --> should be round down as it's inverted but mulDiv already rounds down
-    /**
-     * @dev number of output tokens when burning an amount of Numa
-     * @notice 
-     * @param {address} _pool the pool to be used
-     * @param {uint32} _intervalShort the short interval
-     * @param {uint32} _intervalLong the long interval
-     * @param {address} _chainlinkFeed chainlink feed
-     * @param {uint256} _amount amount of Numa we want to burn
-     * @param {address} _weth9 weth address
-     * @return {uint256} amount of output tokens
-     */
     function nbOfNuAssetFromNuma(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount, address _weth9) public view returns (uint256) {
         uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
         uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
@@ -456,6 +447,86 @@ contract NumaOracle is Ownable
 
 
 
+    function getNbOfAssetneeded(uint256 _amountNumaOut, address _chainlinkFeed, address _numaPool, address _tokenPool) external view returns (uint256) 
+    {
+        uint256 _output;
+        // if nuAsset price using uniswap pool is below threshold we use pool value as price reference
+        if (isTokenBelowThreshold(flexFeeThreshold, _tokenPool, intervalShort, intervalLong, _chainlinkFeed, weth9)) 
+        {
+            //_output = getNbOfNumaFromAssetUsingPools(_numaPool, _tokenPool, intervalShort, intervalLong, _amount, weth9);
+            _output = getNbOfAssetNeededUsingPools(_numaPool, _tokenPool, intervalShort, intervalLong, _amountNumaOut, weth9);
+        } 
+        else 
+        {
+            // if not we use chainlink price
+            _output = getNbOfAssetNeededUsingOracle(_numaPool, intervalShort, intervalLong, _chainlinkFeed, _amountNumaOut, weth9);
+        }
+        return _output;
+    }
 
+
+    // amount of asset needed to burn to get this Numa amount
+    function getNbOfAssetNeededUsingOracle(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amountNumaOut, address _weth9) public view returns (uint256) 
+    {
+        
+        // highest price for numa to minimize amount to mint
+        uint160 sqrtPriceX96 = getV3SqrtHighestPrice(_pool, _intervalShort, _intervalLong);
+        uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
+        uint256 denominator = (numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96);
+        //numa per ETH, times _amount
+        uint256 EthPerNuma = FullMath.mulDiv(FullMath.mulDiv(denominator, denominator, numerator), _amountNumaOut, numerator);
+
+        if (_chainlinkFeed == address(0)) return EthPerNuma;
+        uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
+        uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
+        uint256 tokensForAmount;
+        //if ETH is on the left side of the fraction in the price feed
+        if (ethLeftSide(_chainlinkFeed)) {
+            tokensForAmount = FullMath.mulDiv(EthPerNuma,linkFeed, 10**decimalPrecision);
+        } else {
+            tokensForAmount = FullMath.mulDiv(EthPerNuma, 10**decimalPrecision,linkFeed);
+        }
+        return tokensForAmount;
+    }
+
+    function getNbOfAssetNeededUsingPools(address _numaPool, address _tokenPool, uint32 _intervalShort, uint32 _intervalLong, uint256 _amountNumaOut, address _weth9) public view returns (uint256) 
+    {
+        // highest price for numa to minimize amount to mint
+        uint160 numaSqrtPriceX96 = getV3SqrtHighestPrice(_numaPool, _intervalShort, _intervalLong);
+        // lowest price for nuAsset to maximize amount to burn
+        uint160 tokenSqrtPriceX96 = getV3SqrtLowestPrice(_tokenPool, _intervalShort, _intervalLong);
+        uint256 numaA;
+        uint256 numaPrice;
+        uint256 tokenA;
+        uint256 tokenPrice;
+
+
+        if (IUniswapV3Pool(_numaPool).token1() == _weth9) 
+        {
+            numaA = FullMath.mulDiv(numaSqrtPriceX96, numaSqrtPriceX96, FixedPoint96.Q96);
+            numaPrice = FullMath.mulDiv(numaA, _amountNumaOut, FixedPoint96.Q96);
+        }
+        else 
+        {
+            numaA = FullMath.mulDiv(FixedPoint96.Q96, FixedPoint96.Q96, numaSqrtPriceX96);
+            numaPrice = FullMath.mulDiv(numaA, _amountNumaOut, numaSqrtPriceX96);
+        }
+
+        // tokenPrice is ETH/Token
+        if (IUniswapV3Pool(_tokenPool).token0() == _weth9) 
+        {
+            tokenA = FullMath.mulDiv(tokenSqrtPriceX96, tokenSqrtPriceX96, FixedPoint96.Q96);
+            tokenPrice = FullMath.mulDiv(tokenA, 1e18, FixedPoint96.Q96);
+        }
+        else
+        {
+            tokenA = FullMath.mulDiv(FixedPoint96.Q96, FixedPoint96.Q96, tokenSqrtPriceX96);
+            tokenPrice = FullMath.mulDiv(tokenA, 1e18, tokenSqrtPriceX96);
+        }
+
+        //Multiplying numaPrice by tokenPrice and dividing by 1e18
+        //In other words, numa * amount / Tokens -> Number of numa to mint for a given amount
+        return FullMath.mulDiv(numaPrice, tokenPrice, 1e18); 
+    }
 
 }

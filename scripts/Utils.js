@@ -46,37 +46,6 @@ const linkLibraries = ({ bytecode, linkReferences }, libraries) => {
 }
 
 
-let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungiblePositionManager,wethAddress) {
-  // const pool = await IUniswapV3Pool.at(pool_) //Pool we're fetching init price from
-  // const slot0 = await pool.slot0()
-  // const price = slot0.sqrtPriceX96
-  const fee = fee_;
-
-  // Uniswap reverts pool initialization if you don't sort by address number, beware!
-  let token0, token1
-  if (token1_ > token0_) {
-    token1 = token1_
-    token0 = token0_
-  } else {
-    token1 = token0_
-    token0 = token1_
-  }
-
-
-  let sqrtPrice = Math.sqrt(EthPriceInNuma_)
-
-  if (token0 === wethAddress) 
-  {
-      price = BigInt(sqrtPrice*2**96);
-  }
-  else 
-  {
-      price = BigInt(2**96/sqrtPrice);
-  }
-
-
-  await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee, price)
-}
 
 
 let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePositionManager,wethAddress) {
@@ -271,7 +240,6 @@ function buildTrade(trades) {
   module.exports.buildTrade = buildTrade;
   module.exports.getPoolData = getPoolData;
   module.exports.initPoolETH = initPoolETH;
-  module.exports.initPool = initPool;
   module.exports.addLiquidity = addLiquidity;
   module.exports.weth9 = weth9;
   module.exports.artifacts = artifacts;

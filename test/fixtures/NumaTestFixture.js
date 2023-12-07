@@ -8,19 +8,28 @@ const config = require(configRelativePath);
 
 
 let { DEPLOY_UNISWAP, WETH_ADDRESS, FACTORY_ADDRESS,
-  POSITION_MANAGER_ADDRESS, PRICEFEEDETHUSD, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, FEE } = config;
+  POSITION_MANAGER_ADDRESS, PRICEFEEDETHUSD,PRICEFEEDBTCETH, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, FEE } = config;
 
 async function deployPrinterTestFixture() {
   let signer, signer2;
   let numaOwner;
   let numa;
+  // 
   let nuUSD;
-  let NUUSD_ADDRESS;
-  let NUUSD_ETH_POOL_ADDRESS;
+  let nuusd_address;
+  let nuusd_eth_pool_address;
+  //
+  let moneyprinterUSD;
+  let moneyprinterUSD_address;
 
-
-  let moneyPrinter;
-  let MONEY_PRINTER_ADDRESS;
+  //
+  let nuBTC;
+  let nubtc_address;
+  let nubtc_eth_pool_address;
+  //
+  let moneyprinterbtc;
+  let moneyprinterbtc_address;
+  
 
   // uniswap
   let nonfungiblePositionManager;
@@ -29,22 +38,27 @@ async function deployPrinterTestFixture() {
   let oracleAddress;
   let factory;
 
+  //
+  [signer, signer2, signer3] = await ethers.getSigners();
+
+
+  // Min and Max tick numbers, as a multiple of 60
+  const tickMin = -887220;
+  const tickMax = 887220;
+  // uniswap v3 pool fee
+  let _fee = Number(FEE);
+
+  
+
+
+
+
+
   // amount to be transfered to signer
   let numaAmount = ethers.parseEther('100000');
 
 
 
-
-  [signer, signer2, signer3] = await ethers.getSigners();
-
-
-  // TODO: move parameters in fixture/config
-  // Min and Max tick numbers, as a multiple of 60
-  const tickMin = -887220;
-  const tickMax = 887220;
-
-  // uniswap v3 pool fee
-  let _fee = Number(FEE);
 
 
 
@@ -136,7 +150,7 @@ async function deployPrinterTestFixture() {
   // numa at 0.5 usd     
   let EthPriceInNuma = price * 2;
   // create numa/eth univ3 pool
-  await initPool(WETH_ADDRESS, numa_address, _fee, EthPriceInNuma, nonfungiblePositionManager, WETH_ADDRESS);
+  await initPoolETH(WETH_ADDRESS, numa_address, _fee, EthPriceInNuma, nonfungiblePositionManager, WETH_ADDRESS);
 
   // 10 ethers
   let nbEthers = 10;
@@ -176,60 +190,53 @@ async function deployPrinterTestFixture() {
   const poolDataNuma = await getPoolData(poolContractNuma);
   // console.log(poolDataNuma);
 
-  // *** nuUSD deploy
-  const NuUSD = await ethers.getContractFactory('nuUSD');
+
+  // ***********************************  NUMA ORACLE ******************************
+  const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, signer.getAddress()]);
+  await oracle.waitForDeployment();
+  oracleAddress = await oracle.getAddress();
+  console.log(`numa oracle deployed to: ${oracleAddress}`);
+
+  // ***********************************  NUUSD & PRINTER ******************************
+  const NuUSD = await ethers.getContractFactory('nuAsset');
   let defaultAdmin = await signer.getAddress();
   let minter = await signer.getAddress();
   let upgrader = await signer.getAddress();
   nuUSD = await upgrades.deployProxy(
     NuUSD,
-    [defaultAdmin, minter, upgrader],
+    ["nuUSD","NUSD",defaultAdmin, minter, upgrader],
     {
       initializer: 'initialize',
       kind: 'uups'
     }
   );
   await nuUSD.waitForDeployment();
-  NUUSD_ADDRESS = await nuUSD.getAddress();
-  // temp fix for issues when swapping
-  // while (NUUSD_ADDRESS > WETH_ADDRESS) {
-  //   nuUSD = await upgrades.deployProxy(
-  //     NuUSD,
-  //     [defaultAdmin, minter, upgrader],
-  //     {
-  //       initializer: 'initialize',
-  //       kind: 'uups'
-  //     }
-  //   );
-  //   await nuUSD.waitForDeployment();
-  //   NUUSD_ADDRESS = await nuUSD.getAddress();
-  //   console.log(`TOBEFIXED nuUSD deployed to: ${NUUSD_ADDRESS}`);
-  // }
+  nuusd_address = await nuUSD.getAddress();
 
-  console.log(`nuUSD deployed to: ${NUUSD_ADDRESS}`);
+
+  console.log(`nuUSD deployed to: ${nuusd_address}`);
 
  
-  // Deploy numa oracle
-  const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, signer.getAddress()]);
-  await oracle.waitForDeployment();
-  oracleAddress = await oracle.getAddress();
+
 
   // Deploy printerUSD      
-  moneyPrinter = await ethers.deployContract("NumaPrinter",
-    [numa_address, NUUSD_ADDRESS, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDETHUSD]);
-  await moneyPrinter.waitForDeployment();
-  MONEY_PRINTER_ADDRESS = await moneyPrinter.getAddress();
+  moneyprinterUSD = await ethers.deployContract("NumaPrinter",
+    [numa_address, nuusd_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDETHUSD]);
+  await moneyprinterUSD.waitForDeployment();
+  moneyprinterUSD_address = await moneyprinterUSD.getAddress();
+  console.log(`nuUSD printer deployed to: ${moneyprinterUSD_address}`);
+
 
   // set printer as a NuUSD minter
   const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
-  await nuUSD.connect(signer).grantRole(roleMinter, MONEY_PRINTER_ADDRESS);// owner is NuUSD deployer
+  await nuUSD.connect(signer).grantRole(roleMinter, moneyprinterUSD_address);// owner is NuUSD deployer
   // set printer as a NUMA minter
-  await numa.connect(numaOwner).grantRole(roleMinter, MONEY_PRINTER_ADDRESS);// signer is Numa deployer
+  await numa.connect(numaOwner).grantRole(roleMinter, moneyprinterUSD_address);// signer is Numa deployer
 
 
 
   // Create nuUSD/ETH pool 
-  await initPoolETH(WETH_ADDRESS, NUUSD_ADDRESS, _fee, price, nonfungiblePositionManager, WETH_ADDRESS);
+  await initPoolETH(WETH_ADDRESS, nuusd_address, _fee, price, nonfungiblePositionManager, WETH_ADDRESS);
 
   // 10 ethers
   let EthAmount = "10000000000000000000";
@@ -255,15 +262,15 @@ async function deployPrinterTestFixture() {
   //let numaAmountToApprove = 10*price*2;// numa is 50 cts in our tests
   let numaAmountToApprove = 10 * price * 2 + 10;// numa is 50 cts in our tests
   let approvalAmount = ethers.parseEther(numaAmountToApprove.toString());
-  await numa.connect(signer).approve(MONEY_PRINTER_ADDRESS, approvalAmount);
-  await moneyPrinter.mintAssetFromNuma(USDAmount, signer.getAddress());
+  await numa.connect(signer).approve(moneyprinterUSD_address, approvalAmount);
+  await moneyprinterUSD.mintAssetFromNuma(USDAmount, signer.getAddress());
 
   //let timestamp2 = Math.ceil(Date.now()/1000 + 300);
   // we have to increase deadline as we manually increased time
   let timestamp2 = Math.ceil(Date.now() / 1000 + 3000 + offset);
   await addLiquidity(
     WETH_ADDRESS,
-    NUUSD_ADDRESS,
+    nuusd_address,
     wethContract,
     nuUSD,
     _fee,
@@ -279,34 +286,158 @@ async function deployPrinterTestFixture() {
   );
 
 
-  NUUSD_ETH_POOL_ADDRESS = await factory.getPool(
+  nuusd_eth_pool_address = await factory.getPool(
     WETH_ADDRESS,
-    NUUSD_ADDRESS,
+    nuusd_address,
     _fee,
   )
   console.log("****************************");
-  console.log(NUUSD_ETH_POOL_ADDRESS);
+  console.log(nuusd_eth_pool_address);
   console.log(WETH_ADDRESS);
-  console.log(NUUSD_ADDRESS);
+  console.log(nuusd_address);
   console.log(_fee);
   console.log("****************************");
 
-  const poolContract = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+  const poolContract = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, nuusd_eth_pool_address);
   const poolData = await getPoolData(poolContract);
   await poolContract.increaseObservationCardinalityNext(cardinality);
 
 
 
 
-  await moneyPrinter.setTokenPool(NUUSD_ETH_POOL_ADDRESS);
-
+  await moneyprinterUSD.setTokenPool(nuusd_eth_pool_address);
   //
   let printFee = 500;
-  await moneyPrinter.setPrintAssetFeeBps(printFee);
+  await moneyprinterUSD.setPrintAssetFeeBps(printFee);
   //
   let burnFee = 800;
-  await moneyPrinter.setBurnAssetFeeBps(burnFee);
+  await moneyprinterUSD.setBurnAssetFeeBps(burnFee);
 
+
+
+
+  // ***********************************  NUBTC & PRINTER ******************************
+  const NuBTC = await ethers.getContractFactory('nuAsset');
+
+  nuBTC = await upgrades.deployProxy(
+    NuBTC,
+    ["nuBTC","NBTC",defaultAdmin, minter, upgrader],
+    {
+      initializer: 'initialize',
+      kind: 'uups'
+    }
+  );
+  await nuBTC.waitForDeployment();
+  nubtc_address = await nuBTC.getAddress();
+
+
+  console.log(`nuBTC deployed to: ${nubtc_address}`);
+
+ 
+  
+
+  // Deploy printerBTC      
+  moneyPrinterBTC = await ethers.deployContract("NumaPrinter",
+    [numa_address, nubtc_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDBTCETH]);
+  await moneyPrinterBTC.waitForDeployment();
+  moneyprinterbtc_address = await moneyPrinterBTC.getAddress();
+  console.log(`nuBTC printer deployed to: ${moneyprinterbtc_address}`);
+
+
+  // set printer as a NuBTC minter
+ 
+  await nuBTC.connect(signer).grantRole(roleMinter, moneyprinterbtc_address);// owner is NuUSD deployer
+  // set printer as a NUMA minter
+  await numa.connect(numaOwner).grantRole(roleMinter, moneyprinterbtc_address);// signer is Numa deployer
+
+
+
+  // Create nuUSD/ETH pool 
+  let chainlinkInstanceBTC = await hre.ethers.getContractAt(artifacts.AggregatorV3, PRICEFEEDBTCETH);
+  let latestRoundDataBTC = await chainlinkInstanceBTC.latestRoundData();
+  let latestRoundPriceBTC = Number(latestRoundDataBTC.answer);
+  let decimalsBTC = Number(await chainlinkInstanceBTC.decimals());
+  let priceBTC = latestRoundPriceBTC / 10 ** decimalsBTC;
+  console.log(`Chainlink Price ETH/BTC: ${priceBTC}`);
+  await initPoolETH(nubtc_address,WETH_ADDRESS, _fee, priceBTC, nonfungiblePositionManager, WETH_ADDRESS);
+
+  //  TODO: add liquidity
+  // // 10 ethers
+  // let EthAmount = "10000000000000000000";
+
+  // // minting nuUSD
+  // let USDAmount = 10 * price;
+  // USDAmount = ethers.parseEther(USDAmount.toString());
+  // // get some nuUSD
+  // //await nuUSD.connect(signer).mint(signer.getAddress(),USDAmount);
+
+  // // IMPORTANT: for the uniswap V3 avg price calculations, we need this
+  // // or else it will revert
+
+  // // Get the pools to be as old as INTERVAL_LONG    
+  // await time.increase(1800);
+  // let cardinality = 10;
+  // await poolContractNuma.increaseObservationCardinalityNext(cardinality);
+
+  // //
+
+  // // mint using printer
+  // // TODO: need more, why?
+  // //let numaAmountToApprove = 10*price*2;// numa is 50 cts in our tests
+  // let numaAmountToApprove = 10 * price * 2 + 10;// numa is 50 cts in our tests
+  // let approvalAmount = ethers.parseEther(numaAmountToApprove.toString());
+  // await numa.connect(signer).approve(MONEY_PRINTER_ADDRESS, approvalAmount);
+  // await moneyPrinter.mintAssetFromNuma(USDAmount, signer.getAddress());
+
+  // //let timestamp2 = Math.ceil(Date.now()/1000 + 300);
+  // // we have to increase deadline as we manually increased time
+  // let timestamp2 = Math.ceil(Date.now() / 1000 + 3000 + offset);
+  // await addLiquidity(
+  //   WETH_ADDRESS,
+  //   NUUSD_ADDRESS,
+  //   wethContract,
+  //   nuUSD,
+  //   _fee,
+  //   tickMin,
+  //   tickMax,
+  //   EthAmount,
+  //   USDAmount,
+  //   BigInt(0),
+  //   BigInt(0),
+  //   signer,
+  //   timestamp2,
+  //   nonfungiblePositionManager
+  // );
+
+
+  // NUUSD_ETH_POOL_ADDRESS = await factory.getPool(
+  //   WETH_ADDRESS,
+  //   NUUSD_ADDRESS,
+  //   _fee,
+  // )
+  // console.log("****************************");
+  // console.log(NUUSD_ETH_POOL_ADDRESS);
+  // console.log(WETH_ADDRESS);
+  // console.log(NUUSD_ADDRESS);
+  // console.log(_fee);
+  // console.log("****************************");
+
+  // const poolContract = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+  // const poolData = await getPoolData(poolContract);
+  // await poolContract.increaseObservationCardinalityNext(cardinality);
+
+
+
+
+  // await moneyPrinter.setTokenPool(NUUSD_ETH_POOL_ADDRESS);
+  // //
+  // let printFee = 500;
+  // await moneyPrinter.setPrintAssetFeeBps(printFee);
+  // //
+  // let burnFee = 800;
+  // await moneyPrinter.setBurnAssetFeeBps(burnFee);
+
+  // 
 
   // do it again
   await time.increase(1800);
@@ -320,7 +451,7 @@ async function deployPrinterTestFixture() {
 
 
   return {
-    signer, signer2, signer3, numaOwner, numa, NUMA_ETH_POOL_ADDRESS, nuUSD, NUUSD_ADDRESS, NUUSD_ETH_POOL_ADDRESS, moneyPrinter, MONEY_PRINTER_ADDRESS, nonfungiblePositionManager,
+    signer, signer2, signer3, numaOwner, numa, NUMA_ETH_POOL_ADDRESS, nuUSD, NUUSD_ADDRESS: nuusd_address, NUUSD_ETH_POOL_ADDRESS: nuusd_eth_pool_address, moneyPrinter: moneyprinterUSD, MONEY_PRINTER_ADDRESS: moneyprinterUSD_address, nonfungiblePositionManager,
     wethContract, oracleAddress, numaAmount, cardinality, factory, swapRouter
   };
 }
