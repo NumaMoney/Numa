@@ -1,5 +1,5 @@
 const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../scripts/Utils.js");
-const { deployPrinterTestFixtureSepo, config } = require("./fixtures/NumaTestFixture.js");
+const { deployPrinterTestFixtureSepo, configSepo } = require("./fixtures/NumaTestFixture.js");
 const { time, loadFixture, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
@@ -90,16 +90,16 @@ describe('SYNTHETIC SWAPPER', function () {
 
     // code that could be put in beforeEach but as we snapshot and restore, we
     // can put it here
-    intervalShort = config.INTERVAL_SHORT;
-    intervalLong = config.INTERVAL_LONG;
+    intervalShort = configsepo.INTERVAL_SHORT;
+    intervalLong = configsepo.INTERVAL_LONG;
     amountInMaximum = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
     tokenIn = NUUSD_ADDRESS;
-    tokenOut = config.WETH_ADDRESS;
-    fee = Number(config.FEE);
+    tokenOut = configsepo.WETH_ADDRESS;
+    fee = Number(configsepo.FEE);
     sqrtPriceLimitX96 = "0x0";
 
     // chainlink price ETHUSD
-    let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, config.PRICEFEEDETHUSD);
+    let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, configsepo.PRICEFEEDETHUSD);
     let latestRoundData = await chainlinkInstance.latestRoundData();
     let latestRoundPrice = Number(latestRoundData.answer);
     let decimals = Number(await chainlinkInstance.decimals());

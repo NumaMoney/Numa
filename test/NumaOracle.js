@@ -1,5 +1,5 @@
 const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../scripts/Utils.js");
-const { deployPrinterTestFixture, config } = require("./fixtures/NumaTestFixture.js");
+const { deployPrinterTestFixtureSepo, configSepo } = require("./fixtures/NumaTestFixture.js");
 const { time, loadFixture, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
@@ -60,7 +60,7 @@ describe('NUMA ORACLE', function () {
 
 
   before(async function () {
-    testData = await loadFixture(deployPrinterTestFixture);
+    testData = await loadFixture(deployPrinterTestFixtureSepo);
 
     signer = testData.signer;
     signer2 = testData.signer2;
@@ -89,16 +89,16 @@ describe('NUMA ORACLE', function () {
 
     // code that could be put in beforeEach but as we snapshot and restore, we
     // can put it here
-    intervalShort = config.INTERVAL_SHORT;
-    intervalLong = config.INTERVAL_LONG;
+    intervalShort = configsepo.INTERVAL_SHORT;
+    intervalLong = configsepo.INTERVAL_LONG;
     amountInMaximum = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
     tokenIn = NUUSD_ADDRESS;
-    tokenOut = config.WETH_ADDRESS;
-    fee = Number(config.FEE);
+    tokenOut = configsepo.WETH_ADDRESS;
+    fee = Number(configsepo.FEE);
     sqrtPriceLimitX96 = "0x0";
 
     // chainlink price ETHUSD
-    let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, config.PRICEFEEDETHUSD);
+    let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, configsepo.PRICEFEEDETHUSD);
     let latestRoundData = await chainlinkInstance.latestRoundData();
     let latestRoundPrice = Number(latestRoundData.answer);
     let decimals = Number(await chainlinkInstance.decimals());
@@ -124,9 +124,9 @@ describe('NUMA ORACLE', function () {
   });
 
   it('Should have right initialization parameters', async function () {
-    expect(await oracle.intervalShort()).to.equal(config.INTERVAL_SHORT);
-    expect(await oracle.intervalLong()).to.equal(config.INTERVAL_LONG);
-    expect(await oracle.flexFeeThreshold()).to.equal(config.FLEXFEETHRESHOLD);
+    expect(await oracle.intervalShort()).to.equal(configsepo.INTERVAL_SHORT);
+    expect(await oracle.intervalLong()).to.equal(configsepo.INTERVAL_LONG);
+    expect(await oracle.flexFeeThreshold()).to.equal(configsepo.FLEXFEETHRESHOLD);
 
   });
 
@@ -160,11 +160,11 @@ describe('NUMA ORACLE', function () {
       input = await nuUSD.balanceOf(sender);
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
 
-      let tokenBelowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      let tokenBelowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
       let uniSqrtPriceLow = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       let uniSqrtPriceHigh = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
 
@@ -182,7 +182,7 @@ describe('NUMA ORACLE', function () {
       // console.log(`Token below threshold before swap: ${tokenBelowThreshold}`);
 
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceLow = Math.pow(10, 36) / Number(uniPriceLow);
         uniPriceHigh = Math.pow(10, 36) / Number(uniPriceHigh);
@@ -229,7 +229,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
 
       uniSqrtPriceLow = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       uniSqrtPriceHigh = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
@@ -243,7 +243,7 @@ describe('NUMA ORACLE', function () {
       // console.log(`Token below threshold before swap: ${tokenBelowThreshold}`);
 
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceLow = Math.pow(10, 36) / Number(uniPriceLow);
         uniPriceHigh = Math.pow(10, 36) / Number(uniPriceHigh);
@@ -287,7 +287,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
       // execute SWAP
@@ -306,19 +306,19 @@ describe('NUMA ORACLE', function () {
       await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
 
 
-      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
 
 
 
       let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configsepo.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
       costSimpleShift = costSimpleShift.toString()
 
-      let costRaw = (await oracle.getNbOfNumaFromAssetUsingPools(NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, amount, config.WETH_ADDRESS)).toString();
+      let costRaw = (await oracle.getNbOfNumaFromAssetUsingPools(NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, amount, configsepo.WETH_ADDRESS)).toString();
 
-      let costAmount = (await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS)).toString();
+      let costAmount = (await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, amount, configsepo.WETH_ADDRESS)).toString();
 
-      belowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      belowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
       let costRawLeqCostAmount = (BigInt(costRaw) <= BigInt(costAmount));
 
       // Tests
@@ -347,7 +347,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
       // execute SWAP
@@ -366,18 +366,18 @@ describe('NUMA ORACLE', function () {
       await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
 
 
-      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
 
 
       let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configsepo.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
       costSimpleShift = costSimpleShift.toString()
 
-      let costRaw = (await oracle.getNbOfNumaFromAssetUsingPools(NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, amount, config.WETH_ADDRESS)).toString();
+      let costRaw = (await oracle.getNbOfNumaFromAssetUsingPools(NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, amount, configsepo.WETH_ADDRESS)).toString();
 
-      let costAmount = (await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS)).toString();
+      let costAmount = (await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, amount, configsepo.WETH_ADDRESS)).toString();
 
-      belowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      belowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
       let costRawLeqCostAmount = (BigInt(costRaw) <= BigInt(costAmount));
 
       // Tests
@@ -406,7 +406,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
@@ -449,7 +449,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -466,7 +466,7 @@ describe('NUMA ORACLE', function () {
       console.log(uniPriceShort);
       console.log(uniPriceSpot);
 
-      if (token0 === config.WETH_ADDRESS) {
+      if (token0 === configsepo.WETH_ADDRESS) {
         shortLeqLong = (getV3SqrtPriceShort >= getV3SqrtPriceLong);
         spotLeqShort = (sqrtPriceX96Spot >= getV3SqrtPriceShort);
       }
@@ -501,7 +501,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
       // execute SWAP
@@ -544,7 +544,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -559,7 +559,7 @@ describe('NUMA ORACLE', function () {
       console.log(uniPriceShort);
       console.log(uniPriceSpot);
 
-      if (token0 === config.WETH_ADDRESS) {
+      if (token0 === configsepo.WETH_ADDRESS) {
         shortLeqLong = (getV3SqrtPriceShort >= getV3SqrtPriceLong);
         spotLeqShort = (sqrtPriceX96Spot >= getV3SqrtPriceShort);
       }
@@ -594,7 +594,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
       // execute SWAP
@@ -641,7 +641,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -657,7 +657,7 @@ describe('NUMA ORACLE', function () {
       console.log(uniPriceShort);
       console.log(uniPriceSpot);
 
-      if (token0 === config.WETH_ADDRESS) {
+      if (token0 === configsepo.WETH_ADDRESS) {
         shortLeqLong = (getV3SqrtPriceShort >= getV3SqrtPriceLong);
         spotLeqLong = (sqrtPriceX96Spot >= getV3SqrtPriceLong);
       }
@@ -694,7 +694,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
 
@@ -735,7 +735,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -752,7 +752,7 @@ describe('NUMA ORACLE', function () {
       console.log(uniPriceShort);
       console.log(uniPriceSpot);
 
-      if (token0 === config.WETH_ADDRESS) {
+      if (token0 === configsepo.WETH_ADDRESS) {
         shortGeqLong = (getV3SqrtPriceShort <= getV3SqrtPriceLong);
         spotGeqShort = (sqrtPriceX96Spot <= getV3SqrtPriceShort);
       }
@@ -786,7 +786,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
       // execute SWAP
@@ -833,7 +833,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -850,7 +850,7 @@ describe('NUMA ORACLE', function () {
       console.log(uniPriceShort);
       console.log(uniPriceSpot);
 
-      if (token0 === config.WETH_ADDRESS) {
+      if (token0 === configsepo.WETH_ADDRESS) {
         shortGeqLong = (getV3SqrtPriceShort <= getV3SqrtPriceLong)
         spotGeqShort = (sqrtPriceX96Spot <= getV3SqrtPriceShort)
       }
@@ -885,7 +885,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
@@ -931,7 +931,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > config.WETH_ADDRESS) {
+      if (NUUSD_ADDRESS > configsepo.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -948,7 +948,7 @@ describe('NUMA ORACLE', function () {
       console.log(uniPriceShort);
       console.log(uniPriceSpot);
 
-      if (token0 === config.WETH_ADDRESS) {
+      if (token0 === configsepo.WETH_ADDRESS) {
         shortGeqLong = (getV3SqrtPriceShort <= getV3SqrtPriceLong)
         spotGeqLong = (sqrtPriceX96Spot <= getV3SqrtPriceLong)
       }
@@ -974,8 +974,8 @@ describe('NUMA ORACLE', function () {
 
 
       let amount = BigInt(1e18) // 1 nuUSD
-      let tokensForAmount = await oracle.getTokensForAmount(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);
-      let tokensForAmountCeiling = await oracle.getTokensForAmountCeiling(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);
+      let tokensForAmount = await oracle.getTokensForAmount(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, amount, configsepo.WETH_ADDRESS);
+      let tokensForAmountCeiling = await oracle.getTokensForAmountCeiling(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, amount, configsepo.WETH_ADDRESS);
       let amountLeqCeiling = (BigInt(tokensForAmount) <= BigInt(tokensForAmountCeiling))
       console.log(tokensForAmount);
       console.log(tokensForAmountCeiling);
@@ -993,8 +993,8 @@ describe('NUMA ORACLE', function () {
 
 
       let amount = BigInt(1e18) // 1 nuUSD
-      let tokensForAmount = await oracle.getTokensForAmount(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);
-      let tokensForAmountSimpleShift = await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);
+      let tokensForAmount = await oracle.getTokensForAmount(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, amount, configsepo.WETH_ADDRESS);
+      let tokensForAmountSimpleShift = await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, amount, configsepo.WETH_ADDRESS);
       let amountLeq = (BigInt(tokensForAmount) >= BigInt(tokensForAmountSimpleShift));
       console.log(tokensForAmount);
       console.log(tokensForAmountSimpleShift);
@@ -1012,10 +1012,10 @@ describe('NUMA ORACLE', function () {
 
       // how many nu asset do we get by burning N Numas
       let amount = BigInt(1000e18) // 1000 numa
-      let output = await oracle.nbOfNuAssetFromNuma(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, amount, config.WETH_ADDRESS);
+      let output = await oracle.nbOfNuAssetFromNuma(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, amount, configsepo.WETH_ADDRESS);
       console.log(output);
       // how many numas are need to get this amount
-      let output2 = await oracle.getNbOfNumaNeeded(output, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
+      let output2 = await oracle.getNbOfNumaNeeded(output, configsepo.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
       console.log(output2);
       const epsilon = ethers.parseEther('0.000000000001');
       expect(output2).to.be.closeTo(amount, epsilon);// TODO: we have a diff is this normal?
@@ -1045,7 +1045,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
       // execute SWAP
@@ -1059,15 +1059,15 @@ describe('NUMA ORACLE', function () {
       await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
 
 
-      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
 
 
 
       let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configsepo.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
       console.log(costSimpleShift);
       // 
-      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, configsepo.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
       const epsilon = ethers.parseEther('0.000000000001');
 
       expect(amount).to.be.closeTo(assetNeeded, epsilon);
@@ -1094,7 +1094,7 @@ describe('NUMA ORACLE', function () {
 
 
 
-      let threshold = config.FLEXFEETHRESHOLD;
+      let threshold = configsepo.FLEXFEETHRESHOLD;
 
 
       // execute SWAP
@@ -1107,13 +1107,13 @@ describe('NUMA ORACLE', function () {
       await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
 
 
-      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, config.PRICEFEEDETHUSD, config.WETH_ADDRESS);
+      let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configsepo.PRICEFEEDETHUSD, configsepo.WETH_ADDRESS);
 
 
       let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configsepo.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
       console.log(costSimpleShift);
-      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, config.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
+      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, configsepo.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS);
       const epsilon = ethers.parseEther('0.000000000001');
       expect(amount).to.be.closeTo(assetNeeded, epsilon);
 
@@ -1126,12 +1126,12 @@ describe('NUMA ORACLE', function () {
   describe('#view function results', () => {
     it('Should be able to call view functions with appropriate results', async function () {
       // get price from chainlink USD/ETH PRICEFEEDETHUSD
-      let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, config.PRICEFEEDETHUSD);
+      let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, configsepo.PRICEFEEDETHUSD);
       let latestRoundData = await chainlinkInstance.latestRoundData();
       let latestRoundPrice = Number(latestRoundData.answer);
       let decimals = Number(await chainlinkInstance.decimals());
       let price = latestRoundPrice / 10 ** decimals;
-      let OracleValue = await oracle.chainlinkPrice(config.PRICEFEEDETHUSD);
+      let OracleValue = await oracle.chainlinkPrice(configsepo.PRICEFEEDETHUSD);
       expect(latestRoundData.answer).to.equal(OracleValue);
       // TODO; check values of other functions
 

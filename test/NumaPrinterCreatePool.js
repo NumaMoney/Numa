@@ -1,4 +1,4 @@
-const { deployPrinterTestFixture,config } = require("./fixtures/NumaTestFixture.js");
+const { deployPrinterTestFixtureSepo,configSepo } = require("./fixtures/NumaTestFixture.js");
 const { time, loadFixture, } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
@@ -32,7 +32,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
   before(async function () 
   {
-    testData = await loadFixture(deployPrinterTestFixture);
+    testData = await loadFixture(deployPrinterTestFixtureSepo);
   
     signer = testData.signer;
     signer2 = testData.signer2;
@@ -61,7 +61,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     let oracleContract = await moneyPrinter.oracle();
     expect(await oracleContract).to.equal(oracleAddress);
-    expect(await moneyPrinter.chainlinkFeed()).to.equal(config.PRICEFEEDETHUSD);
+    expect(await moneyPrinter.chainlinkFeed()).to.equal(configsepo.PRICEFEEDETHUSD);
 
     expect(await moneyPrinter.printAssetFeeBps()).to.equal(500);
     expect(await moneyPrinter.burnAssetFeeBps()).to.equal(800);
@@ -173,7 +173,7 @@ describe('NUMA NUASSET PRINTER', function () {
   it('Should be able to change parameters', async function () {
     // check events
     const oracle2 = await ethers.deployContract("NumaOracle",
-     [config.WETH_ADDRESS, config.INTERVAL_SHORT, config.INTERVAL_LONG, config.FLEXFEETHRESHOLD, signer.getAddress()]);
+     [configsepo.WETH_ADDRESS, configsepo.INTERVAL_SHORT, configsepo.INTERVAL_LONG, configsepo.FLEXFEETHRESHOLD, signer.getAddress()]);
     await oracle2.waitForDeployment();
     let oracle2Address = await oracle2.getAddress();
     await expect(moneyPrinter.setOracle(oracle2)).to.emit(moneyPrinter, "SetOracle").withArgs(oracle2Address);
