@@ -1,5 +1,5 @@
 const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../scripts/Utils.js");
-const { deployPrinterTestFixture, config } = require("./fixtures/NumaTestFixture.js");
+const { deployPrinterTestFixtureSepo, config } = require("./fixtures/NumaTestFixture.js");
 const { time, loadFixture, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
@@ -61,7 +61,7 @@ describe('SYNTHETIC SWAPPER', function () {
 
 
   before(async function () {
-    testData = await loadFixture(deployPrinterTestFixture);
+    testData = await loadFixture(deployPrinterTestFixtureSepo);
 
     signer = testData.signer;
     signer2 = testData.signer2;

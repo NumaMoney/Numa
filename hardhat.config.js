@@ -3,7 +3,7 @@ require("@openzeppelin/hardhat-upgrades");
 require("@nomicfoundation/hardhat-chai-matchers")
 require("@onmychain/hardhat-uniswap-v2-deploy-plugin");
 require("dotenv").config();
-
+//require("hardhat-gas-reporter");
 
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -25,7 +25,7 @@ module.exports = {
     ],
     
   },
-  defaultNetwork: "goerli",
+  defaultNetwork: "hardhat",
   
   networks: {
     sepolia: {
@@ -39,7 +39,8 @@ module.exports = {
 
     hardhat: {
       forking: {
-        url: process.env.URL4,
+        //url: process.env.URL4,// sepolia
+        url: process.env.URL5,// arbitrum
       },
       allowUnlimitedContractSize: true
     }

@@ -1,17 +1,42 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.20;
 
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IVaultOracle.sol";
+import "../libraries/OracleUtils.sol";
 
-contract VaultOracle is Ownable, IVaultOracle
+
+// only works with tokens that have 18 decimals
+contract VaultOracle is Ownable, IVaultOracle,OracleUtils
 {
-    
     mapping(address => address) public tokenToFeed;
+    event TokenFeed(address _tokenAddress,address _chainlinkFeed);
 
-    event TokenAdded(address _tokenAddress,_chainlinkFeed);
+
+    constructor() Ownable(msg.sender)
+    {
+
+    }
+
+
+    // function getTokenPriceSimple(address _tokenAddress) external view returns (uint256)
+    // {
+    //     address priceFeed = tokenToFeed[_tokenAddress];
+    //     require(priceFeed != address(0),"currency not supported");
+    //     return getPriceInEth(priceFeed,18);//only works with tokens that have 18 decimals
+    // }
+
+
+    function getTokenPrice(address _tokenAddress,uint256 _amount) external view returns (uint256)
+    {
+        address priceFeed = tokenToFeed[_tokenAddress];
+        require(priceFeed != address(0),"currency not supported");
+        return getPriceInEth(_amount,priceFeed);
+    }
+
 
     function getTokenPrice(address _tokenAddress) external view returns (uint256,uint256,bool)
     {
@@ -25,22 +50,10 @@ contract VaultOracle is Ownable, IVaultOracle
         return (uint256(price),decimalPrecision,(ethLeftSide(priceFeed)));
     }
 
-    function ethLeftSide(address _chainlinkFeed) internal view returns (bool) 
-    {
-        string memory description = AggregatorV3Interface(_chainlinkFeed).description();
-        bytes memory descriptionBytes = bytes(description);
-        bytes memory ethBytes = bytes("ETH");
-        for (uint i = 0; i < 3; i++) if (descriptionBytes[i] != ethBytes[i]) return false;
-        return true;
-    }
-
-
-
-    function addSupportedToken(address _tokenAddress, address _chainlinkFeed) external onlyOwner  
+    function setTokenFeed(address _tokenAddress, address _chainlinkFeed) external onlyOwner  
     {
         tokenToFeed[_tokenAddress] = _chainlinkFeed;
-        emit TokenAdded(_tokenAddress,_chainlinkFeed);
+        emit TokenFeed(_tokenAddress,_chainlinkFeed);
     }
-
 
 }
