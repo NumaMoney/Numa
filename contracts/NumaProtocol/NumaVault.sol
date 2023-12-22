@@ -15,41 +15,6 @@ import "../interfaces/INuAssetManager.sol";
 import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
 
-import "hardhat/console.sol";
-
-
-
-
-// - natspec, indexed event, refacto/optim, code review, reverts, 
-//      ** pour code review
-//            ** numavault and interface
-//            ** VaultOracle and interface
-//            ** nuAssetManager
-//            ** vaultmanager
-//            ** la "lib"
-
-
-
-
-// revoir toute la partie oracle, est-ce que tout est ok, est-ce qu'on a des arrondis (cf mon test)
-// NumaToToen & TokenToNuma --> + de precision possible? revoir les arrondis dans l'autre sens pour maximiser le Numa price?
-
-
-
-
-
-// - min/max --> pouruoi? cf ALL QUESTIONS
-// - REVIEW CODE / SECURITY
-
-
-
-// - estimation gas de nuassetmanager si 200 nuAssets (devra peut etre faire un mock pour accepter 200 x le même)
-// --> 3600000 gas si 1 gwei --> 8 dollars --> ca va encore 
-
-// schema d'archi?
-
-
-// remove console
 
 
 contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
@@ -61,25 +26,31 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
 
     uint16 public SELL_FEE = 950;// 5%
     uint16 public BUY_FEE = 950;// 5%
+    uint8 public  FEES = 10; //1%
+
+
+
+
     // 
     NUMA public immutable numa;
     IERC20 public immutable lstToken;
     IVaultOracle public oracle;
     INuAssetManager public nuAssetManager;
     IVaultManager public vaultManager;
-
-    //address[] public removedSupplyAddresses;
     EnumerableSet.AddressSet removedSupplyAddresses;
 
+
+    uint256 public decayingDenominator;
+    uint256 public decaytimestamp;
+    bool public isdecaying;
 
     uint256 public last_extracttimestamp;
     uint256 public last_lsttokenvalue;
   
 
     // constants
+    uint16 public constant DECAY_BASE_100 = 100;
     uint16 public constant FEE_BASE_1000 = 1000;
-    //uint8 public constant FEES = 100;
-    uint8 public constant FEES = 10;
     uint constant max_addresses = 50;
     uint constant rwd_threshold = 0.001 ether;
     uint256 immutable decimals;
@@ -93,11 +64,12 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     event Fee(uint256 fee,address feeReceiver);
     event SellFeeUpdated(uint256 sellFee);
     event BuyFeeUpdated(uint256 buyFee);
+    event FeeUpdated(uint256 Fee);
     event FeeAddressUpdated(address feeAddress);
     event RwdAddressUpdated(address rwdAddress);
 
 
-    constructor(address _numaAddress,address _tokenAddress,uint256 _decimals,address _oracleAddress,address _nuAssetManagerAddress) Ownable(msg.sender)
+    constructor(address _numaAddress,address _tokenAddress,uint256 _decimals,address _oracleAddress,address _nuAssetManagerAddress,uint256 _decayingDenominator) Ownable(msg.sender)
     {
         numa = NUMA(_numaAddress);
         oracle = IVaultOracle(_oracleAddress);  
@@ -109,56 +81,157 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalue = oracle.getTokenPrice(address(lstToken),decimals);
         
+        decayingDenominator = _decayingDenominator;
+        isdecaying = false;
         // paused by default because might be empty
         _pause();
     }
 
-        
+
+    /**
+     * @dev Starts the decaying period
+     * @notice decayingDenominator will go from initial value to 1 in 90 days
+     */
+    function startDecaying() external onlyOwner
+    {
+        isdecaying = true;
+        decaytimestamp = block.timestamp;
+    }
+
+    /**
+     * @dev Current decaying denominator (from initial value to 1 at the end of the period)
+     * @return {uint256} current decaying denominator 
+     */
+    function getDecayDenominator() internal view returns (uint256)
+    {
+        if (isdecaying)
+        {
+            uint256 currenttimestamp = block.timestamp;
+            uint256 delta_s = currenttimestamp - decaytimestamp;
+            // should go down to 1 during 90 days
+            uint256 period = 90 * 1 days;
+            uint256 decay_factor_1000 = (1000*delta_s) / period;
+
+            if (decay_factor_1000 > 1000)
+            {
+                return DECAY_BASE_100;
+            }
+            uint256 currentDecay_1000 = decay_factor_1000 * DECAY_BASE_100 + (1000 - decay_factor_1000) * decayingDenominator;
+            return currentDecay_1000/1000;
+        }
+        else
+        {
+            return DECAY_BASE_100;
+        }
+
+    }
+
+
+
+    /**
+     * @dev pause buying and selling from vault
+     */  
     function pause() external onlyOwner {
         _pause();
     }
 
+    /**
+     * @dev unpause buying and selling from vault
+     */
     function unpause() external onlyOwner {
         _unpause();
     }
 
+    /**
+     * @dev set the IVaultOracle address (used to compute token price in Eth)
+     */
     function setOracle(address _oracle) external onlyOwner  
     {
         oracle = IVaultOracle(_oracle);
         emit SetOracle(address(_oracle));
     }
 
-
+    /**
+     * @dev set the INuAssetManager address (used to compute synth value in Eth)
+     */
     function setNuAssetManager(address _nuAssetManager) external onlyOwner  
     {
         nuAssetManager = INuAssetManager(_nuAssetManager);
         emit SetNuAssetManager(_nuAssetManager);
     }
 
+
+    /**
+     * @dev set the IVaultManager address (used to total Eth balance of all vaults)
+     */
     function setVaultManager(address _vaultManager) external onlyOwner  
     {
         vaultManager = IVaultManager(_vaultManager);
         emit SetVaultManager(_vaultManager);
     }
 
+
+    /**
+     * @dev Set Rwd address
+     */
+    function setRwdAddress(address _address) external onlyOwner {
+        require(_address != address(0x0));
+        RWD_ADDRESS = payable(_address);
+        emit RwdAddressUpdated(_address);
+    }
+
+    /**
+     * @dev Set Fee address
+     */
+    function setFeeAddress(address _address) external onlyOwner {
+        require(_address != address(0x0));
+        FEE_ADDRESS = payable(_address);
+        emit FeeAddressUpdated(_address);
+    }
+
+
+    /**
+     * @dev Set Sell fee percentage 
+     */
+    function setSellFee(uint16 fee) external onlyOwner {
+        require(fee > SELL_FEE);
+        SELL_FEE = fee;
+        emit SellFeeUpdated(fee);
+    }
+
+    /**
+     * @dev Set Buy fee percentage 
+     */
+    function setBuyFee(uint16 fee) external onlyOwner {
+        BUY_FEE = fee;
+        emit BuyFeeUpdated(fee);
+    }
+
+    /**
+     * @dev Set Fee percentage 
+     */
+    function setFee(uint8 fees) external onlyOwner {
+        FEES = fees;
+        emit FeeUpdated(fees);
+    }
+
+
+    /**
+     * @dev returns the estimated rewards value of lst token
+     */
     function rewardsValue() public view returns (uint256,uint256)
     {
-        require(address(oracle) != address(0),"oracle not set");
-        console.logUint(decimals);
+        require(address(oracle) != address(0),"oracle not set");        
         uint currentvalue = oracle.getTokenPrice(address(lstToken),decimals);       
         uint diff = (currentvalue - last_lsttokenvalue);
-
-        //console.logUint(diff);
         uint balance = lstToken.balanceOf(address(this));
-          //      console.logUint(balance);
-
         uint rwd = FullMath.mulDiv(balance,diff, currentvalue);
-
-            //    console.logUint(rwd);
-
         return (rwd,currentvalue);   
     }
 
+    /**
+     * @dev transfers rewards to RWD_ADDRESS and updates reference price
+     */
     function extractRewards() external
     {
         require(RWD_ADDRESS != address(0),"reward address not set");
@@ -168,15 +241,18 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         SafeERC20.safeTransfer(IERC20(lstToken),RWD_ADDRESS,rwd);
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalue = currentvalue;
-
     }
     
-
+    /**
+     * @dev list of wallets whose numa balance is removed from total supply
+     */
     function getRemovedWalletsList() external view returns (address[] memory) {
         return removedSupplyAddresses.values();
     }
 
-
+    /**
+     * @dev adds a wallet to wallets whose numa balance is removed from total supply
+     */
     function addToRemovedSupply(address _address) external onlyOwner  
     {
         require (removedSupplyAddresses.length() < max_addresses,"too many wallets in list");
@@ -184,7 +260,9 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     }
 
 
-
+    /**
+     * @dev removes a wallet to wallets whose numa balance is removed from total supply
+     */
     function removeFromRemovedSupply(address _address) external onlyOwner  
     {
         require(removedSupplyAddresses.contains(_address), "not in list");
@@ -192,13 +270,18 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     }
 
 
-
+    /**
+     * @dev sum of balances of all vaults in Eth
+     */
     function getEthBalanceAllVAults() public view returns (uint256)
     {
         require (address(vaultManager) != address(0),"vault manager not set");
         return vaultManager.getTotalBalanceEth();
     }
 
+    /**
+     * @dev vaults' balance in Eth
+     */
     function getEthBalance() external view returns (uint256)
     {
         require(address(oracle) != address(0),"oracle not set");
@@ -207,12 +290,18 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         return result;   
     }    
 
+    /**
+     * @dev Total synth value in Eth
+     */
     function getTotalSynthValueEth() public view returns (uint256)
     {
         require(address(nuAssetManager) != address(0),"nuAssetManager not set");
         return nuAssetManager.getTotalSynthValueEth();
     }
 
+    /**
+     * @dev total numa supply without wallet's list balances
+     */
     function getNumaSupply() public view returns (uint)
     {
         uint circulatingNuma = numa.totalSupply(); 
@@ -227,34 +316,29 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         return circulatingNuma;
     }
 
-
+    /**
+     * @dev How many Numas from token amount
+     */
     function TokenToNuma(uint _inputAmount) public view returns (uint256) 
     {
 
         require(address(oracle) != address(0),"oracle not set");
 
         uint256 EthValue = oracle.getTokenPrice(address(lstToken),_inputAmount);
-        console.log("eth value");
-        console.logUint(EthValue);
-
-
         uint synthValueInEth = getTotalSynthValueEth();
-        console.log("synth value");
-        console.logUint(synthValueInEth);
         uint circulatingNuma = getNumaSupply();
-        console.log("supply value");
-        console.logUint(circulatingNuma);
       
         uint EthBalance = getEthBalanceAllVAults();
-        console.log("Eth full balance");
-        console.logUint(EthBalance);
         require(EthBalance > synthValueInEth,"vault is empty or synth value is too big");
-        uint result = FullMath.mulDiv(EthValue, circulatingNuma, EthBalance - synthValueInEth);
-         console.logUint(result);
-        return result;
+        uint256 decaydenom = getDecayDenominator();
+        uint result = FullMath.mulDiv(EthValue, DECAY_BASE_100* circulatingNuma, decaydenom*(EthBalance - synthValueInEth));
 
+        return result;
     }
 
+    /**
+     * @dev How many tokens from numa amount
+     */
     function NumaToToken(uint _inputAmount) public view returns (uint256) 
     {
         require(address(oracle) != address(0),"oracle not set");
@@ -264,41 +348,26 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         uint synthValueInEth = getTotalSynthValueEth();
         uint circulatingNuma = getNumaSupply();
         uint EthBalance = getEthBalanceAllVAults();
-        console.log("balance");
-        console.logUint(EthBalance);
-
-        console.log("price");
-        console.logUint(price);
-
-
+  
         require(EthBalance > synthValueInEth,"vault is empty or synth value is too big");
         require(circulatingNuma > 0,"no numa in circulation");
         uint result;
+        uint256 decaydenom = getDecayDenominator();
         if (ethLeftSide) 
         {
-            console.log("here");
-            result = FullMath.mulDiv(FullMath.mulDiv(_inputAmount,EthBalance - synthValueInEth, circulatingNuma),price,10**decimalPrecision);
+            result = FullMath.mulDiv(FullMath.mulDiv(decaydenom*_inputAmount,EthBalance - synthValueInEth, DECAY_BASE_100*circulatingNuma),price,10**decimalPrecision);
         }
         else 
         {
-            console.log("there");
-            result = FullMath.mulDiv(FullMath.mulDiv(_inputAmount,EthBalance - synthValueInEth, circulatingNuma),10**decimalPrecision,price);
+            result = FullMath.mulDiv(FullMath.mulDiv(decaydenom*_inputAmount,EthBalance - synthValueInEth, DECAY_BASE_100*circulatingNuma),10**decimalPrecision,price);
         }
-
-        console.log("dbg1");
-        console.logUint(_inputAmount);
-
-        console.log("dbg2");
-        console.logUint(EthBalance - synthValueInEth);
-
-        console.log("result");
-        console.logUint(result);
         return result;
-
     }
 
 
-    // Buy Numa
+    /**
+     * @dev Buy numa from token (token approval needed)
+     */
     function buy(uint _inputAmount,address _receiver) external payable nonReentrant whenNotPaused 
     {
         uint256 numaAmount = TokenToNuma(_inputAmount);
@@ -320,7 +389,9 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     }
     
   
-
+    /**
+     * @dev Sell numa (burn) to token (numa approval needed)
+     */
     function sell(uint256 _numaAmount,address _receiver) external nonReentrant whenNotPaused
     {
     
@@ -346,39 +417,18 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
 
     }
 
-    function setRwdAddress(address _address) external onlyOwner {
-        require(_address != address(0x0));
-        RWD_ADDRESS = payable(_address);
-        emit RwdAddressUpdated(_address);
-    }
-
-
-    function setFeeAddress(address _address) external onlyOwner {
-        require(_address != address(0x0));
-        FEE_ADDRESS = payable(_address);
-        emit FeeAddressUpdated(_address);
-    }
-
-    function setSellFee(uint16 fee) external onlyOwner {
-        require(fee <= 969);// TODO: confirm these limitations
-        require(fee > SELL_FEE);
-        SELL_FEE = fee;
-        emit SellFeeUpdated(fee);
-    }
-
-    function setBuyFee(uint16 fee) external onlyOwner {
-        require(fee <= 969 && fee >= 10);// TODO: confirm these limitations
-        BUY_FEE = fee;
-        emit BuyFeeUpdated(fee);
-    }
-
-    //utils
+    /**
+     * @dev Estimate number of Numas from an amount of token
+     */
     function getBuyNuma(uint256 _amount) external view returns (uint256) 
     {
         uint256 numaAmount = TokenToNuma(_amount);
         return (numaAmount* BUY_FEE) / FEE_BASE_1000;
     }
 
+    /**
+     * @dev Estimate number of tokens from an amount of numa
+     */
     function getSellNuma(uint256 _amount) external view returns (uint256) 
     {
         uint256 tokenAmount = NumaToToken(_amount);
@@ -386,6 +436,9 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     }
 
 
+    /**
+     * @dev Withdraw any ERC20 from vault
+     */
     function withdrawToken(address _tokenAddress,uint256 _amount) external onlyOwner
     {
         SafeERC20.safeTransfer(IERC20(_tokenAddress),msg.sender,_amount);

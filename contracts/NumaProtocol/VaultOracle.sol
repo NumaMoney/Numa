@@ -21,15 +21,9 @@ contract VaultOracle is Ownable, IVaultOracle,OracleUtils
 
     }
 
-
-    // function getTokenPriceSimple(address _tokenAddress) external view returns (uint256)
-    // {
-    //     address priceFeed = tokenToFeed[_tokenAddress];
-    //     require(priceFeed != address(0),"currency not supported");
-    //     return getPriceInEth(priceFeed,18);//only works with tokens that have 18 decimals
-    // }
-
-
+    /**
+     * @dev value in Eth (in wei) of this amount of token 
+     */  
     function getTokenPrice(address _tokenAddress,uint256 _amount) external view returns (uint256)
     {
         address priceFeed = tokenToFeed[_tokenAddress];
@@ -38,6 +32,10 @@ contract VaultOracle is Ownable, IVaultOracle,OracleUtils
     }
 
 
+
+    /**
+     * @dev value in Eth (in wei) of this 1 token
+     */  
     function getTokenPrice(address _tokenAddress) external view returns (uint256,uint256,bool)
     {
         address priceFeed = tokenToFeed[_tokenAddress];
@@ -50,6 +48,10 @@ contract VaultOracle is Ownable, IVaultOracle,OracleUtils
         return (uint256(price),decimalPrecision,(ethLeftSide(priceFeed)));
     }
 
+
+    /**
+     * @dev set a chainlink price feed associated to an ERC20 token
+     */  
     function setTokenFeed(address _tokenAddress, address _chainlinkFeed) external onlyOwner  
     {
         tokenToFeed[_tokenAddress] = _chainlinkFeed;

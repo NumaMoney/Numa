@@ -149,7 +149,7 @@ async function main () {
 
     // vault1 rETH
     let Vault1 = await ethers.deployContract("NumaVault",
-    [NUMA_ADDRESS,rETH_ADDRESS,ethers.parseEther("1"), VO_ADDRESS,NUAM_ADDRESS]);
+    [NUMA_ADDRESS,rETH_ADDRESS,ethers.parseEther("1"), VO_ADDRESS,NUAM_ADDRESS,267]);
     await Vault1.waitForDeployment();
     let VAULT1_ADDRESS = await Vault1.getAddress();
     console.log('vault rETH address: ', VAULT1_ADDRESS);
@@ -293,7 +293,7 @@ async function main () {
 
     // deploy
     let Vault2 = await ethers.deployContract("NumaVault",
-    [NUMA_ADDRESS,wstETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS,NUAM_ADDRESS]);
+    [NUMA_ADDRESS,wstETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS,NUAM_ADDRESS,267]);
     await Vault2.waitForDeployment();
     let VAULT2_ADDRESS = await Vault2.getAddress();
     console.log('vault wstETH address: ', VAULT2_ADDRESS);

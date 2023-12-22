@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
 
-import "hardhat/console.sol";
+
 
 contract vaultManager is IVaultManager, Ownable 
 {   
@@ -20,16 +20,25 @@ contract vaultManager is IVaultManager, Ownable
 
     }
     
+    /**
+     * @dev returns vaults list
+     */  
     function getVaults() external view returns (address[] memory) {
         return vaultsList.values();
     }
 
+    /**
+     * @dev adds a vault to the total balance
+     */  
     function addVault(address _vault) external onlyOwner  
     {
         require (vaultsList.length() < max_vault,"too many vaults");
         require(vaultsList.add(_vault), "already in list");
     }
 
+    /**
+     * @dev removes a vault from total balance
+     */  
     function removeVault(address _vault) external onlyOwner  
     {
         require(vaultsList.contains(_vault), "not in list");
@@ -37,18 +46,18 @@ contract vaultManager is IVaultManager, Ownable
     }
 
 
+    /**
+     * @dev sum of all vaults balances in Eth
+     */  
     function getTotalBalanceEth() external view returns (uint256)
     {
         uint result;
         uint256 nbVaults = vaultsList.length();
         require(nbVaults <= max_vault,"too many vaults in list");
-        console.log("nb vaults");
-        console.logUint(nbVaults);
+
         for (uint256 i = 0;i < nbVaults;i++)
         {
-            result += INumaVault(vaultsList.at(i)).getEthBalance();
-            console.log("adding vault value");
-            console.logUint(result);                                                                                                                                                                                                                                                                                      
+            result += INumaVault(vaultsList.at(i)).getEthBalance();                                                                                                                                                                                                                                                                                    
         }
         return result;
     }

@@ -48,8 +48,8 @@ const linkLibraries = ({ bytecode, linkReferences }, libraries) => {
 
 
 
-let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePositionManager,wethAddress) {
-  console.log("initpoolETH");
+let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePositionManager,wethAddress) 
+{  
   // Uniswap reverts pool initialization if you don't sort by address number, beware!
   let sqrtPrice = Math.sqrt(price_);
   let token0, token1, price;

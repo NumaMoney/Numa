@@ -58,6 +58,7 @@ describe('NUMA VAULT', function () {
   let NUAM_ADDRESS;
   let VM_ADDRESS;
   let NUUSD_ADDRESS;
+  let decaydenom = 200;
 
   let sendEthToVault = async function () {
     // send rETH to the vault
@@ -154,7 +155,7 @@ describe('NUMA VAULT', function () {
     await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD);
     await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH);
 
-    console.log('initial synth value: ', await nuAM.getTotalSynthValueEth());
+    //console.log('initial synth value: ', await nuAM.getTotalSynthValueEth());
 
 
     // *********************** vaultManager **********************************
@@ -176,7 +177,7 @@ describe('NUMA VAULT', function () {
 
     // vault1 rETH
     Vault1 = await ethers.deployContract("NumaVault",
-    [numa_address,rETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS,NUAM_ADDRESS]);
+    [numa_address,rETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS,NUAM_ADDRESS,decaydenom]);
     await Vault1.waitForDeployment();
     VAULT1_ADDRESS = await Vault1.getAddress();
     console.log('vault rETH address: ', VAULT1_ADDRESS);
@@ -304,6 +305,106 @@ describe('NUMA VAULT', function () {
 
     });
 
+    it('buy with rEth with decay starting time', async () => 
+    {
+      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+
+      buypricerefnofees = (buypricerefnofees * BigInt(100))/BigInt(decaydenom);
+      let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
+
+      await sendEthToVault();
+      // BUY
+      // should be paused by default 
+      await Vault1.unpause();
+      await erc20_rw.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
+
+      await Vault1.startDecaying();
+
+
+      await Vault1.buy(ethers.parseEther("2"),await signer2.getAddress());
+
+      let balbuyer = await numa.balanceOf(await signer2.getAddress());
+      //console.log("numa minted start decay ",balbuyer);
+      bal1 = await erc20_rw.balanceOf(VAULT1_ADDRESS);
+      let balfee = await erc20_rw.balanceOf(await signer3.getAddress());
+
+      let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
+      expect(balbuyer).to.equal(buypriceref);
+      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(balfee).to.equal(fees);
+
+
+    });
+
+    it('buy with rEth with decay half time', async () => 
+    {
+      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+
+      buypricerefnofees = (buypricerefnofees * BigInt(100))/BigInt(150);
+      let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
+
+      await sendEthToVault();
+      // BUY
+      // should be paused by default 
+      await Vault1.unpause();
+      await erc20_rw.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
+
+      await Vault1.startDecaying();
+
+
+      // wait 45 days
+      await time.increase(45*24*3600);
+
+      await Vault1.buy(ethers.parseEther("2"),await signer2.getAddress());
+
+      let balbuyer = await numa.balanceOf(await signer2.getAddress());
+      //console.log("numa minted half decay ",balbuyer);
+      bal1 = await erc20_rw.balanceOf(VAULT1_ADDRESS);
+      let balfee = await erc20_rw.balanceOf(await signer3.getAddress());
+
+      let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
+      const epsilon = ethers.parseEther('0.00000000000001');
+      expect(balbuyer).to.be.closeTo(buypriceref, epsilon);
+      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(balfee).to.equal(fees);
+
+
+    });
+
+
+    it('buy with rEth with decay over', async () => 
+    {
+      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+
+      //buypricerefnofees = (buypricerefnofees * BigInt(100))/BigInt(decaydenom);
+      let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
+
+      await sendEthToVault();
+      // BUY
+      // should be paused by default 
+      await Vault1.unpause();
+      await erc20_rw.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
+
+      await Vault1.startDecaying();
+
+
+      // wait 90 days
+      await time.increase(90*24*3600);
+    
+      await Vault1.buy(ethers.parseEther("2"),await signer2.getAddress());
+
+      let balbuyer = await numa.balanceOf(await signer2.getAddress());
+      //console.log("numa minted end decay ",balbuyer);
+      bal1 = await erc20_rw.balanceOf(VAULT1_ADDRESS);
+      let balfee = await erc20_rw.balanceOf(await signer3.getAddress());
+
+      let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
+      expect(balbuyer).to.equal(buypriceref);
+      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(balfee).to.equal(fees);
+
+
+    });
 
     
     it('buy with rEth and synth supply', async () => 
@@ -328,18 +429,13 @@ describe('NUMA VAULT', function () {
       let fullSynthValueInEth = await nuAM.getTotalSynthValueEth();
       let fullSynthValueInrEth = (fullSynthValueInEth*BigInt(10 ** decimals) / BigInt(latestRoundPrice));
 
-      console.log('synth value after minting nuAssets: ', fullSynthValueInrEth);
+     // console.log('synth value after minting nuAssets: ', fullSynthValueInrEth);
 
 
 
       // TODO: some imprecision (10-6 numa) -> probably some rounding diff but I need to be sure!
       const epsilon = ethers.parseEther('0.00000000001');
       let buypricerefnofees = ethers.parseEther("2")*ethers.parseEther("10000000")/(ethers.parseEther("100") - fullSynthValueInrEth);
-      // dbg dif
-      //console.log(buypricerefnofees);
-
-      //let dbg = BigInt(2199760020430233000)*ethers.parseEther("10000000")/(BigInt(109988001021511650000) - fullSynthValueInEth);
-      //console.log(dbg);
 
  
 
@@ -362,9 +458,8 @@ describe('NUMA VAULT', function () {
       //expect(balbuyer).to.equal(buypriceref);
       expect(balbuyer).to.be.closeTo(buypriceref, epsilon);
 
-      // TODO
-      // expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
-      // expect(balfee).to.equal(fees);
+      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(balfee).to.equal(fees);
 
 
     });
@@ -410,7 +505,7 @@ describe('NUMA VAULT', function () {
 
     // deploy
     let Vault2 = await ethers.deployContract("NumaVault",
-    [numa_address,wstETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS,NUAM_ADDRESS]);
+    [numa_address,wstETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS,NUAM_ADDRESS,100]);
     await Vault2.waitForDeployment();
     let VAULT2_ADDRESS = await Vault2.getAddress();
     console.log('vault wstETH address: ', VAULT2_ADDRESS);
@@ -447,7 +542,7 @@ describe('NUMA VAULT', function () {
 
 
     bal1 = await erc20_rw2.balanceOf(VAULT2_ADDRESS);
-    console.log("wstETH balance of the vault ",bal1);
+    //console.log("wstETH balance of the vault ",bal1);
 
     // price after feeding vault2
     // let totalBalancerEth = BigInt(100) + (BigInt(100)*BigInt(latestRoundPrice2))/BigInt(latestRoundPrice);
@@ -642,15 +737,15 @@ describe('NUMA VAULT', function () {
     // 1 BTC
     await nuBTC.connect(owner).mint(defaultAdmin,ethers.parseEther("1"));
 
-    console.log("adding nuUSD, nuBTC");
-    console.log(await nuAM.getNuAssetList());
-    console.log(await nuAM.getTotalSynthValueEth());
+    // console.log("adding nuUSD, nuBTC");
+    // console.log(await nuAM.getNuAssetList());
+    // console.log(await nuAM.getTotalSynthValueEth());
 
 
     await nuAM.removeNuAsset(NUUSD_ADDRESS);
-    console.log("removing nuUSD");
-    console.log(await nuAM.getNuAssetList());
-    console.log(await nuAM.getTotalSynthValueEth());
+    // console.log("removing nuUSD");
+    // console.log(await nuAM.getNuAssetList());
+    // console.log(await nuAM.getTotalSynthValueEth());
 
 
  
@@ -662,12 +757,12 @@ describe('NUMA VAULT', function () {
 
 
     // register nuAsset
-    for (let i = 0; i < 200; i++) {
-      await nuAM2.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD);
-    }
-    console.log("adding nuUSD 200 times");
+    // for (let i = 0; i < 200; i++) {
+    //   await nuAM2.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD);
+    // }
+   // console.log("adding nuUSD 200 times");
    // console.log(await nuAM2.getNuAssetList());
-    console.log(await nuAM2.getTotalSynthValueEth());
+    //console.log(await nuAM2.getTotalSynthValueEth());
 
    
     //await Vault1.setNuAssetManager(nuAM2);
@@ -703,25 +798,13 @@ describe('NUMA VAULT', function () {
 
   });
 
-
-
-
   it('Owner', async function () {
-  
-
-
+    // TODO
   });
 
   it('Pausable', async function () {
-  
-
-
+    // TODO
   });
-
-
-
-
-
 
 });
 

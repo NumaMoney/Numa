@@ -6,8 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../libraries/OracleUtils.sol";
 import "../interfaces/INuAsset.sol";
 import "../interfaces/INuAssetManager.sol";
-import "hardhat/console.sol";
-
 
 contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
 
@@ -28,16 +26,28 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
 
     }
 
+
+    /**
+     * @dev returns nuAssets list
+     */  
     function getNuAssetList() external view returns(address[] memory)
     {
         return nuAssetList;
     }
 
+
+    /**
+     * @dev does a nuAsset belong to our list
+     */  
     function contains(address _assetAddress) public view returns(bool) 
     {
         return (nuAssetInfos[_assetAddress].index != 0);
     }       
 
+
+    /**
+     * @dev adds a newAsset to the list
+     */  
     function addNuAsset(address _assetAddress,address _pricefeed) external onlyOwner  
     {
         require(_assetAddress != address(0),"invalid nuasset address");
@@ -51,7 +61,9 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
     }
 
 
-
+    /**
+     * @dev removes a newAsset from the list
+     */  
     function removeNuAsset(address _assetAddress) external onlyOwner  
     {
         require (contains(_assetAddress),"not in list");
@@ -71,10 +83,9 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
     }
 
 
-
-
-
-
+    /**
+     * @dev total synth value in Eth (in wei)
+     */  
     function getTotalSynthValueEth() external view returns (uint256)
     {
         uint result;
@@ -83,15 +94,11 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
         for (uint256 i = 0;i < nbNuAssets;i++)
         {
             uint256 totalSupply = IERC20(nuAssetList[i]).totalSupply();
-            console.logUint(totalSupply);
             address priceFeed = nuAssetInfos[nuAssetList[i]].feed;
             require(priceFeed != address(0),"currency not supported");
             uint256 EthValue = getPriceInEth(totalSupply,priceFeed);
-            console.logUint(EthValue);
             result += EthValue;                                                                                                                                                                                                                                                                                 
         }
         return result;
-
     }
-
 }
