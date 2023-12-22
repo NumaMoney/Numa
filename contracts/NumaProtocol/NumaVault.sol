@@ -49,6 +49,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
   
 
     // constants
+    uint256 public constant MIN = 1000;
     uint16 public constant DECAY_BASE_100 = 100;
     uint16 public constant FEE_BASE_1000 = 1000;
     uint constant max_addresses = 50;
@@ -112,7 +113,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
             uint256 period = 90 * 1 days;
             uint256 decay_factor_1000 = (1000*delta_s) / period;
 
-            if (decay_factor_1000 > 1000)
+            if (decay_factor_1000 >= 1000)
             {
                 return DECAY_BASE_100;
             }
@@ -370,6 +371,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
      */
     function buy(uint _inputAmount,address _receiver) external payable nonReentrant whenNotPaused 
     {
+        require(_inputAmount > MIN, "must trade over min");
         uint256 numaAmount = TokenToNuma(_inputAmount);
         require(numaAmount > 0,"amount of numa is <= 0");
 
@@ -394,7 +396,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
      */
     function sell(uint256 _numaAmount,address _receiver) external nonReentrant whenNotPaused
     {
-    
+        require(_numaAmount > MIN, "must trade over min");
         // Total Eth to be sent
         uint256 tokenAmount = NumaToToken(_numaAmount);
         require(tokenAmount > 0,"amount of token is <=0");

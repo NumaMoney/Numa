@@ -6,8 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../libraries/OracleUtils.sol";
 import "../interfaces/INuAsset.sol";
 import "../interfaces/INuAssetManager.sol";
-import "hardhat/console.sol";
-
 
 contract nuAssetManagerMock is INuAssetManager, OracleUtils {
 
@@ -42,7 +40,7 @@ contract nuAssetManagerMock is INuAssetManager, OracleUtils {
     {
         require(_assetAddress != address(0),"invalid nuasset address");
         require(_pricefeed != address(0),"invalid price feed address");
-        //require (!contains(_assetAddress),"already added");
+        //require (!contains(_assetAddress),"already added");// to test having 200 nuAssets in list
         require (nuAssetList.length < max_nuasset,"too many nuAssets");
 
         nuAssetList.push(_assetAddress);
@@ -60,12 +58,10 @@ contract nuAssetManagerMock is INuAssetManager, OracleUtils {
         require(nbNuAssets <= max_nuasset,"too many nuAssets in list");
         for (uint256 i = 0;i < nbNuAssets;i++)
         {
-            uint256 totalSupply = IERC20(nuAssetList[i]).totalSupply();
-            console.logUint(totalSupply);
+            uint256 totalSupply = IERC20(nuAssetList[i]).totalSupply();           
             address priceFeed = nuAssetInfos[nuAssetList[i]].feed;
             require(priceFeed != address(0),"currency not supported");
             uint256 EthValue = getPriceInEth(totalSupply,priceFeed);
-            console.logUint(EthValue);
             result += EthValue;                                                                                                                                                                                                                                                                                 
         }
         return result;
