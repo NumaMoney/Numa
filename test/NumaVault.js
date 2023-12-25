@@ -534,7 +534,7 @@ describe('NUMA VAULT', function () {
     await Vault1.setOracle(VMO_ADDRESS);
 
     // set new price, simulate a 100 rebase
-    let lastprice = await Vault1.last_lsttokenvalue();
+    let lastprice = await Vault1.last_lsttokenvalueWei();
     let newprice = (BigInt(2)*lastprice);
   
     await VMO.setPrice(newprice);

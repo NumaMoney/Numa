@@ -26,8 +26,8 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
 
     uint16 public SELL_FEE = 950;// 5%
     uint16 public BUY_FEE = 950;// 5%
-    uint8 public  FEES = 10; //1%
-
+    uint16 public FEES = 10; //1%
+    uint public rwd_threshold = 0.001 ether;
 
 
 
@@ -45,7 +45,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     bool public isdecaying;
 
     uint256 public last_extracttimestamp;
-    uint256 public last_lsttokenvalue;
+    uint256 public last_lsttokenvalueWei;
   
 
     // constants
@@ -53,7 +53,6 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     uint16 public constant DECAY_BASE_100 = 100;
     uint16 public constant FEE_BASE_1000 = 1000;
     uint constant max_addresses = 50;
-    uint constant rwd_threshold = 0.001 ether;
     uint256 immutable decimals;
 
     // Events
@@ -63,9 +62,10 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     event Buy(uint256 received, uint256 sent,address receiver);
     event Sell(uint256 sent, uint256 received,address receiver);
     event Fee(uint256 fee,address feeReceiver);
-    event SellFeeUpdated(uint256 sellFee);
-    event BuyFeeUpdated(uint256 buyFee);
-    event FeeUpdated(uint256 Fee);
+    event SellFeeUpdated(uint16 sellFee);
+    event BuyFeeUpdated(uint16 buyFee);
+    event FeeUpdated(uint16 Fee);
+    event ThresholdUpdated(uint256 newThreshold);
     event FeeAddressUpdated(address feeAddress);
     event RwdAddressUpdated(address rwdAddress);
 
@@ -80,7 +80,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
 
         // lst rewards
         last_extracttimestamp = block.timestamp;
-        last_lsttokenvalue = oracle.getTokenPrice(address(lstToken),decimals);
+        last_lsttokenvalueWei = oracle.getTokenPrice(address(lstToken),decimals);
         
         decayingDenominator = _decayingDenominator;
         isdecaying = false;
@@ -211,9 +211,17 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     /**
      * @dev Set Fee percentage 
      */
-    function setFee(uint8 fees) external onlyOwner {
+    function setFee(uint16 fees) external onlyOwner {
         FEES = fees;
         emit FeeUpdated(fees);
+    }
+
+   /**
+     * @dev Set rewards threshold
+     */
+    function setRewardsThreshold(uint256 _threshold) external onlyOwner {
+        rwd_threshold = _threshold;
+        emit ThresholdUpdated(_threshold);
     }
 
 
@@ -223,11 +231,11 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     function rewardsValue() public view returns (uint256,uint256)
     {
         require(address(oracle) != address(0),"oracle not set");        
-        uint currentvalue = oracle.getTokenPrice(address(lstToken),decimals);       
-        uint diff = (currentvalue - last_lsttokenvalue);
+        uint currentvalueWei = oracle.getTokenPrice(address(lstToken),decimals);       
+        uint diff = (currentvalueWei - last_lsttokenvalueWei);
         uint balance = lstToken.balanceOf(address(this));
-        uint rwd = FullMath.mulDiv(balance,diff, currentvalue);
-        return (rwd,currentvalue);   
+        uint rwd = FullMath.mulDiv(balance,diff, currentvalueWei);
+        return (rwd,currentvalueWei);   
     }
 
     /**
@@ -236,12 +244,27 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     function extractRewards() external
     {
         require(RWD_ADDRESS != address(0),"reward address not set");
-        (uint256 rwd,uint256 currentvalue) = rewardsValue();
+        (uint256 rwd,uint256 currentvalueWei) = rewardsValue();
 
         require(rwd > rwd_threshold,"not enough rewards to collect");
         SafeERC20.safeTransfer(IERC20(lstToken),RWD_ADDRESS,rwd);
         last_extracttimestamp = block.timestamp;
-        last_lsttokenvalue = currentvalue;
+        last_lsttokenvalueWei = currentvalueWei;
+    }
+
+    function extractRewardsNoRequire() internal
+    {
+        //rewards address has to be specified
+        if (RWD_ADDRESS != address(0))
+        {
+            (uint256 rwd,uint256 currentvalue) = rewardsValue();
+            if (rwd > rwd_threshold)
+            {
+                SafeERC20.safeTransfer(IERC20(lstToken),RWD_ADDRESS,rwd);
+                last_extracttimestamp = block.timestamp;
+                last_lsttokenvalueWei = currentvalue;
+            }
+        }
     }
     
     /**
@@ -287,7 +310,8 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     {
         require(address(oracle) != address(0),"oracle not set");
         uint balance = lstToken.balanceOf(address(this));
-        uint result = oracle.getTokenPrice(address(lstToken),balance);
+        //uint result = oracle.getTokenPrice(address(lstToken),balance);
+        uint result = FullMath.mulDiv(last_lsttokenvalueWei, balance, decimals);        
         return result;   
     }    
 
@@ -372,6 +396,9 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     function buy(uint _inputAmount,address _receiver) external payable nonReentrant whenNotPaused 
     {
         require(_inputAmount > MIN, "must trade over min");
+        // extract rewards if any
+        extractRewardsNoRequire();
+        // execute buy
         uint256 numaAmount = TokenToNuma(_inputAmount);
         require(numaAmount > 0,"amount of numa is <= 0");
 
@@ -397,6 +424,9 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     function sell(uint256 _numaAmount,address _receiver) external nonReentrant whenNotPaused
     {
         require(_numaAmount > MIN, "must trade over min");
+         // extract rewards if any
+        extractRewardsNoRequire();
+        // execute sell
         // Total Eth to be sent
         uint256 tokenAmount = NumaToToken(_numaAmount);
         require(tokenAmount > 0,"amount of token is <=0");
