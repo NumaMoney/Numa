@@ -6,6 +6,7 @@ const configRelativePathArbi = '../../configTestArbitrum.json';
 const configSepo = require(configRelativePathSepo);
 const configArbi = require(configRelativePathArbi);
 
+let LOG = false;
 
 async function deployPrinterTestFixtureArbi() {
 
@@ -120,7 +121,8 @@ async function deployPrinterTestFixtureArbi() {
   let latestRoundPrice = Number(latestRoundData.answer);
   let decimals = Number(await chainlinkInstance.decimals());
   let price = latestRoundPrice / 10 ** decimals;
-  console.log(`Chainlink Price USD/ETH: ${price}`);
+  if (LOG)
+    console.log(`Chainlink Price USD/ETH: ${price}`);
 
   // get some weth
   await wethContract.connect(signer).deposit({
@@ -147,7 +149,8 @@ async function deployPrinterTestFixtureArbi() {
 
   numaOwner = signer;
   let numa_address = await numa.getAddress();
-  console.log(`Numa deployed to: ${numa_address}`);
+  if (LOG)
+    console.log(`Numa deployed to: ${numa_address}`);
   // numa at 0.5 usd     
   let EthPriceInNuma = price * 2;
   // create numa/eth univ3 pool
@@ -185,18 +188,19 @@ async function deployPrinterTestFixtureArbi() {
     numa_address,
     _fee,
   );
-  console.log('numa eth pool: ', NUMA_ETH_POOL_ADDRESS);
+  if (LOG)
+    console.log('numa eth pool: ', NUMA_ETH_POOL_ADDRESS);
 
   const poolContractNuma = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
   const poolDataNuma = await getPoolData(poolContractNuma);
-  // console.log(poolDataNuma);
 
 
   // ***********************************  NUMA ORACLE ******************************
   const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, signer.getAddress()]);
   await oracle.waitForDeployment();
   oracleAddress = await oracle.getAddress();
-  console.log(`numa oracle deployed to: ${oracleAddress}`);
+  if (LOG)
+    console.log(`numa oracle deployed to: ${oracleAddress}`);
 
   // ***********************************  NUUSD & PRINTER ******************************
   const NuUSD = await ethers.getContractFactory('nuAsset');
@@ -214,8 +218,8 @@ async function deployPrinterTestFixtureArbi() {
   await nuUSD.waitForDeployment();
   nuusd_address = await nuUSD.getAddress();
 
-
-  console.log(`nuUSD deployed to: ${nuusd_address}`);
+  if (LOG)
+    console.log(`nuUSD deployed to: ${nuusd_address}`);
 
  
 
@@ -225,7 +229,8 @@ async function deployPrinterTestFixtureArbi() {
     [numa_address, nuusd_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDETHUSD]);
   await moneyprinterUSD.waitForDeployment();
   moneyprinterUSD_address = await moneyprinterUSD.getAddress();
-  console.log(`nuUSD printer deployed to: ${moneyprinterUSD_address}`);
+  if (LOG)
+    console.log(`nuUSD printer deployed to: ${moneyprinterUSD_address}`);
 
 
   // set printer as a NuUSD minter

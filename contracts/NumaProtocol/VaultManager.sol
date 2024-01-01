@@ -8,7 +8,7 @@ import "../interfaces/INumaVault.sol";
 
 
 
-contract vaultManager is IVaultManager, Ownable 
+contract VaultManager is IVaultManager, Ownable 
 {   
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;

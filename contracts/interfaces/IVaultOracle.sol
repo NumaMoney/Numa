@@ -7,5 +7,4 @@ interface IVaultOracle
 {
     function getTokenPrice(address _tokenAddress) external view returns (uint256,uint256,bool);    
     function getTokenPrice(address _tokenAddress,uint256 _amount) external view returns (uint256);
-    //function getTokenPriceSimple(address _tokenAddress) external view returns (uint256); 
 }

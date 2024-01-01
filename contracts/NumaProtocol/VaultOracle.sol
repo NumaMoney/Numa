@@ -34,7 +34,7 @@ contract VaultOracle is Ownable, IVaultOracle,OracleUtils
 
 
     /**
-     * @dev value in Eth (in wei) of this 1 token
+     * @dev value in Eth (in wei) of 1 token
      */  
     function getTokenPrice(address _tokenAddress) external view returns (uint256,uint256,bool)
     {

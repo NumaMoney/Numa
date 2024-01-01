@@ -1,15 +1,21 @@
-# Numa token Project
+# Numa protocol
 
-Implementation of the token contract.
+## Vault implementation
 
-Hardhat tests and useful scripts;
+### contracts/NumaVault.sol
+### contracts/NumaProtocol/VaultManager.sol
+### contracts/NumaProtocol/VaultOracle.sol
+### contracts/nuAssets/nuAssetManager.sol
+### contracts/libraries/OracleUtils.sol
 
-Try running some of the following tasks:
+## Vault testing
+
+setup an arbitrum fork in `hardhat.config.js`
+
+run the local fork
+
+then run test:
 
 ```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deployAndMint.js
+npx hardhat test test/NumaVault.js
 ```

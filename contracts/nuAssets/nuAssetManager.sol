@@ -7,17 +7,23 @@ import "../libraries/OracleUtils.sol";
 import "../interfaces/INuAsset.sol";
 import "../interfaces/INuAssetManager.sol";
 
+/// @title nuAssets manager
+/// @notice used to compute total synthetics value in Eth
 contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
 
 
+    // struct representing a nuAsset: index in list (starts at 1), and pricefeed address
     struct nuAssetInfo { 
        address feed;
        uint index;
     }
 
+    // nuAsset to nuAssetInfo mapping
     mapping(address => nuAssetInfo) public nuAssetInfos;
+    // list of nuAssets
     address[] public nuAssetList;
 
+    // max number of nuAssets this contract can handle
     uint constant max_nuasset = 200;
 
 
@@ -55,7 +61,9 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
         require (!contains(_assetAddress),"already added");
         require (nuAssetList.length < max_nuasset,"too many nuAssets");
 
+        // add to list
         nuAssetList.push(_assetAddress);
+        // add to mapping
         nuAssetInfos[_assetAddress] = nuAssetInfo(_pricefeed,nuAssetList.length);
 
     }

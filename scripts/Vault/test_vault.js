@@ -131,7 +131,7 @@ async function main () {
     // TODO: test removing nuAsset
 
     // *********************** vaultManager **********************************
-    let VM = await ethers.deployContract("vaultManager",
+    let VM = await ethers.deployContract("VaultManager",
     []);
     await VM.waitForDeployment();
     let VM_ADDRESS = await VM.getAddress();
