@@ -9,7 +9,6 @@ import "../interfaces/IVaultOracle.sol";
 import "../libraries/OracleUtils.sol";
 
 
-// only works with tokens that have 18 decimals
 contract VaultOracle is Ownable, IVaultOracle,OracleUtils
 {
     mapping(address => address) public tokenToFeed;
