@@ -33,6 +33,9 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     // fee that is sent to FEE_ADDRESS
     uint16 public FEES = 10; //1%
 
+    uint16 public MAX_PERCENT = 100;//10%
+    
+
     // threshold for reward extraction
     uint public rwd_threshold = 0.001 ether;
 
@@ -78,6 +81,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     event SellFeeUpdated(uint16 sellFee);
     event BuyFeeUpdated(uint16 buyFee);
     event FeeUpdated(uint16 Fee);
+    event MaxPercentUpdated(uint16 NewValue);
     event ThresholdUpdated(uint256 newThreshold);
     event FeeAddressUpdated(address feeAddress);
     event RwdAddressUpdated(address rwdAddress);
@@ -210,30 +214,38 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     /**
      * @dev Set Sell fee percentage (exemple: 5% fee --> fee = 950) 
      */
-    function setSellFee(uint16 fee) external onlyOwner {
-        require(fee <= FEE_BASE_1000,"fee above 1000");
-        SELL_FEE = fee;
-        emit SellFeeUpdated(fee);
+    function setSellFee(uint16 _fee) external onlyOwner {
+        require(_fee <= FEE_BASE_1000,"fee above 1000");
+        SELL_FEE = _fee;
+        emit SellFeeUpdated(_fee);
     }
 
     /**
      * @dev Set Buy fee percentage (exemple: 5% fee --> fee = 950) 
      */
-    function setBuyFee(uint16 fee) external onlyOwner 
+    function setBuyFee(uint16 _fee) external onlyOwner 
     {
-        require(fee <= FEE_BASE_1000,"fee above 1000");
-        BUY_FEE = fee;
-        emit BuyFeeUpdated(fee);
+        require(_fee <= FEE_BASE_1000,"fee above 1000");
+        BUY_FEE = _fee;
+        emit BuyFeeUpdated(_fee);
     }
 
     /**
      * @dev Set Fee percentage (exemple: 1% fee --> fee = 10) 
      */
-    function setFee(uint16 fees) external onlyOwner {
+    function setFee(uint16 _fees) external onlyOwner {
         // fees have to be  <= buy/sell fee 
-        require(((fees <= (FEE_BASE_1000 - BUY_FEE)) && (fees <= (FEE_BASE_1000 - SELL_FEE))),"fees above buy/sell fee");
-        FEES = fees;
-        emit FeeUpdated(fees);
+        require(((_fees <= (FEE_BASE_1000 - BUY_FEE)) && (_fees <= (FEE_BASE_1000 - SELL_FEE))),"fees above buy/sell fee");
+        FEES = _fees;
+        emit FeeUpdated(_fees);
+    }
+
+
+    function SetMaxPercent(uint16 _maxPercent) external onlyOwner
+    {
+        require(MAX_PERCENT <= FEE_BASE_1000,"Percent above 100");
+        MAX_PERCENT = _maxPercent;
+        emit MaxPercentUpdated(_maxPercent);
     }
 
    /**
@@ -378,11 +390,13 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     /**
      * @dev How many Numas from lst token amount
      */
-    function TokenToNuma(uint _inputAmount) internal view returns (uint256) 
+    function TokenToNuma(uint _inputAmount,uint _refValueWei) internal view returns (uint256) 
     {
         require(address(oracle) != address(0),"oracle not set");
 
-        uint256 EthValue = oracle.getTokenPrice(address(lstToken),_inputAmount);
+        // using snapshot price instead of oracle price
+        //uint256 EthValue = oracle.getTokenPrice(address(lstToken),_inputAmount);
+        uint256 EthValue = FullMath.mulDiv(_refValueWei, _inputAmount, decimals); 
         uint synthValueInEth = getTotalSynthValueEth();
         uint circulatingNuma = getNumaSupply();
       
@@ -397,10 +411,10 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     /**
      * @dev How many lst tokens from numa amount
      */
-    function NumaToToken(uint _inputAmount) internal view returns (uint256) 
+    function NumaToToken(uint _inputAmount,uint _refValueWei) internal view returns (uint256) 
     {
         require(address(oracle) != address(0),"oracle not set");
-        (uint256 price,uint256 decimalPrecision,bool ethLeftSide) = oracle.getTokenPrice(address(lstToken));
+        //(uint256 price,uint256 decimalPrecision,bool ethLeftSide) = oracle.getTokenPrice(address(lstToken));
 
        
         uint synthValueInEth = getTotalSynthValueEth();
@@ -411,14 +425,19 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         require(circulatingNuma > 0,"no numa in circulation");
         uint result;
         uint256 decaydenom = getDecayDenominator();
-        if (ethLeftSide) 
-        {
-            result = FullMath.mulDiv(FullMath.mulDiv(decaydenom*_inputAmount,EthBalance - synthValueInEth, DECAY_BASE_100*circulatingNuma),price,10**decimalPrecision);
-        }
-        else 
-        {
-            result = FullMath.mulDiv(FullMath.mulDiv(decaydenom*_inputAmount,EthBalance - synthValueInEth, DECAY_BASE_100*circulatingNuma),10**decimalPrecision,price);
-        }
+
+        // using snaphot price
+         //uint256 EthValue = FullMath.mulDiv(last_lsttokenvalueWei, _inputAmount, decimals); 
+        result = FullMath.mulDiv(FullMath.mulDiv(decaydenom*_inputAmount,EthBalance - synthValueInEth, DECAY_BASE_100*circulatingNuma),decimals,_refValueWei);
+
+        // if (ethLeftSide) 
+        // {
+        //     result = FullMath.mulDiv(FullMath.mulDiv(decaydenom*_inputAmount,EthBalance - synthValueInEth, DECAY_BASE_100*circulatingNuma),price,10**decimalPrecision);
+        // }
+        // else 
+        // {
+        //     result = FullMath.mulDiv(FullMath.mulDiv(decaydenom*_inputAmount,EthBalance - synthValueInEth, DECAY_BASE_100*circulatingNuma),10**decimalPrecision,price);
+        // }
         return result;
     }
 
@@ -429,10 +448,14 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     function buy(uint _inputAmount,address _receiver) external payable nonReentrant whenNotPaused 
     {
         require(_inputAmount > MIN, "must trade over min");
+        uint256 vaultsBalance = lstToken.balanceOf(address(this));
+        uint256 MAX = (MAX_PERCENT*vaultsBalance)/FEE_BASE_1000;
+        require(_inputAmount <= MAX, "must trade under max");
+
         // extract rewards if any
         extractRewardsNoRequire();
         // execute buy
-        uint256 numaAmount = TokenToNuma(_inputAmount);
+        uint256 numaAmount = TokenToNuma(_inputAmount,last_lsttokenvalueWei);
         require(numaAmount > 0,"amount of numa is <= 0");
 
         // transfer token
@@ -461,7 +484,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         extractRewardsNoRequire();
         // execute sell
         // Total Eth to be sent
-        uint256 tokenAmount = NumaToToken(_numaAmount);
+        uint256 tokenAmount = NumaToToken(_numaAmount,last_lsttokenvalueWei);
         require(tokenAmount > 0,"amount of token is <=0");
         require(lstToken.balanceOf(address(this)) >= tokenAmount,"not enough liquidity in vault");
        
@@ -487,7 +510,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
      */
     function getBuyNuma(uint256 _amount) external view returns (uint256) 
     {
-        uint256 numaAmount = TokenToNuma(_amount);
+        uint256 numaAmount = TokenToNuma(_amount,last_lsttokenvalueWei);
         return (numaAmount* BUY_FEE) / FEE_BASE_1000;
     }
 
@@ -496,7 +519,39 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
      */
     function getSellNuma(uint256 _amount) external view returns (uint256) 
     {
-        uint256 tokenAmount = NumaToToken(_amount);
+        uint256 tokenAmount = NumaToToken(_amount,last_lsttokenvalueWei);
+        return (tokenAmount * SELL_FEE) / FEE_BASE_1000;
+    }
+
+    /**
+     * @dev Estimate number of Numas from an amount of token with extraction simulation
+     */
+    function getBuyNumaSimulateExtract(uint256 _amount) external view returns (uint256) 
+    {
+	    uint256 refValue = last_lsttokenvalueWei;
+    	(uint256 rwd,uint256 currentvalueWei) = rewardsValue();
+    	if (rwd > rwd_threshold) 
+    	{
+    	   refValue = currentvalueWei;
+    	}
+
+        uint256 numaAmount = TokenToNuma(_amount,refValue);
+        return (numaAmount* BUY_FEE) / FEE_BASE_1000;
+    }
+
+    /**
+     * @dev Estimate number of tokens from an amount of numa with extraction simulation
+     */
+    function getSellNumaSimulateExtract(uint256 _amount) external view returns (uint256) 
+    {
+	    uint256 refValue = last_lsttokenvalueWei;
+    	(uint256 rwd,uint256 currentvalueWei) = rewardsValue();
+    	if (rwd > rwd_threshold) 
+    	{
+    	   refValue = currentvalueWei;
+    	}
+
+        uint256 tokenAmount = NumaToToken(_amount,refValue);
         return (tokenAmount * SELL_FEE) / FEE_BASE_1000;
     }
 

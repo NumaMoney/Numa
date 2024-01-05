@@ -321,7 +321,8 @@ describe('NUMA VAULT', function () {
         let ratio = newprice/lastprice;
         // BUY
         let inputreth = ethers.parseEther("2");
-        let buypricerefnofees = ratio*inputreth*numaSupply/(BigInt(decaydenom/100)*balvaultWei);
+        //let buypricerefnofees = ratio*inputreth*numaSupply/(BigInt(decaydenom/100)*balvaultWei);
+        let buypricerefnofees = inputreth*numaSupply/(BigInt(decaydenom/100)*balvaultWei);
         // fees
         let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
         let buyprice = await Vault1.getBuyNuma(inputreth);
@@ -329,10 +330,19 @@ describe('NUMA VAULT', function () {
 
         // SELL 
         let inputnuma = ethers.parseEther("1000");
-        let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply*ratio);
+        //let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply*ratio);
+        let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply);
         let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
         let sellprice = await Vault1.getSellNuma(inputnuma);
         expect(sellpriceref).to.equal(sellprice); 
+
+
+        // this one should give real price as we will extract rewards and update snapshot price
+        let buypriceReal = await Vault1.getBuyNumaSimulateExtract(inputreth);
+        expect(ratio*buypriceref).to.equal(buypriceReal);
+        let sellpriceReal = await Vault1.getSellNumaSimulateExtract(inputnuma);
+        expect(sellpriceref).to.equal(ratio*sellpriceReal); 
+
 
         // extract and price should stays the same
         await Vault1.extractRewards();
@@ -341,9 +351,11 @@ describe('NUMA VAULT', function () {
 
         // check prices
         buyprice = await Vault1.getBuyNuma(inputreth);
-        expect(buypriceref).to.equal(buyprice);
+
+
+        expect(ratio*buypriceref).to.equal(buyprice);
         sellprice = await Vault1.getSellNuma(inputnuma);
-        expect(sellpriceref).to.equal(sellprice); 
+        expect(sellpriceref).to.equal(ratio*sellprice); 
 
 
       });
@@ -521,7 +533,8 @@ describe('NUMA VAULT', function () {
       let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
 
       let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
-      expect(balbuyer).to.equal(ratio*buypriceref);
+      //expect(balbuyer).to.equal(ratio*buypriceref);
+      expect(balbuyer).to.equal(buypriceref);
       let balrwd = await rEth_contract.balanceOf(await signer4.getAddress());
       expect(balrwd).to.equal(0);// no extraction thanks to new threshold
       expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100) - balrwd);
