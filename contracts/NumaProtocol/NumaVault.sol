@@ -37,7 +37,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     
 
     // threshold for reward extraction
-    uint public rwd_threshold = 0.001 ether;
+    uint public rwd_threshold = 0.01 ether;
 
 
 
@@ -445,7 +445,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     /**
      * @dev Buy numa from token (token approval needed)
      */
-    function buy(uint _inputAmount,address _receiver) external payable nonReentrant whenNotPaused 
+    function buy(uint _inputAmount,address _receiver) external nonReentrant whenNotPaused 
     {
         require(_inputAmount > MIN, "must trade over min");
         uint256 vaultsBalance = lstToken.balanceOf(address(this));
