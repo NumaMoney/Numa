@@ -6,7 +6,7 @@ import "../interfaces/IVaultOracle.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 contract VaultMockOracle is IVaultOracle
 {
-    uint price;
+    uint price = 1 ether;
 
 
     constructor() 

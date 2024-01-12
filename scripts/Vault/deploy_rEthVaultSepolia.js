@@ -6,27 +6,51 @@
 // 6. Set pool to Printer
 
 // addresses on arbitrum
-let numaAddress = "0x7FB7EDe54259Cb3D4E1EaF230C7e2b1FfC951E9A";
-let rETH_ADDRESS = "0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8";
-let RETH_FEED = "0xD6aB2298946840262FcC278fF31516D39fF611eF";
+//let numaAddress = "0x7FB7EDe54259Cb3D4E1EaF230C7e2b1FfC951E9A";
+// let rETH_ADDRESS = "0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8";
+// let RETH_FEED = "0xD6aB2298946840262FcC278fF31516D39fF611eF";
 // let wstETH_FEED = "0xb523AE262D20A936BC152e6023996e46FDC2A95D";
 // let wstETH_ADDRESS = "0x5979d7b546e38e414f7e9822514be443a4800529";
-// TODO
-let FEE_ADDRESS = "";
-let RWD_ADDRESS = "";
-let newOwnerAddress = "";
+
+
+
+
+// let FEE_ADDRESS = "";
+// let RWD_ADDRESS = "";
 
 let decaydenom = 267;
 
 const { ethers, upgrades } = require("hardhat");
-
+const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
 // npx hardhat run --network kovan scripts/deploy_erc20.js
 async function main () {
     
     const [signer] = await ethers.getSigners();
+ 
+    let FEE_ADDRESS = await signer.getAddress();
+    let RWD_ADDRESS = await signer.getAddress();
 
 
-    // TODO get admin rôle on Numa so that I can give vault minter rôle
+    // DEPLOY NUMA
+    const Numa = await ethers.getContractFactory('NUMA')
+    const contract = await upgrades.deployProxy(
+    Numa,
+        [],
+        {
+            initializer: 'initialize',
+            kind:'uups'
+        }
+    )
+    await contract.waitForDeployment();
+    console.log('ERC20 deployed to:', await contract.getAddress());
+
+    await contract.mint(
+        signer.getAddress(),
+        ethers.parseEther("10000000.0")
+      );
+
+
+   
 
    // *********************** nuAssetManager **********************************
    let nuAM = await ethers.deployContract("nuAssetManager",
@@ -49,18 +73,34 @@ async function main () {
 
 
    // *********************** vaultOracle **********************************
-   let VO = await ethers.deployContract("VaultOracle",
-   []);
-   await VO.waitForDeployment();
-   let VO_ADDRESS= await VO.getAddress();
-   console.log('vault oracle address: ', VO_ADDRESS);
+//    let VO = await ethers.deployContract("VaultOracle",
+//    []);
+//    await VO.waitForDeployment();
+//    let VO_ADDRESS= await VO.getAddress();
+//    console.log('vault oracle address: ', VO_ADDRESS);
 
-   // adding rETH to our oracle
-   await VO.setTokenFeed(rETH_ADDRESS,RETH_FEED);
+//    // adding rETH to our oracle
+//    await VO.setTokenFeed(rETH_ADDRESS,RETH_FEED);
+
+
+
+   // using custom MockOracle as we don't have rEth chainlink feeds on sepolia
+   let VMO = await ethers.deployContract("VaultMockOracle",[]);
+   await VMO.waitForDeployment();
+   let VMO_ADDRESS= await VMO.getAddress();
+  
+
+   // and custom lst token
+   let lstToken = await ethers.deployContract("LstTokenMock",[await signer.getAddress()]);
+   await lstToken.waitForDeployment();
+   let LST_ADDRESS = await lstToken.getAddress();
+  
 
    // vault1 rETH
+   let numa_address = await contract.getAddress();
+
    let Vault1 = await ethers.deployContract("NumaVault",
-   [numa_address,rETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS,NUAM_ADDRESS,decaydenom]);
+   [numa_address,LST_ADDRESS,ethers.parseEther("1"),VMO_ADDRESS,NUAM_ADDRESS,decaydenom]);
    await Vault1.waitForDeployment();
    let VAULT1_ADDRESS = await Vault1.getAddress();
    console.log('vault rETH address: ', VAULT1_ADDRESS);
@@ -72,11 +112,11 @@ async function main () {
    await Vault1.setRwdAddress(RWD_ADDRESS);
 
    // allow vault to mint numa
-   await numa.grantRole(roleMinter, VAULT1_ADDRESS);
+   await contract.grantRole(roleMinter, VAULT1_ADDRESS);
 
 
-   // TODO transfer rETH to vault to initialize price
-   // await erc20_rw.connect(impersonatedSigner).transfer(VAULT1_ADDRESS, ethers.parseEther("100"));
+   // transfer rETH to vault to initialize price
+   await lstToken.transfer(VAULT1_ADDRESS, ethers.parseEther("200"));
 
    await Vault1.unpause();
 
@@ -95,10 +135,10 @@ async function main () {
 //    await myToken.renounceRole(roleUpgrade, owner.address);
 //    await myToken.renounceRole(roleAdmin, owner.address);
 
-await Vault1.transferOwnership(newOwnerAddress);
-await nuAM.transferOwnership(newOwnerAddress);
-await VO.transferOwnership(newOwnerAddress);
-await VM.transferOwnership(newOwnerAddress);
+// await Vault1.transferOwnership(newOwnerAddress);
+// await nuAM.transferOwnership(newOwnerAddress);
+// await VO.transferOwnership(newOwnerAddress);
+// await VM.transferOwnership(newOwnerAddress);
 
 
 
