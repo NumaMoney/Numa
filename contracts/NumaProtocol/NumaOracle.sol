@@ -7,7 +7,7 @@ import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
+import "../interfaces/INumaPrice.sol";
 /// @title NumaOracle
 /// @notice Responsible for getting prices from chainlink and uniswap V3 pools
 /// @dev 
@@ -17,10 +17,13 @@ contract NumaOracle is Ownable
     uint32 public intervalShort;
     uint32 public intervalLong;
     
+    INumaPrice public numaPrice;
+    uint public tolerance1000;
 
     event IntervalShort(uint32 _intervalShort);
     event IntervalLong(uint32 _intervalLong);
     event FlexFeeThreshold(uint256 _flexFeeThreshold);
+    event NumaPrice(address _numaPrice,uint _tolerance1000);
 
     constructor(address _weth9,uint32 _intervalShort,uint32 _intervalLong,address initialOwner) Ownable(initialOwner) 
     {
@@ -30,7 +33,13 @@ contract NumaOracle is Ownable
       
     }
 
-
+    function setNumaPrice(address _numaPriceAddress,uint _tolerance1000) external onlyOwner 
+    {
+       
+        numaPrice = INumaPrice(_numaPriceAddress);
+        tolerance1000 = _tolerance1000;
+        emit NumaPrice(_numaPriceAddress,_tolerance1000);
+    }
     function setIntervalShort(uint32 _interval) external onlyOwner 
     {
         require(_interval > 0, "Interval must be nonzero");
@@ -192,7 +201,23 @@ contract NumaOracle is Ownable
         //numa per ETH, times _amount
         uint256 numaPerETH = FullMath.mulDivRoundingUp(FullMath.mulDivRoundingUp(numerator, numerator, denominator), _amount, denominator);
         
-        if (_chainlinkFeed == address(0)) return numaPerETH;// TODO: could be removed as it would be used for nuETH which we will not implement
+        // check that numa price is within vault's price bounds to prevent price manipulation
+        if (address(numaPrice) != address(0))
+        {
+            // do it only if we specified a contract that can give us numa price
+            uint256 numaPerEthVault = numaPrice.GetPriceFromVaultWithoutFees(_amount);
+            // TODO: check this way of using percent, could I get rounding issues?
+            numaPerEthVault = numaPerEthVault + (numaPerEthVault*tolerance1000)/1000;
+            if (numaPerETH < numaPerEthVault)
+            {
+                revert("numa price out of vault's bounds");
+            }       
+        }
+
+        if (_chainlinkFeed == address(0)) 
+        {
+            revert("oracle should be set");
+        }
         uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
         uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
         uint256 tokensForAmount;
@@ -231,7 +256,22 @@ contract NumaOracle is Ownable
         //numa per ETH, times _amount
         uint256 numaPerETH = FullMath.mulDiv(FullMath.mulDiv(numerator, numerator, denominator), _amount, denominator);
 
-        if (_chainlinkFeed == address(0)) return numaPerETH;
+        // check that numa price is within vault's price bounds to prevent price manipulation
+        if (address(numaPrice) != address(0))
+        {
+            // do it only if we specified a contract that can give us numa price
+            uint256 numaPerEthVault = numaPrice.GetPriceFromVaultWithoutFees(_amount);
+            numaPerEthVault = numaPerEthVault - (numaPerEthVault*tolerance1000)/1000;
+            if (numaPerETH > numaPerEthVault)
+            {
+                revert("numa price out of vault's bounds");
+            }       
+        }
+
+        if (_chainlinkFeed == address(0)) 
+        {
+            revert("oracle should be set");
+        }
         uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
         uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
         uint256 tokensForAmount;
@@ -283,25 +323,25 @@ contract NumaOracle is Ownable
      * @param {uint256} _amount amount we want to burn
      * @param {address} _weth9 weth address
      */
-    function getTokensForAmount(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount, address _weth9) public view returns (uint256) {
-        uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
-        uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
-        uint256 denominator = (numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96);
-        //numa per ETH, times _amount
-        uint256 numaPerETH = FullMath.mulDiv(FullMath.mulDiv(numerator, numerator, denominator), _amount, denominator);
+    // function getTokensForAmount(address _pool, uint32 _intervalShort, uint32 _intervalLong, address _chainlinkFeed, uint256 _amount, address _weth9) public view returns (uint256) {
+    //     uint160 sqrtPriceX96 = getV3SqrtLowestPrice(_pool, _intervalShort, _intervalLong);
+    //     uint256 numerator = (IUniswapV3Pool(_pool).token0() == _weth9 ? sqrtPriceX96 : FixedPoint96.Q96);
+    //     uint256 denominator = (numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96);
+    //     //numa per ETH, times _amount
+    //     uint256 numaPerETH = FullMath.mulDiv(FullMath.mulDiv(numerator, numerator, denominator), _amount, denominator);
 
-        if (_chainlinkFeed == address(0)) return numaPerETH;
-        uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
-        uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
-        uint256 tokensForAmount;
-        //if ETH is on the left side of the fraction in the price feed
-        if (ethLeftSide(_chainlinkFeed)) {
-            tokensForAmount = FullMath.mulDiv(numaPerETH, 10**decimalPrecision, linkFeed);
-        } else {
-            tokensForAmount = FullMath.mulDiv(numaPerETH, linkFeed, 10**decimalPrecision);
-        }
-        return tokensForAmount;
-    }
+    //     if (_chainlinkFeed == address(0)) return numaPerETH;
+    //     uint256 linkFeed = chainlinkPrice(_chainlinkFeed);
+    //     uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed).decimals();
+    //     uint256 tokensForAmount;
+    //     //if ETH is on the left side of the fraction in the price feed
+    //     if (ethLeftSide(_chainlinkFeed)) {
+    //         tokensForAmount = FullMath.mulDiv(numaPerETH, 10**decimalPrecision, linkFeed);
+    //     } else {
+    //         tokensForAmount = FullMath.mulDiv(numaPerETH, linkFeed, 10**decimalPrecision);
+    //     }
+    //     return tokensForAmount;
+    // }
 
 
 
