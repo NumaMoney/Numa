@@ -9,7 +9,7 @@ import "../interfaces/INumaVault.sol";
 
 
 import "../Numa.sol";
-import "../interfaces/IVaultOracle.sol";
+
 import "../interfaces/INuAssetManager.sol";
 
 contract VaultManager is IVaultManager, Ownable 
@@ -26,18 +26,17 @@ contract VaultManager is IVaultManager, Ownable
     NUMA public immutable numa;
     EnumerableSet.AddressSet removedSupplyAddresses;
 
-    IVaultOracle public oracle;
-
     uint16 public constant DECAY_BASE_100 = 100;
     uint constant max_vault = 50;
     uint constant max_addresses = 50;
 
     event SetNuAssetManager(address nuAssetManager);
 
-    constructor(address _numaAddress,uint _decayingDenominator) Ownable(msg.sender)
+    constructor(address _numaAddress,address _nuAssetManagerAddress,uint _decayingDenominator) Ownable(msg.sender)
     {
         numa = NUMA(_numaAddress);
         decayingDenominator = _decayingDenominator;
+        nuAssetManager = INuAssetManager(_nuAssetManagerAddress);
         isdecaying = false;
     }
 
@@ -94,10 +93,6 @@ contract VaultManager is IVaultManager, Ownable
      */
     function TokenToNuma(uint _inputAmount,uint _refValueWei,uint _decimals) external view returns (uint256) 
     {
-        require(address(oracle) != address(0),"oracle not set");
-
-        // using snapshot price instead of oracle price
-        //uint256 EthValue = oracle.getTokenPrice(address(lstToken),_inputAmount);
         uint256 EthValue = FullMath.mulDiv(_refValueWei, _inputAmount, _decimals); 
         uint synthValueInEth = getTotalSynthValueEth();
         uint circulatingNuma = getNumaSupply();
@@ -114,11 +109,7 @@ contract VaultManager is IVaultManager, Ownable
      * @dev How many lst tokens from numa amount
      */
     function NumaToToken(uint _inputAmount,uint _refValueWei,uint _decimals) external view returns (uint256) 
-    {
-        require(address(oracle) != address(0),"oracle not set");
-        //(uint256 price,uint256 decimalPrecision,bool ethLeftSide) = oracle.getTokenPrice(address(lstToken));
-
-       
+    {       
         uint synthValueInEth = getTotalSynthValueEth();
         uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
