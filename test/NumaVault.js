@@ -136,7 +136,7 @@ describe('NUMA VAULT', function () {
 
     // *********************** vaultManager **********************************
     VM = await ethers.deployContract("VaultManager",
-    []);
+    [numa_address,decaydenom]);
     await VM.waitForDeployment();
     VM_ADDRESS = await VM.getAddress();
     console.log('vault manager address: ', VM_ADDRESS);
