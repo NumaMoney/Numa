@@ -196,7 +196,7 @@ async function deployPrinterTestFixtureArbi() {
 
 
   // ***********************************  NUMA ORACLE ******************************
-  const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, signer.getAddress()]);
+  const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, signer.getAddress()]);
   await oracle.waitForDeployment();
   oracleAddress = await oracle.getAddress();
   if (LOG)
@@ -419,7 +419,7 @@ async function deployPrinterTestFixtureSepo() {
   let factory;
 
   //
-  [signer, signer2, signer3] = await ethers.getSigners();
+  [signer, signer2, signer3,signer4] = await ethers.getSigners();
 
 
   // Min and Max tick numbers, as a multiple of 60
@@ -572,7 +572,7 @@ async function deployPrinterTestFixtureSepo() {
 
 
   // ***********************************  NUMA ORACLE ******************************
-  const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, FLEXFEETHRESHOLD, signer.getAddress()]);
+  const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, signer.getAddress()]);
   await oracle.waitForDeployment();
   oracleAddress = await oracle.getAddress();
   console.log(`numa oracle deployed to: ${oracleAddress}`);
@@ -685,7 +685,8 @@ async function deployPrinterTestFixtureSepo() {
 
 
 
-  await moneyprinterUSD.setTokenPool(nuusd_eth_pool_address);
+  
+  //await moneyprinterUSD.setTokenPool(nuusd_eth_pool_address);
   //
   let printFee = 500;
   await moneyprinterUSD.setPrintAssetFeeBps(printFee);
@@ -752,7 +753,8 @@ async function deployPrinterTestFixtureSepo() {
   console.log(await factory.getAddress());
 
   let SwapRouter = new ethers.ContractFactory(artifacts.SwapRouter.abi, artifacts.SwapRouter.bytecode, signer);
-  swapRouter = await SwapRouter.deploy(await factory.getAddress(), config.WETH_ADDRESS);
+  // DBGREFACTO
+  swapRouter = await SwapRouter.deploy(await factory.getAddress(), configSepo.WETH_ADDRESS);
 
   console.log(`swap router: ${swapRouter}`);
 

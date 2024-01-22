@@ -15,10 +15,10 @@ contract NumaPrinter is Pausable, Ownable
 {
 
     NUMA public immutable numa;
-    INuAsset private immutable nuAsset;
+    INuAsset public immutable nuAsset;
     //
     address public numaPool;
-    address public tokenPool;
+   
     //
     INumaOracle public oracle;
     address public chainlinkFeed;
@@ -31,7 +31,6 @@ contract NumaPrinter is Pausable, Ownable
     event SetFlexFeeThreshold(uint256 _threshold);
     event SetChainlinkFeed(address _chainlink);
     event SetNumaPool(address _pool);
-    event SetTokenPool(address _pool);
     event AssetMint(address _asset,uint _amount);
     event AssetBurn(address _asset,uint _amount);
     event PrintAssetFeeBps(uint _newfee);
@@ -92,15 +91,6 @@ contract NumaPrinter is Pausable, Ownable
     /**
      * @notice not using whenNotPaused as we may want to pause contract to set these values
      */   
-    function setTokenPool(address _tokenPool) external onlyOwner  
-    {
-        tokenPool = _tokenPool;
-        emit SetTokenPool(address(_tokenPool));
-    }
-
-    /**
-     * @notice not using whenNotPaused as we may want to pause contract to set these values
-     */   
     function setPrintAssetFeeBps(uint _printAssetFeeBps) external onlyOwner  
     {
         require(_printAssetFeeBps <= 10000, "Fee percentage must be 100 or less");
@@ -146,7 +136,7 @@ contract NumaPrinter is Pausable, Ownable
      */
     function getNbOfNumaFromAssetWithFee(uint256 _amount) public view returns (uint256,uint256) 
     {
-        uint256 _output = oracle.getNbOfNumaFromAsset(_amount, chainlinkFeed, numaPool, tokenPool);
+        uint256 _output = oracle.getNbOfNumaFromAsset(_amount, chainlinkFeed, numaPool);
         // burn fee                
         uint256 amountToBurn = (_output*burnAssetFeeBps) / 10000;
         return (_output,amountToBurn);
@@ -249,7 +239,7 @@ contract NumaPrinter is Pausable, Ownable
 
     function GetNbOfnuAssetNeededForNuma(uint _amount) public view returns (uint256,uint256)
     {
-        uint256 input =  oracle.getNbOfAssetneeded(_amount, chainlinkFeed, numaPool,tokenPool);
+        uint256 input =  oracle.getNbOfAssetneeded(_amount, chainlinkFeed, numaPool);
 
         uint256 amountToBurn = (_amount*burnAssetFeeBps) / 10000;
 

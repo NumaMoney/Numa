@@ -61,7 +61,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     let oracleContract = await moneyPrinter.oracle();
     expect(await oracleContract).to.equal(oracleAddress);
-    expect(await moneyPrinter.chainlinkFeed()).to.equal(configsepo.PRICEFEEDETHUSD);
+    expect(await moneyPrinter.chainlinkFeed()).to.equal(configSepo.PRICEFEEDETHUSD);
 
     expect(await moneyPrinter.printAssetFeeBps()).to.equal(500);
     expect(await moneyPrinter.burnAssetFeeBps()).to.equal(800);
@@ -173,7 +173,7 @@ describe('NUMA NUASSET PRINTER', function () {
   it('Should be able to change parameters', async function () {
     // check events
     const oracle2 = await ethers.deployContract("NumaOracle",
-     [configsepo.WETH_ADDRESS, configsepo.INTERVAL_SHORT, configsepo.INTERVAL_LONG, configsepo.FLEXFEETHRESHOLD, signer.getAddress()]);
+     [configSepo.WETH_ADDRESS, configSepo.INTERVAL_SHORT, configSepo.INTERVAL_LONG, signer.getAddress()]);
     await oracle2.waitForDeployment();
     let oracle2Address = await oracle2.getAddress();
     await expect(moneyPrinter.setOracle(oracle2)).to.emit(moneyPrinter, "SetOracle").withArgs(oracle2Address);
