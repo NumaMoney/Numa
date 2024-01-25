@@ -2,14 +2,12 @@
 pragma solidity 0.8.20;
 
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../interfaces/IVaultOracle.sol";
 import "../libraries/OracleUtils.sol";
 
 
-contract VaultOracle is Ownable, IVaultOracle,OracleUtils
+contract VaultOracle is Ownable2Step, IVaultOracle,OracleUtils
 {
     mapping(address => address) public tokenToFeed;
     event TokenFeed(address _tokenAddress,address _chainlinkFeed);

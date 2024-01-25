@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
 
 
 
-contract VaultManager is IVaultManager, Ownable 
+contract VaultManager is IVaultManager, Ownable2Step 
 {   
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
 
     uint constant max_vault = 50;
+
+    event AddedVault(address _vaultAddress);
+    event RemovedVault(address _vaultAddress);
 
     constructor() Ownable(msg.sender)
     {
@@ -34,6 +37,7 @@ contract VaultManager is IVaultManager, Ownable
     {
         require (vaultsList.length() < max_vault,"too many vaults");
         require(vaultsList.add(_vault), "already in list");
+        emit AddedVault(_vault);
     }
 
     /**
@@ -43,6 +47,7 @@ contract VaultManager is IVaultManager, Ownable
     {
         require(vaultsList.contains(_vault), "not in list");
         vaultsList.remove(_vault);
+        emit RemovedVault(_vault);
     }
 
 

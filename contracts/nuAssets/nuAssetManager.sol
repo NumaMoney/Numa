@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../libraries/OracleUtils.sol";
-import "../interfaces/INuAsset.sol";
 import "../interfaces/INuAssetManager.sol";
 
 /// @title nuAssets manager
 /// @notice used to compute total synthetics value in Eth
-contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
+contract nuAssetManager is INuAssetManager, Ownable2Step, OracleUtils {
 
 
     // struct representing a nuAsset: index in list (starts at 1), and pricefeed address
@@ -26,7 +25,8 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
     // max number of nuAssets this contract can handle
     uint constant max_nuasset = 200;
 
-
+    event AddedAsset(address _assetAddress,address _pricefeed);
+    event RemovedAsset(address _assetAddress);
     constructor() Ownable(msg.sender)
     {
 
@@ -65,6 +65,7 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
         nuAssetList.push(_assetAddress);
         // add to mapping
         nuAssetInfos[_assetAddress] = nuAssetInfo(_pricefeed,nuAssetList.length);
+        emit AddedAsset(_assetAddress,_pricefeed);
 
     }
 
@@ -88,6 +89,7 @@ contract nuAssetManager is INuAssetManager, Ownable, OracleUtils {
 
         // deletes last element and reduces array size
         nuAssetList.pop();
+        emit RemovedAsset(_assetAddress);
     }
 
 
