@@ -1,16 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+
+
+struct AssetData
+{
+    mapping(address => uint) balanceOf;
+    uint totalSupply;
+    uint rewardIndex;
+    mapping(address => uint) rewardIndexOf;
+    uint weight;
+}
+
 contract DiscreteStakingRewards {
     IERC20 public immutable stakingToken;
     IERC20 public immutable rewardToken;
 
-    mapping(address => uint) public balanceOf;
-    uint public totalSupply;
-
+    
     uint private constant MULTIPLIER = 1e18;
-    uint private rewardIndex;
-    mapping(address => uint) private rewardIndexOf;
+
+    // mapping(address => uint) public balanceOf;
+    // uint public totalSupply;
+    // uint private rewardIndex;
+    // mapping(address => uint) private rewardIndexOf;
+
+    mapping(address => AssetData) private datas;
+
+
+
+
+
+
     mapping(address => uint) private earned;
 
     constructor(address _stakingToken, address _rewardToken) {
@@ -20,12 +40,15 @@ contract DiscreteStakingRewards {
 
     function updateRewardIndex(uint reward) external {
         rewardToken.transferFrom(msg.sender, address(this), reward);
-        rewardIndex += (reward * MULTIPLIER) / totalSupply;
+        // TODO: update each asset reward index, according to its weight
+        //rewardIndex += (reward * MULTIPLIER) / totalSupply;
     }
 
     function _calculateRewards(address account) private view returns (uint) {
-        uint shares = balanceOf[account];
-        return (shares * (rewardIndex - rewardIndexOf[account])) / MULTIPLIER;
+        // TODO: sum of of that for each nuAsset
+
+        // uint shares = balanceOf[account];
+        // return (shares * (rewardIndex - rewardIndexOf[account])) / MULTIPLIER;
     }
 
     function calculateRewardsEarned(address account) external view returns (uint) {
@@ -34,7 +57,8 @@ contract DiscreteStakingRewards {
 
     function _updateRewards(address account) private {
         earned[account] += _calculateRewards(account);
-        rewardIndexOf[account] = rewardIndex;
+        // TODO: for each asset
+        //rewardIndexOf[account] = rewardIndex;
     }
 
     function stake(uint amount) external {

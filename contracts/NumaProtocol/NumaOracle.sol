@@ -207,7 +207,7 @@ contract NumaOracle is Ownable
             // do it only if we specified a contract that can give us numa price
             uint256 numaPerEthVault = numaPrice.GetPriceFromVaultWithoutFees(_amount);
             // TODO: check this way of using percent, could I get rounding issues?
-            numaPerEthVault = numaPerEthVault + (numaPerEthVault*tolerance1000)/1000;
+            numaPerEthVault = numaPerEthVault - (numaPerEthVault*tolerance1000)/1000;
             if (numaPerETH < numaPerEthVault)
             {
                 revert("numa price out of vault's bounds");
@@ -261,7 +261,7 @@ contract NumaOracle is Ownable
         {
             // do it only if we specified a contract that can give us numa price
             uint256 numaPerEthVault = numaPrice.GetPriceFromVaultWithoutFees(_amount);
-            numaPerEthVault = numaPerEthVault - (numaPerEthVault*tolerance1000)/1000;
+            numaPerEthVault = numaPerEthVault + (numaPerEthVault*tolerance1000)/1000;
             if (numaPerETH > numaPerEthVault)
             {
                 revert("numa price out of vault's bounds");
