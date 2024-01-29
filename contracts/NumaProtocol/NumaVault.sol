@@ -14,7 +14,7 @@ import "../interfaces/IVaultOracle.sol";
 import "../interfaces/INuAssetManager.sol";
 import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
-
+import "../interfaces/IRewardFeeReceiver.sol";
 
 /// @title Numa vault to mint/burn Numa to lst token 
 contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
@@ -272,9 +272,16 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
 
     function extractInternal(uint rwd,uint currentvalueWei) internal
     {
-        SafeERC20.safeTransfer(IERC20(lstToken),RWD_ADDRESS,rwd);
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalueWei = currentvalueWei;
+
+        SafeERC20.safeTransfer(IERC20(lstToken),RWD_ADDRESS,rwd);
+        // if RWD_ADDRESS is a contract, it should implement IRewardFeeReceiver
+        if (isContract(RWD_ADDRESS))
+        {
+            IRewardFeeReceiver receiver =  IRewardFeeReceiver(RWD_ADDRESS);
+            receiver.DepositFromVault(rwd);
+        } 
     }
 
     /**
@@ -468,6 +475,13 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         {
             uint256 feeAmount = FEES*_inputAmount / FEE_BASE_1000;
             SafeERC20.safeTransfer(lstToken,FEE_ADDRESS,feeAmount);
+            // if FEE_ADDRESS is a contract, it should implement IRewardFeeReceiver
+            if (isContract(FEE_ADDRESS))
+            {
+                IRewardFeeReceiver receiver =  IRewardFeeReceiver(FEE_ADDRESS);
+                receiver.DepositFromVault(feeAmount);
+            }
+
             emit Fee(feeAmount,FEE_ADDRESS);
         }
 
@@ -499,6 +513,14 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         {
             uint256 feeAmount = FEES*tokenAmount / FEE_BASE_1000;
             SafeERC20.safeTransfer(IERC20(lstToken),FEE_ADDRESS,feeAmount);
+
+            // if FEE_ADDRESS is a contract, it should implement IRewardFeeReceiver
+            if (isContract(FEE_ADDRESS))
+            {
+                IRewardFeeReceiver receiver =  IRewardFeeReceiver(FEE_ADDRESS);
+                receiver.DepositFromVault(feeAmount);
+            }
+            
             emit Fee(feeAmount,FEE_ADDRESS);
         }
 
@@ -564,5 +586,14 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         SafeERC20.safeTransfer(IERC20(_tokenAddress),msg.sender,_amount);
     }
 
+
+    function isContract(address addr) internal view returns(bool) 
+    {
+        uint extSize;
+        assembly {
+            extSize := extcodesize(addr) // returns 0 if EOA, >0 if smart contract
+        }
+        return (extSize > 0);
+    }
 
 }
