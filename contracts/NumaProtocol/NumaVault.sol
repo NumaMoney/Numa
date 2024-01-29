@@ -51,7 +51,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable ,INumaVault
 
 
     // decay denominator variables
-    uint256 public decayingDenominator;
+    uint256 public immutable decayingDenominator;
     uint256 public decaytimestamp;
     bool public isdecaying;
 
