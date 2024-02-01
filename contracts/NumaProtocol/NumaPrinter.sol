@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../Numa.sol";
 import "../interfaces/INuAsset.sol";
 import "../interfaces/INumaOracle.sol";
@@ -11,7 +11,7 @@ import "../interfaces/INumaOracle.sol";
 /// @title NumaPrinter
 /// @notice Responsible for minting/burning Numa for nuAsset
 /// @dev 
-contract NumaPrinter is Pausable, Ownable
+contract NumaPrinter is Pausable, Ownable2Step
 {
 
     NUMA public immutable numa;

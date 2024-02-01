@@ -2,12 +2,11 @@
 pragma solidity 0.8.20;
 
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "../Numa.sol";
 import "../interfaces/IVaultOracle.sol";
@@ -17,7 +16,7 @@ import "../interfaces/INumaVault.sol";
 import "../interfaces/IRewardFeeReceiver.sol";
 
 /// @title Numa vault to mint/burn Numa to lst token 
-contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
+contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable ,INumaVault
 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -84,7 +83,10 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     event ThresholdUpdated(uint256 newThreshold);
     event FeeAddressUpdated(address feeAddress);
     event RwdAddressUpdated(address rwdAddress);
-
+    event AddedToRemovedSupply(address _address);
+    event RemovedFromRemoveSupply(address _address);
+    event RewardsExtracted(uint _rwd,uint _currentvalueWei);
+    event StartDecay();
 
     //constructor(address _numaAddress,address _tokenAddress,uint256 _decimals,address _oracleAddress,address _nuAssetManagerAddress,uint256 _decayingDenominator) Ownable(msg.sender)
     constructor(address _numaAddress,address _tokenAddress,uint256 _decimals,address _oracleAddress) Ownable(msg.sender)
@@ -263,7 +265,11 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     function rewardsValue() public view returns (uint256,uint256)
     {
         require(address(oracle) != address(0),"oracle not set");        
-        uint currentvalueWei = oracle.getTokenPrice(address(lstToken),decimals);       
+        uint currentvalueWei = oracle.getTokenPrice(address(lstToken),decimals); 
+        if (currentvalueWei <= last_lsttokenvalueWei)   
+        {
+            return (0,currentvalueWei);   
+        }
         uint diff = (currentvalueWei - last_lsttokenvalueWei);
         uint balance = lstToken.balanceOf(address(this));
         uint rwd = FullMath.mulDiv(balance,diff, currentvalueWei);
@@ -281,7 +287,8 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
         {
             IRewardFeeReceiver receiver =  IRewardFeeReceiver(RWD_ADDRESS);
             receiver.DepositFromVault(rwd);
-        } 
+        }
+        emit RewardsExtracted(rwd,currentvalueWei);
     }
 
     /**
@@ -290,7 +297,7 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     function extractRewards() external
     {
         require(RWD_ADDRESS != address(0),"reward address not set");
-        require (block.timestamp >= (last_extracttimestamp + 24 hours));
+        require (block.timestamp >= (last_extracttimestamp + 24 hours),"reward already extracted");
 
         (uint256 rwd,uint256 currentvalueWei) = rewardsValue();
         require(rwd > rwd_threshold,"not enough rewards to collect");
@@ -581,10 +588,10 @@ contract NumaVault is Ownable, ReentrancyGuard, Pausable ,INumaVault
     /**
      * @dev Withdraw any ERC20 from vault
      */
-    function withdrawToken(address _tokenAddress,uint256 _amount) external onlyOwner
-    {
-        SafeERC20.safeTransfer(IERC20(_tokenAddress),msg.sender,_amount);
-    }
+    // function withdrawToken(address _tokenAddress,uint256 _amount) external onlyOwner
+    // {
+    //     SafeERC20.safeTransfer(IERC20(_tokenAddress),msg.sender,_amount);
+    // }
 
 
     function isContract(address addr) internal view returns(bool) 

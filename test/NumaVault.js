@@ -191,7 +191,7 @@ describe('NUMA VAULT', function () {
         let numaSupply = await numa.totalSupply();
         let buyfee = await Vault1.BUY_FEE();
         let sellfee = await Vault1.SELL_FEE();
-        let feedenom = await Vault1.FEE_BASE_1000();
+        let feedenom = 1000;
 
         // BUY
         let inputreth = ethers.parseEther("2");
@@ -220,7 +220,7 @@ describe('NUMA VAULT', function () {
         let numaSupply = await numa.totalSupply();
         let buyfee = await Vault1.BUY_FEE();
         let sellfee = await Vault1.SELL_FEE();
-        let feedenom = await Vault1.FEE_BASE_1000();
+        let feedenom = 1000;
 
         let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, ETH_FEED);
         let latestRoundData = await chainlinkInstance.latestRoundData();
@@ -260,7 +260,7 @@ describe('NUMA VAULT', function () {
         let numaSupply = await numa.totalSupply();
         let buyfee = await Vault1.BUY_FEE();
         let sellfee = await Vault1.SELL_FEE();
-        let feedenom = await Vault1.FEE_BASE_1000();
+        let feedenom = 1000;
 
         await VM.startDecaying();
 
@@ -288,7 +288,7 @@ describe('NUMA VAULT', function () {
         let numaSupply = await numa.totalSupply();
         let buyfee = await Vault1.BUY_FEE();
         let sellfee = await Vault1.SELL_FEE();
-        let feedenom = await Vault1.FEE_BASE_1000();
+        let feedenom = 1000;
 
         await VM.startDecaying();
         
@@ -395,7 +395,7 @@ describe('NUMA VAULT', function () {
       let numaSupply = await numa.totalSupply();
      
       let sellfee = await Vault1.SELL_FEE();
-      let feedenom = await Vault1.FEE_BASE_1000();
+      let feedenom = 1000;
 
       // SELL 
       let inputnuma = ethers.parseEther("1000");
@@ -1014,6 +1014,7 @@ describe('NUMA VAULT', function () {
     .withArgs(await signer2.getAddress());
     // transfer ownership then unpause should work
     await Vault1.connect(owner).transferOwnership(await signer2.getAddress());
+    await Vault1.connect(signer2).acceptOwnership();
     await expect( Vault1.connect(signer2).unpause()).to.not.be.reverted;
 
     // vault manager
