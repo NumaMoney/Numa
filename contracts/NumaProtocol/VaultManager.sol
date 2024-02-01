@@ -31,6 +31,10 @@ contract VaultManager is IVaultManager, Ownable2Step
     uint constant max_addresses = 50;
 
     event SetNuAssetManager(address nuAssetManager);
+    event RemovedVault(address);
+    event AddedVault(address);
+    event AddedToRemovesupply(address);
+    event RemovedFromRemovesupply(address);
 
     constructor(address _numaAddress,address _nuAssetManagerAddress,uint _decayingDenominator) Ownable(msg.sender)
     {
@@ -166,6 +170,7 @@ contract VaultManager is IVaultManager, Ownable2Step
     {
         require (removedSupplyAddresses.length() < max_addresses,"too many wallets in list");
         require(removedSupplyAddresses.add(_address), "already in list");    
+        emit AddedToRemovesupply(_address);
     }
 
 
@@ -176,6 +181,7 @@ contract VaultManager is IVaultManager, Ownable2Step
     {
         require(removedSupplyAddresses.contains(_address), "not in list");
         removedSupplyAddresses.remove(_address);
+        emit RemovedFromRemovesupply(_address);
     }
 
 

@@ -39,8 +39,8 @@ module.exports = {
 
     hardhat: {
       forking: {
-        url: process.env.URL4,// sepolia
-        //url: process.env.URL5,// arbitrum
+        //url: process.env.URL4,// sepolia
+        url: process.env.URL5,// arbitrum
       },
       allowUnlimitedContractSize: true
     }

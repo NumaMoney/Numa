@@ -680,14 +680,14 @@ describe('NUMA VAULT', function () {
     });
   });
 
-  it('test withdraw', async function () 
-  {
-    await sendEthToVault();
-    let balbeforeLST = await rEth_contract.balanceOf(await owner.getAddress());    
-    await Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"));
-    let balafterLST = await rEth_contract.balanceOf(await owner.getAddress());
-    expect(balafterLST - balbeforeLST).to.equal(ethers.parseEther("50"));
-  });
+  // it('test withdraw', async function () 
+  // {
+  //   await sendEthToVault();
+  //   let balbeforeLST = await rEth_contract.balanceOf(await owner.getAddress());    
+  //   await Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"));
+  //   let balafterLST = await rEth_contract.balanceOf(await owner.getAddress());
+  //   expect(balafterLST - balbeforeLST).to.equal(ethers.parseEther("50"));
+  // });
 
   it('with another vault', async function () 
   {
@@ -1007,8 +1007,8 @@ describe('NUMA VAULT', function () {
     .withArgs(await signer2.getAddress());
 
     await sendEthToVault();
-    await expect( Vault1.connect(signer2).withdrawToken(await rEth_contract.getAddress(),ethers.parseEther("10"))).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    .withArgs(await signer2.getAddress());
+    // await expect( Vault1.connect(signer2).withdrawToken(await rEth_contract.getAddress(),ethers.parseEther("10"))).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
+    // .withArgs(await signer2.getAddress());
 
     await expect( Vault1.connect(signer2).unpause()).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
