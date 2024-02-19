@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../libraries/OracleUtils.sol";
 import "../interfaces/INuAsset.sol";
 import "../interfaces/INuAssetManager.sol";
@@ -21,7 +22,7 @@ contract nuAssetManagerMock is INuAssetManager, OracleUtils {
     uint constant max_nuasset = 200;
 
 
-    constructor() 
+    constructor(address _uptimeFeedAddress) OracleUtils(_uptimeFeedAddress)
     {
 
     }
@@ -61,7 +62,7 @@ contract nuAssetManagerMock is INuAssetManager, OracleUtils {
             uint256 totalSupply = IERC20(nuAssetList[i]).totalSupply();           
             address priceFeed = nuAssetInfos[nuAssetList[i]].feed;
             require(priceFeed != address(0),"currency not supported");
-            uint256 EthValue = getPriceInEth(totalSupply,priceFeed);
+            uint256 EthValue = getPriceInEth(totalSupply,priceFeed,IERC20Metadata(nuAssetList[i]).decimals());
             result += EthValue;                                                                                                                                                                                                                                                                                 
         }
         return result;

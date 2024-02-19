@@ -5,11 +5,54 @@ import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
 contract OracleUtils {
 
+
+    uint256 private constant GRACE_PERIOD_TIME = 3600;
+
+    error SequencerDown();
+    error GracePeriodNotOver();
+
+    AggregatorV2V3Interface internal sequencerUptimeFeed;
+    constructor(address _uptimeFeedAddress) 
+    {
+        sequencerUptimeFeed = AggregatorV2V3Interface(_uptimeFeedAddress);
+    }
+
+
+    modifier checkSequencerActive() 
+    {
+        (
+            /*uint80 roundID*/,
+            int256 answer,
+            uint256 startedAt,
+            /*uint256 updatedAt*/,
+            /*uint80 answeredInRound*/
+        ) = sequencerUptimeFeed.latestRoundData();
+
+        // Answer == 0: Sequencer is up
+        // Answer == 1: Sequencer is down
+        bool isSequencerUp = answer == 0;
+        if (!isSequencerUp) {
+            revert SequencerDown();
+        }
+
+        // Make sure the grace period has passed after the
+        // sequencer is back up.
+        uint256 timeSinceUp = block.timestamp - startedAt;
+        if (timeSinceUp <= GRACE_PERIOD_TIME) {
+            revert GracePeriodNotOver();
+        }
+        _;
+    }
+
     /**
      * @dev chainlink call to a pricefeed with any amount
      */  
-    function getPriceInEth(uint256 _amount, address _pricefeed) public view returns (uint256)
+    function getPriceInEth(uint256 _amount, address _pricefeed,uint256 _decimals) public view checkSequencerActive returns (uint256) 
     {
+
+        
+
+
         (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
         require(answeredInRound >= roundID, "Answer given before round");
         require(timeStamp != 0, "Invalid timestamp");
@@ -27,6 +70,9 @@ contract OracleUtils {
         {
             EthValue = FullMath.mulDiv(_amount,uint256(price), 10**decimalPrecision);
         }
+        // audit fix
+        EthValue = EthValue * 10**(18 - _decimals);
+
         return EthValue;
     }
 

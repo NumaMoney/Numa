@@ -3,6 +3,9 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
 import "../libraries/OracleUtils.sol";
 import "../interfaces/INuAssetManager.sol";
 
@@ -27,7 +30,7 @@ contract nuAssetManager is INuAssetManager, Ownable2Step, OracleUtils {
 
     event AddedAsset(address _assetAddress,address _pricefeed);
     event RemovedAsset(address _assetAddress);
-    constructor() Ownable(msg.sender)
+    constructor(address _uptimeFeedAddress) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress)
     {
 
     }
@@ -106,7 +109,7 @@ contract nuAssetManager is INuAssetManager, Ownable2Step, OracleUtils {
             uint256 totalSupply = IERC20(nuAssetList[i]).totalSupply();
             address priceFeed = nuAssetInfos[nuAssetList[i]].feed;
             require(priceFeed != address(0),"currency not supported");
-            uint256 EthValue = getPriceInEth(totalSupply,priceFeed);
+            uint256 EthValue = getPriceInEth(totalSupply,priceFeed,IERC20Metadata(nuAssetList[i]).decimals());
             result += EthValue;                                                                                                                                                                                                                                                                                 
         }
         return result;

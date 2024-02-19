@@ -3,6 +3,7 @@ pragma solidity 0.8.20;
 
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IVaultOracle.sol";
 import "../libraries/OracleUtils.sol";
 
@@ -13,7 +14,7 @@ contract VaultOracle is Ownable2Step, IVaultOracle,OracleUtils
     event TokenFeed(address _tokenAddress,address _chainlinkFeed);
 
 
-    constructor() Ownable(msg.sender)
+    constructor(address _uptimeFeedAddress) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress)
     {
 
     }
@@ -25,7 +26,7 @@ contract VaultOracle is Ownable2Step, IVaultOracle,OracleUtils
     {
         address priceFeed = tokenToFeed[_tokenAddress];
         require(priceFeed != address(0),"currency not supported");
-        return getPriceInEth(_amount,priceFeed);
+        return getPriceInEth(_amount,priceFeed,IERC20Metadata(_tokenAddress).decimals());
     }
 
 
@@ -33,8 +34,9 @@ contract VaultOracle is Ownable2Step, IVaultOracle,OracleUtils
     /**
      * @dev value in Eth (in wei) of 1 token
      */  
-    function getTokenPrice(address _tokenAddress) external view returns (uint256,uint256,bool)
+    function getTokenPrice(address _tokenAddress) external view checkSequencerActive returns (uint256,uint256,bool)
     {
+        
         address priceFeed = tokenToFeed[_tokenAddress];
         require(priceFeed != address(0),"currency not supported");
         (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(priceFeed).latestRoundData();
