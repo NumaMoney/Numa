@@ -12,14 +12,10 @@ contract StakingRewards {
     // User address => staked amount
     mapping(address => uint) public balanceOf;
 
-
     // Duration of rewards to be paid out (in seconds)
     uint public duration;
     // Timestamp of when the rewards finish
     uint public finishAt;
-
-
-
 
     // Minimum of last updated time and reward finish time
     uint public updatedAt;
@@ -31,8 +27,6 @@ contract StakingRewards {
     mapping(address => uint) public userRewardPerTokenPaid;
     // User address => rewards to be claimed
     mapping(address => uint) public rewards;
-
-    
 
     constructor(address _stakingToken, address _rewardToken) {
         owner = msg.sender;
@@ -63,7 +57,7 @@ contract StakingRewards {
 
     function rewardPerToken() public view returns (uint) {
         if (totalSupply == 0) {
-            return rewardPerTokenStored;// xcz: ???
+            return rewardPerTokenStored; // xcz: ???
         }
 
         return
@@ -138,7 +132,10 @@ interface IERC20 {
 
     function transfer(address recipient, uint amount) external returns (bool);
 
-    function allowance(address owner, address spender) external view returns (uint);
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint);
 
     function approve(address spender, uint amount) external returns (bool);
 

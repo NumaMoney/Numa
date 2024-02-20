@@ -7,9 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../Numa.sol";
 
-
-
-
 // interface IMigratorChef {
 //     // Perform LP token migration from legacy UniswapV2 to NumaSwap.
 //     // Take the current LP token address and return the new LP token address.
@@ -31,7 +28,6 @@ import "../Numa.sol";
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
 contract MasterChef is Ownable {
-    
     using SafeERC20 for IERC20;
     // Info of each user.
     struct UserInfo {
@@ -58,14 +54,14 @@ contract MasterChef is Ownable {
     }
     // The NUMA TOKEN!
     NUMA public numa;
-  
+
     // Block number when bonus NUMA period ends.
     //uint256 public bonusEndBlock;
     // NUMA tokens created per block.
     uint256 public numaPerBlock;
     // Bonus muliplier for early numa makers.
     //uint256 public constant BONUS_MULTIPLIER = 10;
-  
+
     // Info of each pool.
     PoolInfo[] public poolInfo;
     // Info of each user that stakes LP tokens.
@@ -87,13 +83,12 @@ contract MasterChef is Ownable {
         address _numaAddress,
         uint256 _numaPerBlock,
         uint256 _startBlock,
-       // uint256 _bonusEndBlock,address initialOwner
+        // uint256 _bonusEndBlock,address initialOwner
         address initialOwner
-    ) Ownable(initialOwner)
-    {
+    ) Ownable(initialOwner) {
         numa = NUMA(_numaAddress);
         numaPerBlock = _numaPerBlock;
-       // bonusEndBlock = _bonusEndBlock;
+        // bonusEndBlock = _bonusEndBlock;
         startBlock = _startBlock;
     }
 
@@ -101,14 +96,14 @@ contract MasterChef is Ownable {
         return poolInfo.length;
     }
 
-    function updateNumaPerBlock(uint256 _newNumaPerBlock, bool _withUpdate) public onlyOwner
-    {
-        if (_withUpdate) 
-        {
+    function updateNumaPerBlock(
+        uint256 _newNumaPerBlock,
+        bool _withUpdate
+    ) public onlyOwner {
+        if (_withUpdate) {
             massUpdatePools();
         }
         numaPerBlock = _newNumaPerBlock;
-
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
@@ -121,9 +116,10 @@ contract MasterChef is Ownable {
         if (_withUpdate) {
             massUpdatePools();
         }
-        uint256 lastRewardBlock =
-            block.number > startBlock ? block.number : startBlock;
-        totalAllocPoint = totalAllocPoint +_allocPoint;
+        uint256 lastRewardBlock = block.number > startBlock
+            ? block.number
+            : startBlock;
+        totalAllocPoint = totalAllocPoint + _allocPoint;
         poolInfo.push(
             PoolInfo({
                 lpToken: _lpToken,
@@ -143,25 +139,25 @@ contract MasterChef is Ownable {
         if (_withUpdate) {
             massUpdatePools();
         }
-        totalAllocPoint = totalAllocPoint - poolInfo[_pid].allocPoint + _allocPoint;
+        totalAllocPoint =
+            totalAllocPoint -
+            poolInfo[_pid].allocPoint +
+            _allocPoint;
         poolInfo[_pid].allocPoint = _allocPoint;
     }
 
-
-
     // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to)
-        public
-        view
-        returns (uint256)
-    {
-        // if (_to <= bonusEndBlock) 
+    function getMultiplier(
+        uint256 _from,
+        uint256 _to
+    ) public view returns (uint256) {
+        // if (_to <= bonusEndBlock)
         // {
         //     return (_to - _from)*BONUS_MULTIPLIER;
-        // } 
-        // else if (_from >= bonusEndBlock) 
+        // }
+        // else if (_from >= bonusEndBlock)
         // {
-            return _to - _from;
+        return _to - _from;
         // }
         // else
         // {
@@ -170,28 +166,30 @@ contract MasterChef is Ownable {
     }
 
     // View function to see pending NUMAs on frontend.
-    function pendingNuma(uint256 _pid, address _user)
-        external
-        view
-        returns (uint256)
-    {
+    function pendingNuma(
+        uint256 _pid,
+        address _user
+    ) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accNumaPerShare = pool.accNumaPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        if (block.number > pool.lastRewardBlock && lpSupply != 0)
-        {
-            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 numaReward = (multiplier*numaPerBlock*pool.allocPoint) / totalAllocPoint;
-                
-            accNumaPerShare += (numaReward * 1e12) / lpSupply;
+        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
+            uint256 multiplier = getMultiplier(
+                pool.lastRewardBlock,
+                block.number
+            );
+            uint256 numaReward = (multiplier * numaPerBlock * pool.allocPoint) /
+                totalAllocPoint;
 
+            accNumaPerShare += (numaReward * 1e12) / lpSupply;
         }
-        return (user.amount *accNumaPerShare)/1e12 - user.rewardDebt;
+        return (user.amount * accNumaPerShare) / 1e12 - user.rewardDebt;
     }
 
     // Update reward vairables for all pools. Be careful of gas spending!
-    function massUpdatePools() public {// TODO: carefull if we have too many pools
+    function massUpdatePools() public {
+        // TODO: carefull if we have too many pools
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
             updatePool(pid);
@@ -210,7 +208,8 @@ contract MasterChef is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 numaReward = (multiplier*numaPerBlock*pool.allocPoint) / totalAllocPoint;
+        uint256 numaReward = (multiplier * numaPerBlock * pool.allocPoint) /
+            totalAllocPoint;
 
         numa.mint(address(this), numaReward);
         pool.accNumaPerShare += (numaReward * 1e12) / lpSupply;
@@ -224,7 +223,9 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = (user.amount *pool.accNumaPerShare)/1e12 - user.rewardDebt;
+            uint256 pending = (user.amount * pool.accNumaPerShare) /
+                1e12 -
+                user.rewardDebt;
             safeNumaTransfer(msg.sender, pending);
         }
         pool.lpToken.safeTransferFrom(
@@ -233,7 +234,7 @@ contract MasterChef is Ownable {
             _amount
         );
         user.amount = user.amount + _amount;
-        user.rewardDebt = (user.amount *pool.accNumaPerShare)/1e12;
+        user.rewardDebt = (user.amount * pool.accNumaPerShare) / 1e12;
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -243,25 +244,27 @@ contract MasterChef is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
-        uint256 pending = (user.amount *pool.accNumaPerShare)/1e12 - user.rewardDebt;
+        uint256 pending = (user.amount * pool.accNumaPerShare) /
+            1e12 -
+            user.rewardDebt;
         safeNumaTransfer(msg.sender, pending);
         user.amount = user.amount - _amount;
-        user.rewardDebt = (user.amount *pool.accNumaPerShare)/1e12;
+        user.rewardDebt = (user.amount * pool.accNumaPerShare) / 1e12;
         pool.lpToken.safeTransfer(address(msg.sender), _amount);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
-
-
-     // Claim: todo: test it
+    // Claim: todo: test it
     function claim(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= 0, "claim: not good");
         updatePool(_pid);
-        uint256 pending = (user.amount *pool.accNumaPerShare)/1e12 - user.rewardDebt;
-        safeNumaTransfer(msg.sender, pending);     
-        user.rewardDebt = (user.amount *pool.accNumaPerShare)/1e12;
+        uint256 pending = (user.amount * pool.accNumaPerShare) /
+            1e12 -
+            user.rewardDebt;
+        safeNumaTransfer(msg.sender, pending);
+        user.rewardDebt = (user.amount * pool.accNumaPerShare) / 1e12;
         emit Claim(msg.sender, _pid, pending);
     }
 
@@ -284,6 +287,4 @@ contract MasterChef is Ownable {
             numa.transfer(_to, _amount);
         }
     }
-
-
 }

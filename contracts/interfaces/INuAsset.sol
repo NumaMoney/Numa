@@ -7,7 +7,13 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-abstract contract INuAsset is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, AccessControlUpgradeable, UUPSUpgradeable {
+abstract contract INuAsset is
+    Initializable,
+    ERC20Upgradeable,
+    ERC20BurnableUpgradeable,
+    AccessControlUpgradeable,
+    UUPSUpgradeable
+{
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
@@ -18,15 +24,19 @@ abstract contract INuAsset is Initializable, ERC20Upgradeable, ERC20BurnableUpgr
 
     //function initialize(address defaultAdmin, address minter, address upgrader) public virtual;
 
-    function initialize(string memory name,string memory symbol,address defaultAdmin, address minter, address upgrader) public virtual;
+    function initialize(
+        string memory name,
+        string memory symbol,
+        address defaultAdmin,
+        address minter,
+        address upgrader
+    ) public virtual;
 
     function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        onlyRole(UPGRADER_ROLE)
-        override
-    {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(UPGRADER_ROLE) {}
 }

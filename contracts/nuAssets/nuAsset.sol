@@ -5,8 +5,13 @@ import "../interfaces/INuAsset.sol";
 
 contract nuAsset is INuAsset {
     /// @custom:oz-upgrades-unsafe-allow constructor
-    function initialize(string memory _name,string memory _symbol,address _defaultAdmin, address _minter, address _upgrader) initializer public virtual override
-    {
+    function initialize(
+        string memory _name,
+        string memory _symbol,
+        address _defaultAdmin,
+        address _minter,
+        address _upgrader
+    ) public virtual override initializer {
         __ERC20_init(_name, _symbol);
         __ERC20Burnable_init();
         __AccessControl_init();
