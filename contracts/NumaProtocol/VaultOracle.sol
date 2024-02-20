@@ -2,6 +2,7 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IVaultOracle.sol";
 import "../libraries/OracleUtils.sol";
 
@@ -9,7 +10,13 @@ contract VaultOracle is Ownable2Step, IVaultOracle, OracleUtils {
     mapping(address => address) public tokenToFeed;
     event TokenFeed(address _tokenAddress, address _chainlinkFeed);
 
-    constructor() Ownable(msg.sender) {}
+    event TokenFeed(address _tokenAddress,address _chainlinkFeed);
+
+
+    constructor(address _uptimeFeedAddress) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress)
+    {
+
+    }
 
     /**
      * @dev value in Eth (in wei) of this amount of token
@@ -19,8 +26,9 @@ contract VaultOracle is Ownable2Step, IVaultOracle, OracleUtils {
         uint256 _amount
     ) external view returns (uint256) {
         address priceFeed = tokenToFeed[_tokenAddress];
-        require(priceFeed != address(0), "currency not supported");
-        return getPriceInEth(_amount, priceFeed, 24 hours); // TODO: hard-coded 24 hours. Contract will be removed
+        require(priceFeed != address(0),"currency not supported");
+        return getPriceInEth(_amount,priceFeed, 24 hours,IERC20Metadata(_tokenAddress).decimals());
+
     }
 
     /**

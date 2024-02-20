@@ -21,7 +21,7 @@ let RETH_FEED = configArbi.RETH_FEED;
 let wstETH_FEED = configArbi.WSTETH_FEED;
 let ETH_FEED = configArbi.PRICEFEEDETHUSD;
 
-
+let UPTIME_FEED = "0xFdB631F5EE196F0ed6FAa767959853A9F217697E";
 
 const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
 const epsilon = ethers.parseEther('0.0000000001');
@@ -123,7 +123,7 @@ describe('NUMA VAULT', function () {
 
     // *********************** nuAssetManager **********************************
     nuAM = await ethers.deployContract("nuAssetManager",
-    []
+    [UPTIME_FEED]
     );
     await nuAM.waitForDeployment();
     NUAM_ADDRESS = await nuAM.getAddress();
@@ -143,7 +143,7 @@ describe('NUMA VAULT', function () {
 
     // *********************** VaultOracle **********************************
     VO = await ethers.deployContract("VaultOracle",
-    []);
+    [UPTIME_FEED]);
     await VO.waitForDeployment();
     VO_ADDRESS= await VO.getAddress();
     console.log('vault oracle address: ', VO_ADDRESS);
@@ -590,8 +590,8 @@ describe('NUMA VAULT', function () {
 
       await VM.startDecaying();
 
-      // wait 45 days
-      await time.increase(45*24*3600);
+      // wait 15 days
+      await time.increase(15*24*3600);
 
       await Vault1.buy(ethers.parseEther("2"),await signer2.getAddress());
 
@@ -901,7 +901,7 @@ describe('NUMA VAULT', function () {
     await nuAM.removeNuAsset(NUUSD_ADDRESS);
 
     let nuAM2 = await ethers.deployContract("nuAssetManagerMock",
-    []
+    [UPTIME_FEED]
     );
     await nuAM2.waitForDeployment();
     let NUAM_ADDRESS2 = await nuAM2.getAddress();

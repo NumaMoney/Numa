@@ -53,7 +53,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     /**
      * @dev Starts the decaying period
-     * @notice decayingDenominator will go from initial value to 1 in 90 days
+     * @notice decayingDenominator will go from initial value to 1 in 30 days
      */
     function startDecaying() external onlyOwner {
         isdecaying = true;
@@ -68,9 +68,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
         if (isdecaying) {
             uint256 currenttimestamp = block.timestamp;
             uint256 delta_s = currenttimestamp - decaytimestamp;
-            // should go down to 1 during 90 days
-            uint256 period = 90 * 1 days;
-            uint256 decay_factor_1000 = (1000 * delta_s) / period;
+            // should go down to 1 during 30 days
+            uint256 period = 30 * 1 days;
+            uint256 decay_factor_1000 = (1000*delta_s) / period;
+
 
             if (decay_factor_1000 >= 1000) {
                 return DECAY_BASE_100;
