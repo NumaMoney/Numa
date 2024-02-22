@@ -18,7 +18,20 @@
 // let FEE_ADDRESS = "";
 // let RWD_ADDRESS = "";
 
-let decaydenom = 267;
+
+
+// TO check:
+
+// verifier que le prix bouge tout seul toutes les N minutes
+
+
+let numa_address = "0x2e4a312577A78786051052c28D5f1132d93c557A";
+let LST_ADDRESS = "0x1521c67fdfdb670fa21407ebdbbda5f41591646c";
+let uptimeFeedAddress = "";
+
+
+let decaydenom = 1000;
+let decaylength = 5;
 
 const { ethers, upgrades } = require("hardhat");
 const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
@@ -32,29 +45,29 @@ async function main () {
 
 
     // DEPLOY NUMA
-    const Numa = await ethers.getContractFactory('NUMA')
-    const contract = await upgrades.deployProxy(
-    Numa,
-        [],
-        {
-            initializer: 'initialize',
-            kind:'uups'
-        }
-    )
-    await contract.waitForDeployment();
-    console.log('ERC20 deployed to:', await contract.getAddress());
+    // const Numa = await ethers.getContractFactory('NUMA')
+    // const contract = await upgrades.deployProxy(
+    // Numa,
+    //     [],
+    //     {
+    //         initializer: 'initialize',
+    //         kind:'uups'
+    //     }
+    // )
+    // await contract.waitForDeployment();
+    // console.log('Numa deployed to:', await contract.getAddress());
 
-    await contract.mint(
-        signer.getAddress(),
-        ethers.parseEther("10000000.0")
-      );
+    // await contract.mint(
+    //     signer.getAddress(),
+    //     ethers.parseEther("10000000.0")
+    //   );
 
 
    
 
    // *********************** nuAssetManager **********************************
    let nuAM = await ethers.deployContract("nuAssetManager",
-   []
+   ["0x0000000000000000000000000000000000000000"]// no sequencer up feed on sepolia
    );
    await nuAM.waitForDeployment();
    let NUAM_ADDRESS = await nuAM.getAddress();
@@ -66,21 +79,12 @@ async function main () {
 
    // *********************** vaultManager **********************************
    let VM = await ethers.deployContract("VaultManager",
-   []);
+   [numa_address,NUAM_ADDRESS,decaydenom,decaylength]);
+
    await VM.waitForDeployment();
    let VM_ADDRESS = await VM.getAddress();
    console.log('vault manager address: ', VM_ADDRESS);
 
-
-   // *********************** vaultOracle **********************************
-//    let VO = await ethers.deployContract("VaultOracle",
-//    []);
-//    await VO.waitForDeployment();
-//    let VO_ADDRESS= await VO.getAddress();
-//    console.log('vault oracle address: ', VO_ADDRESS);
-
-//    // adding rETH to our oracle
-//    await VO.setTokenFeed(rETH_ADDRESS,RETH_FEED);
 
 
 
@@ -91,16 +95,17 @@ async function main () {
   
 
    // and custom lst token
-   let lstToken = await ethers.deployContract("LstTokenMock",[await signer.getAddress()]);
-   await lstToken.waitForDeployment();
-   let LST_ADDRESS = await lstToken.getAddress();
+//    let lstToken = await ethers.deployContract("LstTokenMock",[await signer.getAddress()]);
+//    await lstToken.waitForDeployment();
+//    let LST_ADDRESS = await lstToken.getAddress();
   
 
    // vault1 rETH
-   let numa_address = await contract.getAddress();
-
+   //let numa_address = await contract.getAddress();
    let Vault1 = await ethers.deployContract("NumaVault",
-   [numa_address,LST_ADDRESS,ethers.parseEther("1"),VMO_ADDRESS,NUAM_ADDRESS,decaydenom]);
+   [numa_address,LST_ADDRESS,ethers.parseEther("1"),VMO_ADDRESS]);
+   
+
    await Vault1.waitForDeployment();
    let VAULT1_ADDRESS = await Vault1.getAddress();
    console.log('vault rETH address: ', VAULT1_ADDRESS);
@@ -112,13 +117,19 @@ async function main () {
    await Vault1.setRwdAddress(RWD_ADDRESS);
 
    // allow vault to mint numa
-   await contract.grantRole(roleMinter, VAULT1_ADDRESS);
+   let numa = await hre.ethers.getContractAt("NUMA", numa_address);
+   await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
 
    // transfer rETH to vault to initialize price
-   await lstToken.transfer(VAULT1_ADDRESS, ethers.parseEther("200"));
+   let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);
+   await lstToken.transfer(VAULT1_ADDRESS, ethers.parseEther("2000"));
 
-   await Vault1.unpause();
+//    await VM.startDecaying();
+
+//    await Vault1.unpause();
+
+
 
 
 

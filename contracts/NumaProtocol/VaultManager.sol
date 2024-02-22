@@ -19,6 +19,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint256 public decayingDenominator;
     uint256 public decaytimestamp;
     bool public isdecaying;
+    uint8 public immutable decaylength;
 
     INuAssetManager public nuAssetManager;
     NUMA public immutable numa;
@@ -37,12 +38,14 @@ contract VaultManager is IVaultManager, Ownable2Step {
     constructor(
         address _numaAddress,
         address _nuAssetManagerAddress,
-        uint _decayingDenominator
+        uint _decayingDenominator,
+        uint8 _decaylength
     ) Ownable(msg.sender) {
         numa = NUMA(_numaAddress);
         decayingDenominator = _decayingDenominator;
         nuAssetManager = INuAssetManager(_nuAssetManagerAddress);
         isdecaying = false;
+        decaylength = _decaylength;
     }
 
     function isVault(address _addy) external view returns (bool)
@@ -69,7 +72,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
             uint256 currenttimestamp = block.timestamp;
             uint256 delta_s = currenttimestamp - decaytimestamp;
             // should go down to 1 during 30 days
-            uint256 period = 30 * 1 days;
+            uint256 period = decaylength * 1 days;
             uint256 decay_factor_1000 = (1000*delta_s) / period;
 
 

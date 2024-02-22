@@ -6,6 +6,10 @@ import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
+
+import {IChainlinkAggregator} from "../interfaces/IChainlinkAggregator.sol";
+import {IChainlinkPriceFeed} from "../interfaces/IChainlinkPriceFeed.sol";
+
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../interfaces/INumaPrice.sol";
 /// @title NumaOracle
@@ -79,8 +83,17 @@ contract NumaOracle is Ownable2Step {
             timeStamp >= block.timestamp - _chainlink_heartbeat,
             "Stale pricefeed"
         );
+
+         // minAnswer/maxAnswer check
+        IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_chainlinkFeed).aggregator());
+        require(
+            ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
+            "min/max reached"
+        );
+
+
         require(answeredInRound >= roundID, "Answer given before round");
-        require(price > 0, "Price must be greater than 0");
+        
 
         return uint256(price);
     }

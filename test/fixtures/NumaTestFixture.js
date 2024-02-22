@@ -226,7 +226,7 @@ async function deployPrinterTestFixtureArbi() {
 
   // Deploy printerUSD      
   moneyprinterUSD = await ethers.deployContract("NumaPrinter",
-    [numa_address, nuusd_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDETHUSD]);
+    [numa_address, nuusd_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDETHUSD,86400]);
   await moneyprinterUSD.waitForDeployment();
   moneyprinterUSD_address = await moneyprinterUSD.getAddress();
   if (LOG)
@@ -601,7 +601,7 @@ async function deployPrinterTestFixtureSepo() {
 
   // Deploy printerUSD      
   moneyprinterUSD = await ethers.deployContract("NumaPrinter",
-    [numa_address, nuusd_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDETHUSD]);
+    [numa_address, nuusd_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDETHUSD,86400]);
   await moneyprinterUSD.waitForDeployment();
   moneyprinterUSD_address = await moneyprinterUSD.getAddress();
   console.log(`nuUSD printer deployed to: ${moneyprinterUSD_address}`);
@@ -719,7 +719,7 @@ async function deployPrinterTestFixtureSepo() {
 
   // Deploy printerBTC      
   moneyPrinterBTC = await ethers.deployContract("NumaPrinter",
-    [numa_address, nubtc_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDBTCETH]);
+    [numa_address, nubtc_address, NUMA_ETH_POOL_ADDRESS, oracleAddress, PRICEFEEDBTCETH,86400]);
   await moneyPrinterBTC.waitForDeployment();
   moneyprinterbtc_address = await moneyPrinterBTC.getAddress();
   console.log(`nuBTC printer deployed to: ${moneyprinterbtc_address}`);
@@ -749,8 +749,6 @@ async function deployPrinterTestFixtureSepo() {
   await poolContract.increaseObservationCardinalityNext(cardinality);
 
   // deploying our own SwapRouter as I can't find address on sepolia
-  console.log(artifacts.SwapRouter.abi);
-  console.log(await factory.getAddress());
 
   let SwapRouter = new ethers.ContractFactory(artifacts.SwapRouter.abi, artifacts.SwapRouter.bytecode, signer);
   // DBGREFACTO

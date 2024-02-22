@@ -57,7 +57,7 @@ describe('NUMA NUASSET PRINTER', function () {
     expect(await moneyPrinter.nuAsset()).to.equal(NUUSD_ADDRESS);
 
     expect(await moneyPrinter.numaPool()).to.equal(NUMA_ETH_POOL_ADDRESS);
-    expect(await moneyPrinter.tokenPool()).to.equal(NUUSD_ETH_POOL_ADDRESS);
+   
 
     let oracleContract = await moneyPrinter.oracle();
     expect(await oracleContract).to.equal(oracleAddress);
@@ -181,9 +181,6 @@ describe('NUMA NUASSET PRINTER', function () {
     let addy1 = "0x0000000000000000000000000000000000000001";
     await expect(moneyPrinter.setNumaPool(addy1)).to.emit(moneyPrinter, "SetNumaPool").withArgs(addy1);
     // 
-    let addy2 = "0x0000000000000000000000000000000000000002";
-    await expect(moneyPrinter.setTokenPool(addy2)).to.emit(moneyPrinter, "SetTokenPool").withArgs(addy2);
-    //
     let printFee = 300;
     await expect(moneyPrinter.setPrintAssetFeeBps(printFee)).to.emit(moneyPrinter, "PrintAssetFeeBps").withArgs(printFee);
     //
@@ -191,11 +188,10 @@ describe('NUMA NUASSET PRINTER', function () {
     await expect(moneyPrinter.setBurnAssetFeeBps(burnFee)).to.emit(moneyPrinter, "BurnAssetFeeBps").withArgs(burnFee);
     //
     let addy3 = "0x0000000000000000000000000000000000000003";
-    await expect(moneyPrinter.setChainlinkFeed(addy3)).to.emit(moneyPrinter, "SetChainlinkFeed").withArgs(addy3);
+    await expect(moneyPrinter.setChainlinkFeed(addy3,86400)).to.emit(moneyPrinter, "SetChainlinkFeed").withArgs(addy3);
 
     // check values
     expect(await moneyPrinter.numaPool()).to.equal(addy1);
-    expect(await moneyPrinter.tokenPool()).to.equal(addy2);
     let oracleContract = await moneyPrinter.oracle();
     expect(await oracleContract).to.equal(oracle2Address);
     expect(await moneyPrinter.chainlinkFeed()).to.equal(addy3);
@@ -233,16 +229,13 @@ describe('NUMA NUASSET PRINTER', function () {
     await expect( moneyPrinter.connect(signer2).unpause()).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 
-    await expect( moneyPrinter.connect(signer2).setChainlinkFeed(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
+    await expect( moneyPrinter.connect(signer2).setChainlinkFeed(addy4,86400)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 
     await expect( moneyPrinter.connect(signer2).setOracle(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 
     await expect( moneyPrinter.connect(signer2).setNumaPool(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
-    .withArgs(await signer2.getAddress());
-
-    await expect( moneyPrinter.connect(signer2).setTokenPool(addy4)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 
     await expect( moneyPrinter.connect(signer2).setPrintAssetFeeBps(0)).to.be.revertedWithCustomError(moneyPrinter,"OwnableUnauthorizedAccount",)
@@ -252,6 +245,9 @@ describe('NUMA NUASSET PRINTER', function () {
     .withArgs(await signer2.getAddress());
     //
     await moneyPrinter.connect(signer).transferOwnership(await signer2.getAddress());
+    await moneyPrinter.connect(signer2).acceptOwnership();
+
+
     await expect( moneyPrinter.connect(signer2).setBurnAssetFeeBps(0)).to.not.be.reverted;
 
 

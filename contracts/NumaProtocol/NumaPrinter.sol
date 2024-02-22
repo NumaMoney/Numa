@@ -19,6 +19,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
     //
     INumaOracle public oracle;
     address public chainlinkFeed;
+    uint128 public chainlinkheartbeat;
+
     //
     uint public printAssetFeeBps;
     uint public burnAssetFeeBps;
@@ -41,13 +43,15 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _nuAssetAddress,
         address _numaPool,
         INumaOracle _oracle,
-        address _chainlinkFeed
+        address _chainlinkFeed,
+        uint128 _chainlinkheartbeat
     ) Ownable(msg.sender) {
         numa = NUMA(_numaAddress);
         nuAsset = INuAsset(_nuAssetAddress);
         numaPool = _numaPool;
         oracle = _oracle;
         chainlinkFeed = _chainlinkFeed;
+        chainlinkheartbeat = _chainlinkheartbeat;
     }
 
     function GetNuAsset()
@@ -71,8 +75,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
     /**
      * @notice not using whenNotPaused as we may want to pause contract to set these values
      */
-    function setChainlinkFeed(address _chainlinkFeed) external onlyOwner {
+    function setChainlinkFeed(address _chainlinkFeed,uint128 _heartbeat) external onlyOwner {
         chainlinkFeed = _chainlinkFeed;
+        chainlinkheartbeat = _heartbeat;
         emit SetChainlinkFeed(_chainlinkFeed);
     }
 
@@ -133,6 +138,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 cost = oracle.getNbOfNumaNeeded(
             _amount,
             chainlinkFeed,
+            chainlinkheartbeat,
             numaPool
         );
         // print fee
@@ -151,6 +157,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _output = oracle.getNbOfNumaFromAsset(
             _amount,
             chainlinkFeed,
+            chainlinkheartbeat,
             numaPool
         );
         // burn fee
@@ -263,6 +270,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 output = oracle.getNbOfNuAsset(
             _amount - amountToBurn,
             chainlinkFeed,
+            chainlinkheartbeat,
             numaPool
         );
         return (output, amountToBurn);
@@ -274,6 +282,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 input = oracle.getNbOfAssetneeded(
             _amount,
             chainlinkFeed,
+            chainlinkheartbeat,
             numaPool
         );
 

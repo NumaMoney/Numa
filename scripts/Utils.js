@@ -133,18 +133,20 @@ let addLiquidity = async function (
       await token0.approve(nonfungiblePositionManagerAddress, amount0ToMint);
       await token1.approve(nonfungiblePositionManagerAddress, amount1ToMint);
 
+
+
       const tx = await nonfungiblePositionManager.mint(
           mintParams,
           { gasLimit: '30000000' }
           );
-      const receipt = await tx.wait();
-      //console.log(receipt);
 
-      //const {logs} = await nonfungiblePositionManager.mint(mintParams);
-      //console.log(logs);
+      // which id is it ?
+      // let info0 = await nonfungiblePositionManager.positions(1);
+      // console.log(info0);
+      
 
-      // const tokenId = logs[1].args.tokenId;
-      // return tokenId;
+
+
 } 
 
 

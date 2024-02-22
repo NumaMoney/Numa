@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
+
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 import "../libraries/OracleUtils.sol";
 import "../interfaces/INuAssetManager.sol";
 
 /// @title nuAssets manager
 /// @notice used to compute total synthetics value in Eth
-contract nuAssetManager is INuAssetManager, Ownable2Step, OracleUtils {
+contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
     // struct representing a nuAsset: index in list (starts at 1), and pricefeed address
     struct nuAssetInfo {
         address feed;
@@ -114,5 +116,11 @@ contract nuAssetManager is INuAssetManager, Ownable2Step, OracleUtils {
             result += EthValue;
         }
         return result;
+    }
+
+    function changeSequencerUptimeFeedAddress(address _newaddress) external onlyOwner
+    {
+        sequencerUptimeFeed = _newaddress;
+
     }
 }
