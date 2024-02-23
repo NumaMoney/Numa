@@ -149,21 +149,21 @@ describe('NUMA VAULT', function () {
 
     // *********************** VaultOracle **********************************
     VO = await ethers.deployContract("VaultOracleSingle",
-    [rETH_ADDRESS,RETH_FEED,86400,UPTIME_FEED]);
+    [rETH_ADDRESS,RETH_FEED,16*86400,UPTIME_FEED]);
     await VO.waitForDeployment();
     VO_ADDRESS= await VO.getAddress();
     console.log('vault 1 oracle address: ', VO_ADDRESS);
 
 
     VOcustomHeartbeat = await ethers.deployContract("VaultOracleSingle",
-    [rETH_ADDRESS,RETH_FEED,40*86400,UPTIME_FEED]);
+    [rETH_ADDRESS,RETH_FEED,50*86400,UPTIME_FEED]);
     await VOcustomHeartbeat.waitForDeployment();
     VO_ADDRESScustomHeartbeat= await VOcustomHeartbeat.getAddress();
     console.log('vault 1 oracle address: ', VO_ADDRESScustomHeartbeat);
 
 
     VO2 = await ethers.deployContract("VaultOracleSingle",
-    [wstETH_ADDRESS,wstETH_FEED,86400,UPTIME_FEED]);
+    [wstETH_ADDRESS,wstETH_FEED,50*86400,UPTIME_FEED]);
     await VO2.waitForDeployment();
     VO_ADDRESS2= await VO2.getAddress();
     console.log('vault 2 oracle address: ', VO_ADDRESS2);
@@ -868,9 +868,17 @@ describe('NUMA VAULT', function () {
   
     await VMO.setPrice(newprice);
 
-    // should revert as we don't have a rwd address set
-    await expect(Vault1.extractRewards()).to.be.reverted;
-    await Vault1.setRwdAddress(await signer4.getAddress());
+
+    // MockRwdReceiverContract/MockRwdReceiverContract_Deposit
+    let rwdreceiver = await ethers.deployContract("MockRwdReceiverContract_Deposit",
+    []
+    );
+    await rwdreceiver.waitForDeployment();
+
+    console.log("rwd address");
+    console.log(await rwdreceiver.getAddress());
+
+    await Vault1.setRwdAddress(await rwdreceiver.getAddress());
 
     let [estimateRewards,newvalue] = await Vault1.rewardsValue();
 
@@ -881,7 +889,13 @@ describe('NUMA VAULT', function () {
     expect(estimateRewardsEth).to.equal(rwdEth);
 
     await Vault1.extractRewards();
-    let balrwd = await rEth_contract.balanceOf(await signer4.getAddress());
+
+    let test = await rwdreceiver.test();
+    expect(test).to.equal(estimateRewards);
+
+    let balrwd = await rEth_contract.balanceOf(await rwdreceiver.getAddress());
+    console.log("rewards balance");
+    console.log(balrwd);
     expect(estimateRewards).to.equal(balrwd);
 
     let [estimateRewardsAfter,newvalueAfter] = await Vault1.rewardsValue();
