@@ -14,6 +14,8 @@ import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
 import "../interfaces/IRewardFeeReceiver.sol";
 
+
+
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -130,8 +132,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev Set Rwd address
      */
-    function setRwdAddress(address _address) external onlyOwner {
-        require(_address != address(0x0), "zero address");
+    function setRwdAddress(address _address) external onlyOwner 
+    {        
         rwd_address = payable(_address);
         emit RwdAddressUpdated(_address);
     }
@@ -139,8 +141,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev Set Fee address
      */
-    function setFeeAddress(address _address) external onlyOwner {
-        require(_address != address(0x0), "zero address");
+    function setFeeAddress(address _address) external onlyOwner 
+    {        
         fee_address = payable(_address);
         emit FeeAddressUpdated(_address);
     }
@@ -211,11 +213,16 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalueWei = currentvalueWei;
 
-        SafeERC20.safeTransfer(IERC20(lstToken), rwd_address, rwd);
-        // if rwd_address is a contract, it should implement IRewardFeeReceiver
-        if (isContract(rwd_address)) {
-            IRewardFeeReceiver receiver = IRewardFeeReceiver(rwd_address);
-            receiver.DepositFromVault(rwd);
+        if (rwd_address != address(0))
+        {
+            SafeERC20.safeTransfer(IERC20(lstToken), rwd_address, rwd);
+            if (isContract(rwd_address)) 
+            {
+                // we don't check result as contract might not implement the deposit function (if multi sig for example)
+                rwd_address.call(
+                    abi.encodeWithSignature("DepositFromVault(uint256)", rwd)
+                    );
+            }
         }
         emit RewardsExtracted(rwd, currentvalueWei);
     }
@@ -223,8 +230,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev transfers rewards to rwd_address and updates reference price
      */
-    function extractRewards() external {
-        require(rwd_address != address(0), "reward address not set");
+    function extractRewards() external 
+    {    
         require(
             block.timestamp >= (last_extracttimestamp + 24 hours),
             "reward already extracted"
@@ -241,14 +248,14 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
      * conditions are not filled
      */
     function extractRewardsNoRequire() internal {
-        //rewards address has to be specified
-        if (rwd_address != address(0)) {
-            if (block.timestamp >= (last_extracttimestamp + 24 hours)) {
-                (uint256 rwd, uint256 currentvalueWei) = rewardsValue();
-                if (rwd > rwd_threshold) {
-                    extractInternal(rwd, currentvalueWei);
-                }
+        if (block.timestamp >= (last_extracttimestamp + 24 hours)) 
+        {
+            (uint256 rwd, uint256 currentvalueWei) = rewardsValue();
+            if (rwd > rwd_threshold) 
+            {
+                extractInternal(rwd, currentvalueWei);
             }
+            
         }
     }
 
@@ -311,12 +318,14 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         if (fee_address != address(0x0)) {
             uint256 feeAmount = (fees * _inputAmount) / FEE_BASE_1000;
             SafeERC20.safeTransfer(lstToken, fee_address, feeAmount);
-            // if fee_address is a contract, it should implement IRewardFeeReceiver
-            if (isContract(fee_address)) {
-                IRewardFeeReceiver receiver = IRewardFeeReceiver(fee_address);
-                receiver.DepositFromVault(feeAmount);
+            
+            if (isContract(fee_address)) 
+            {
+                // we don't check result as contract might not implement the deposit function (if multi sig for example)
+                fee_address.call(
+                    abi.encodeWithSignature("DepositFromVault(uint256)", feeAmount)
+                    );
             }
-
             emit Fee(feeAmount, fee_address);
         }
     }
@@ -366,10 +375,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             uint256 feeAmount = (fees * tokenAmount) / FEE_BASE_1000;
             SafeERC20.safeTransfer(IERC20(lstToken), fee_address, feeAmount);
 
-            // if fee_address is a contract, it should implement IRewardFeeReceiver
-            if (isContract(fee_address)) {
-                IRewardFeeReceiver receiver = IRewardFeeReceiver(fee_address);
-                receiver.DepositFromVault(feeAmount);
+            if (isContract(fee_address)) 
+            {
+                // we don't check result as contract might not implement the deposit function (if multi sig for example)
+                fee_address.call(
+                    abi.encodeWithSignature("DepositFromVault(uint256)", feeAmount)
+                    );
             }
 
             emit Fee(feeAmount, fee_address);
