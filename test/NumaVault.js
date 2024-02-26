@@ -55,7 +55,9 @@ describe('NUMA VAULT', function () {
   let VM_ADDRESS;
   let NUUSD_ADDRESS;
   let NUBTC_ADDRESS;
-  let decaydenom = 200;
+  
+  // no more decay
+  let decaydenom = 100;
 
    // sends rETH to the vault
   let sendEthToVault = async function () {
@@ -142,7 +144,7 @@ describe('NUMA VAULT', function () {
 
     // *********************** vaultManager **********************************
     VM = await ethers.deployContract("VaultManager",
-    [numa_address,NUAM_ADDRESS,decaydenom,30]);
+    [numa_address,NUAM_ADDRESS]);
     await VM.waitForDeployment();
     VM_ADDRESS = await VM.getAddress();
     console.log('vault manager address: ', VM_ADDRESS);
@@ -274,7 +276,7 @@ describe('NUMA VAULT', function () {
         expect(sellpriceref).to.be.closeTo(sellprice, epsilon);
       });
 
-      it('with rETH in the vault and start decay', async () => 
+      it('with rETH in the vault', async () => 
       {
         await sendEthToVault();
         let balvaultWei = await rEth_contract.balanceOf(VAULT1_ADDRESS);
@@ -283,7 +285,7 @@ describe('NUMA VAULT', function () {
         let sellfee = await Vault1.sell_fee();
         let feedenom = 1000;
 
-        await VM.startDecaying();
+  
 
         // BUY
         let inputreth = ethers.parseEther("2");
@@ -318,8 +320,7 @@ describe('NUMA VAULT', function () {
         let sellfee = await Vault1.sell_fee();
         let feedenom = 1000;
 
-        await VM.startDecaying();
-        
+
         // set a mock rEth oracle to simulate rebase
         let VMO = await ethers.deployContract("VaultMockOracle",[]);
         await VMO.waitForDeployment();
@@ -604,7 +605,6 @@ describe('NUMA VAULT', function () {
       await Vault1.unpause();
       await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
 
-      await VM.startDecaying();
 
       await Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress());
 
@@ -631,7 +631,6 @@ describe('NUMA VAULT', function () {
 
       let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
 
-      buypricerefnofees = (buypricerefnofees * BigInt(100))/BigInt(150);
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
 
       await sendEthToVault();
@@ -640,7 +639,6 @@ describe('NUMA VAULT', function () {
       await Vault1.unpause();
       await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
 
-      await VM.startDecaying();
 
       // wait 15 days
       await time.increase(15*24*3600);
@@ -682,7 +680,6 @@ describe('NUMA VAULT', function () {
       await Vault1.unpause();
       await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
 
-      await VM.startDecaying();
       // wait 30 days
       await time.increase(30*24*3600);
     
@@ -1101,9 +1098,6 @@ describe('NUMA VAULT', function () {
     await expect( Vault1.connect(signer2).unpause()).to.not.be.reverted;
 
     // vault manager
-    await expect( VM.connect(signer2).startDecaying()).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    .withArgs(await signer2.getAddress());
-    
     await expect( VM.connect(signer2).addToRemovedSupply(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 

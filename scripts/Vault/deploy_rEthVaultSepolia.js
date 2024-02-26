@@ -30,8 +30,7 @@ let LST_ADDRESS = "0x1521c67fdfdb670fa21407ebdbbda5f41591646c";
 let uptimeFeedAddress = "";
 
 
-let decaydenom = 1000;
-let decaylength = 5;
+
 
 const { ethers, upgrades } = require("hardhat");
 const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
@@ -79,7 +78,7 @@ async function main () {
 
    // *********************** vaultManager **********************************
    let VM = await ethers.deployContract("VaultManager",
-   [numa_address,NUAM_ADDRESS,decaydenom,decaylength]);
+   [numa_address,NUAM_ADDRESS]);
 
    await VM.waitForDeployment();
    let VM_ADDRESS = await VM.getAddress();

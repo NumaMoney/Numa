@@ -15,17 +15,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
 
-    // decay denominator variables
-    uint256 public decayingDenominator;
-    uint256 public decaytimestamp;
-    bool public isdecaying;
-    uint8 public immutable decaylength;
-
     INuAssetManager public nuAssetManager;
     NUMA public immutable numa;
     EnumerableSet.AddressSet removedSupplyAddresses;
 
-    uint16 public constant DECAY_BASE_100 = 100;
     uint constant max_vault = 50;
     uint constant max_addresses = 50;
 
@@ -37,15 +30,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     constructor(
         address _numaAddress,
-        address _nuAssetManagerAddress,
-        uint _decayingDenominator,
-        uint8 _decaylength
+        address _nuAssetManagerAddress
     ) Ownable(msg.sender) {
-        numa = NUMA(_numaAddress);
-        decayingDenominator = _decayingDenominator;
+        numa = NUMA(_numaAddress);       
         nuAssetManager = INuAssetManager(_nuAssetManagerAddress);
-        isdecaying = false;
-        decaylength = _decaylength;
     }
 
     function isVault(address _addy) external view returns (bool)
@@ -54,40 +42,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     }
 
-    /**
-     * @dev Starts the decaying period
-     * @notice decayingDenominator will go from initial value to 1 in 30 days
-     */
-    function startDecaying() external onlyOwner {
-        isdecaying = true;
-        decaytimestamp = block.timestamp;
-    }
-
-    /**
-     * @dev Current decaying denominator (from initial value to 1 at the end of the period)
-     * @return {uint256} current decaying denominator
-     */
-    function getDecayDenominator() internal view returns (uint256) {
-        if (isdecaying) {
-            uint256 currenttimestamp = block.timestamp;
-            uint256 delta_s = currenttimestamp - decaytimestamp;
-            // should go down to 1 during 30 days
-            uint256 period = decaylength * 1 days;
-            uint256 decay_factor_1000 = (1000*delta_s) / period;
 
 
-            if (decay_factor_1000 >= 1000) {
-                return DECAY_BASE_100;
-            }
-            uint256 currentDecay_1000 = decay_factor_1000 *
-                DECAY_BASE_100 +
-                (1000 - decay_factor_1000) *
-                decayingDenominator;
-            return currentDecay_1000 / 1000;
-        } else {
-            return DECAY_BASE_100;
-        }
-    }
+
 
     /**
      * @dev set the INuAssetManager address (used to compute synth value in Eth)
@@ -119,11 +76,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
             EthBalance > synthValueInEth,
             "vault is empty or synth value is too big"
         );
-        uint256 decaydenom = getDecayDenominator();
+       
         uint result = FullMath.mulDiv(
             EthValue,
-            DECAY_BASE_100 * circulatingNuma,
-            decaydenom * (EthBalance - synthValueInEth)
+             circulatingNuma,
+            (EthBalance - synthValueInEth)
         );
 
         return result;
@@ -147,14 +104,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
         );
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
-        uint256 decaydenom = getDecayDenominator();
-
+       
         // using snaphot price
         result = FullMath.mulDiv(
             FullMath.mulDiv(
-                decaydenom * _inputAmount,
+                _inputAmount,
                 EthBalance - synthValueInEth,
-                DECAY_BASE_100 * circulatingNuma
+                circulatingNuma
             ),
             _decimals,
             _refValueWei

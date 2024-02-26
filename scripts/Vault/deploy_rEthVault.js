@@ -18,9 +18,6 @@
 // let RWD_ADDRESS = "";
 // let newOwner_ADDRESS = "";
 
-// TODO
-let decaydenom = ;
-let decaylength = ;
 let UPTIME_FEED = "";
 let rEth_heartbeat = 86400;
 
@@ -48,7 +45,7 @@ async function main () {
 
    // *********************** vaultManager **********************************
    let VM = await ethers.deployContract("VaultManager",
-   [numa_address,NUAM_ADDRESS,decaydenom,decaylength]);
+   [numa_address,NUAM_ADDRESS]);
 
    await VM.waitForDeployment();
    let VM_ADDRESS = await VM.getAddress();
