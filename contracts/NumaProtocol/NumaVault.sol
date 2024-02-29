@@ -25,6 +25,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     // address that receives REWARDS (extracted from lst token rebase)
     address payable private rwd_address;
 
+    bool private isFeeReceiver;
+    bool private isRwdReceiver;
+
     // sell fee
     uint16 public sell_fee = 950; // 5%
     // buy fee
@@ -132,18 +135,20 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev Set Rwd address
      */
-    function setRwdAddress(address _address) external onlyOwner 
+    function setRwdAddress(address _address,bool _isRwdReceiver) external onlyOwner 
     {        
         rwd_address = payable(_address);
+        isRwdReceiver = _isRwdReceiver;
         emit RwdAddressUpdated(_address);
     }
 
     /**
      * @dev Set Fee address
      */
-    function setFeeAddress(address _address) external onlyOwner 
+    function setFeeAddress(address _address,bool _isFeeReceiver) external onlyOwner 
     {        
         fee_address = payable(_address);
+        isFeeReceiver = _isFeeReceiver;
         emit FeeAddressUpdated(_address);
     }
 
@@ -216,7 +221,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         if (rwd_address != address(0))
         {
             SafeERC20.safeTransfer(IERC20(lstToken), rwd_address, rwd);
-            if (isContract(rwd_address)) 
+            if (isContract(rwd_address) && isRwdReceiver) 
             {
                 // we don't check result as contract might not implement the deposit function (if multi sig for example)
                 rwd_address.call(
@@ -319,7 +324,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             uint256 feeAmount = (fees * _inputAmount) / FEE_BASE_1000;
             SafeERC20.safeTransfer(lstToken, fee_address, feeAmount);
             
-            if (isContract(fee_address)) 
+            if (isContract(fee_address) && isFeeReceiver) 
             {
                 // we don't check result as contract might not implement the deposit function (if multi sig for example)
                 fee_address.call(
@@ -375,7 +380,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             uint256 feeAmount = (fees * tokenAmount) / FEE_BASE_1000;
             SafeERC20.safeTransfer(IERC20(lstToken), fee_address, feeAmount);
 
-            if (isContract(fee_address)) 
+            if (isContract(fee_address) && isFeeReceiver) 
             {
                 // we don't check result as contract might not implement the deposit function (if multi sig for example)
                 fee_address.call(
