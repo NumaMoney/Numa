@@ -17,10 +17,18 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     INuAssetManager public nuAssetManager;
     NUMA public immutable numa;
-    EnumerableSet.AddressSet removedSupplyAddresses;
+    //EnumerableSet.AddressSet removedSupplyAddresses;
+
+    uint initialRemovedSupply;
+    uint decayPeriod;
+    uint startTime;
+    bool isDecaying;
+    uint16 private constant DECAY_BASE = 10000;
+
+
 
     uint constant max_vault = 50;
-    uint constant max_addresses = 50;
+    //uint constant max_addresses = 50;
 
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
@@ -30,11 +38,28 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     constructor(
         address _numaAddress,
-        address _nuAssetManagerAddress
+        address _nuAssetManagerAddress     
     ) Ownable(msg.sender) {
         numa = NUMA(_numaAddress);       
         nuAssetManager = INuAssetManager(_nuAssetManagerAddress);
     }
+
+
+
+    function startDecay() external onlyOwner
+    {
+        startTime = block.timestamp;
+        isDecaying = true;
+    }
+
+    function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod) external onlyOwner
+    {
+        initialRemovedSupply = _initialRemovedSupply;
+        decayPeriod = _decayPeriod;
+        isDecaying = false;
+
+    }
+
 
     function isVault(address _addy) external view returns (bool)
     {
@@ -135,47 +160,67 @@ contract VaultManager is IVaultManager, Ownable2Step {
      */
     function getNumaSupply() public view returns (uint) {
         uint circulatingNuma = numa.totalSupply();
+        uint currentRemovedSupply = initialRemovedSupply;
 
-        uint256 nbWalletsToRemove = removedSupplyAddresses.length();
-        require(
-            nbWalletsToRemove < max_addresses,
-            "too many wallets to remove from supply"
-        );
-        // remove wallets balances from numa supply
-        for (uint256 i = 0; i < nbWalletsToRemove; i++) {
-            uint bal = numa.balanceOf(removedSupplyAddresses.at(i));
-            circulatingNuma -= bal;
+        uint currentTime = block.timestamp;
+        if (isDecaying && (currentTime > startTime) && (decayPeriod > 0))
+        {
+            uint delta = ((currentTime - startTime) * DECAY_BASE)/decayPeriod;
+            if (delta >= DECAY_BASE)
+            {
+                currentRemovedSupply = 0;
+            }
+            else {
+                currentRemovedSupply -= (delta * initialRemovedSupply)/DECAY_BASE;                
+            }
+
         }
+
+     
+        circulatingNuma = circulatingNuma - currentRemovedSupply;
+
+
+
+        // uint256 nbWalletsToRemove = removedSupplyAddresses.length();
+        // require(
+        //     nbWalletsToRemove < max_addresses,
+        //     "too many wallets to remove from supply"
+        // );
+        // // remove wallets balances from numa supply
+        // for (uint256 i = 0; i < nbWalletsToRemove; i++) {
+        //     uint bal = numa.balanceOf(removedSupplyAddresses.at(i));
+        //     circulatingNuma -= bal;
+        // }
         return circulatingNuma;
     }
 
-    /**
-     * @dev list of wallets whose numa balance is removed from total supply
-     */
-    function getRemovedWalletsList() external view returns (address[] memory) {
-        return removedSupplyAddresses.values();
-    }
+    // /**
+    //  * @dev list of wallets whose numa balance is removed from total supply
+    //  */
+    // function getRemovedWalletsList() external view returns (address[] memory) {
+    //     return removedSupplyAddresses.values();
+    // }
 
-    /**
-     * @dev adds a wallet to wallets whose numa balance is removed from total supply
-     */
-    function addToRemovedSupply(address _address) external onlyOwner {
-        require(
-            removedSupplyAddresses.length() < max_addresses,
-            "too many wallets in list"
-        );
-        require(removedSupplyAddresses.add(_address), "already in list");
-        emit AddedToRemovesupply(_address);
-    }
+    // /**
+    //  * @dev adds a wallet to wallets whose numa balance is removed from total supply
+    //  */
+    // function addToRemovedSupply(address _address) external onlyOwner {
+    //     require(
+    //         removedSupplyAddresses.length() < max_addresses,
+    //         "too many wallets in list"
+    //     );
+    //     require(removedSupplyAddresses.add(_address), "already in list");
+    //     emit AddedToRemovesupply(_address);
+    // }
 
-    /**
-     * @dev removes a wallet to wallets whose numa balance is removed from total supply
-     */
-    function removeFromRemovedSupply(address _address) external onlyOwner {
-        require(removedSupplyAddresses.contains(_address), "not in list");
-        removedSupplyAddresses.remove(_address);
-        emit RemovedFromRemovesupply(_address);
-    }
+    // /**
+    //  * @dev removes a wallet to wallets whose numa balance is removed from total supply
+    //  */
+    // function removeFromRemovedSupply(address _address) external onlyOwner {
+    //     require(removedSupplyAddresses.contains(_address), "not in list");
+    //     removedSupplyAddresses.remove(_address);
+    //     emit RemovedFromRemovesupply(_address);
+    // }
 
     /**
      * @dev returns vaults list
