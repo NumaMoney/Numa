@@ -217,7 +217,7 @@ async function main () {
 
 
     // fee address
-    await Vault1.setFeeAddress(await signer3.getAddress());
+    await Vault1.setFeeAddress(await signer3.getAddress(),false);
 
     // unpause
     await Vault1.unpause();

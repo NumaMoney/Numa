@@ -158,7 +158,7 @@ describe('NUMA VAULT', function () {
 
 
     VOcustomHeartbeat = await ethers.deployContract("VaultOracleSingle",
-    [rETH_ADDRESS,RETH_FEED,50*86400,UPTIME_FEED]);
+    [rETH_ADDRESS,RETH_FEED,402*86400,UPTIME_FEED]);
     await VOcustomHeartbeat.waitForDeployment();
     VO_ADDRESScustomHeartbeat= await VOcustomHeartbeat.getAddress();
     console.log('vault 1 oracle address: ', VO_ADDRESScustomHeartbeat);
@@ -183,7 +183,7 @@ describe('NUMA VAULT', function () {
     await Vault1.setVaultManager(VM_ADDRESS);
 
     // fee address
-    await Vault1.setFeeAddress(await signer3.getAddress());
+    await Vault1.setFeeAddress(await signer3.getAddress(),false);
     // vault has to be allowed to mint Numa
     await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
@@ -231,6 +231,247 @@ describe('NUMA VAULT', function () {
         expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
 
       });
+
+
+      // DECAY SUPPLY
+      it('with rETH in the vault decay not started', async () => 
+      {
+        await sendEthToVault();
+        let balvaultWei = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+        let numaSupply = await numa.totalSupply();
+        let buyfee = await Vault1.buy_fee();
+        let sellfee = await Vault1.sell_fee();
+        let feedenom = 1000;
+
+
+        let removedSupply = numaSupply / BigInt(2);
+       
+        await VM.setDecayValues(removedSupply,365*24*3600);
+
+
+
+
+        numaSupply = numaSupply - removedSupply;
+
+        // BUY
+        let inputreth = ethers.parseEther("2");
+        let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
+        // fees
+        let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
+        let buyprice = await Vault1.getBuyNuma(inputreth);
+        expect(buypriceref).to.equal(buyprice);
+
+        // SELL 
+        let inputnuma = ethers.parseEther("1000");
+        let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
+        let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
+        let sellprice = await Vault1.getSellNuma(inputnuma);
+        //expect(sellpriceref).to.equal(sellprice); 
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
+
+      });
+
+      it('with rETH in the vault 3/4 time decay', async () => 
+      {
+        await sendEthToVault();
+        let balvaultWei = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+        let numaSupply = await numa.totalSupply();
+        let buyfee = await Vault1.buy_fee();
+        let sellfee = await Vault1.sell_fee();
+        let feedenom = 1000;
+
+
+        let removedSupply = numaSupply / BigInt(2);
+        await VM.setDecayValues(removedSupply,400*24*3600);
+
+
+        await VM.startDecay();
+        // change heartbeats for testing purpose
+        await Vault1.setOracle(VO_ADDRESScustomHeartbeat);
+        await nuAM.removeNuAsset(NUUSD_ADDRESS);
+        await nuAM.removeNuAsset(NUBTC_ADDRESS);
+                   
+        await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,400*86400);
+        await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,400*86400);
+        await time.increase(300*24*3600);
+
+        numaSupply = numaSupply - removedSupply/ BigInt(4);
+
+        // BUY
+        let inputreth = ethers.parseEther("2");
+        let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
+        // fees
+        let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
+        let buyprice = await Vault1.getBuyNuma(inputreth);
+        expect(buypriceref).to.equal(buyprice);
+
+        // SELL 
+        let inputnuma = ethers.parseEther("1000");
+        let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
+        let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
+        let sellprice = await Vault1.getSellNuma(inputnuma);
+        //expect(sellpriceref).to.equal(sellprice); 
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
+
+      });
+
+      it('with rETH in the vault decay over', async () => 
+      {
+        await sendEthToVault();
+        let balvaultWei = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+        let numaSupply = await numa.totalSupply();
+        let buyfee = await Vault1.buy_fee();
+        let sellfee = await Vault1.sell_fee();
+        let feedenom = 1000;
+
+
+        let removedSupply = numaSupply / BigInt(2);
+        await VM.setDecayValues(removedSupply,400*24*3600);
+
+
+        await VM.startDecay();
+        // change heartbeats for testing purpose
+        await Vault1.setOracle(VO_ADDRESScustomHeartbeat);
+        await nuAM.removeNuAsset(NUUSD_ADDRESS);
+        await nuAM.removeNuAsset(NUBTC_ADDRESS);
+                   
+        await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,402*86400);
+        await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,402*86400);
+        await time.increase(401*24*3600);
+
+        //numaSupply = numaSupply - removedSupply/ BigInt(4);
+
+        // BUY
+        let inputreth = ethers.parseEther("2");
+        let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
+        // fees
+        let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
+        let buyprice = await Vault1.getBuyNuma(inputreth);
+        expect(buypriceref).to.equal(buyprice);
+
+        // SELL 
+        let inputnuma = ethers.parseEther("1000");
+        let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
+        let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
+        let sellprice = await Vault1.getSellNuma(inputnuma);
+        //expect(sellpriceref).to.equal(sellprice); 
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
+
+      });
+
+
+      it('with rETH in the vault decay over restart new decay', async () => 
+      {
+
+        await sendEthToVault();
+        let balvaultWei = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+        let numaSupply = await numa.totalSupply();
+        let buyfee = await Vault1.buy_fee();
+        let sellfee = await Vault1.sell_fee();
+        let feedenom = 1000;
+
+
+        let removedSupply = numaSupply / BigInt(2);
+        await VM.setDecayValues(removedSupply,100*24*3600);
+
+
+        await VM.startDecay();
+        // change heartbeats for testing purpose
+        await Vault1.setOracle(VO_ADDRESScustomHeartbeat);
+        await nuAM.removeNuAsset(NUUSD_ADDRESS);
+        await nuAM.removeNuAsset(NUBTC_ADDRESS);
+                   
+        await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,402*86400);
+        await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,402*86400);
+        await time.increase(101*24*3600);
+
+  
+
+        await VM.setDecayValues(removedSupply,100*24*3600);
+        await VM.startDecay();
+
+
+        await time.increase(25*24*3600);//1/4
+        numaSupply = numaSupply - BigInt(3)*removedSupply/ BigInt(4);
+
+        // BUY
+        let inputreth = ethers.parseEther("2");
+        let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
+        // fees
+        let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
+        let buyprice = await Vault1.getBuyNuma(inputreth);
+        expect(buypriceref).to.equal(buyprice);
+
+        // SELL 
+        let inputnuma = ethers.parseEther("1000");
+        let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
+        let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
+        let sellprice = await Vault1.getSellNuma(inputnuma);
+        //expect(sellpriceref).to.equal(sellprice); 
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
+
+      });
+
+
+      it('with rETH in the vault constant decay', async () => 
+      {
+
+
+      
+
+      });
+
+
+
+      it('with rETH in the vault decay over cancel decay', async () => 
+      {
+        await sendEthToVault();
+        let balvaultWei = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+        let numaSupply = await numa.totalSupply();
+        let buyfee = await Vault1.buy_fee();
+        let sellfee = await Vault1.sell_fee();
+        let feedenom = 1000;
+
+
+        let removedSupply = numaSupply / BigInt(2);
+        await VM.setDecayValues(removedSupply,400*24*3600);
+
+
+        await VM.startDecay();
+        // change heartbeats for testing purpose
+        await Vault1.setOracle(VO_ADDRESScustomHeartbeat);
+        await nuAM.removeNuAsset(NUUSD_ADDRESS);
+        await nuAM.removeNuAsset(NUBTC_ADDRESS);
+                   
+        await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,402*86400);
+        await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,402*86400);
+        await time.increase(401*24*3600);
+
+  
+
+        await VM.setDecayValues(0,0);
+
+        await VM.startDecay();
+        // BUY
+        let inputreth = ethers.parseEther("2");
+        let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
+        // fees
+        let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
+        let buyprice = await Vault1.getBuyNuma(inputreth);
+        expect(buypriceref).to.equal(buyprice);
+
+        // SELL 
+        let inputnuma = ethers.parseEther("1000");
+        let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
+        let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
+        let sellprice = await Vault1.getSellNuma(inputnuma);
+        //expect(sellpriceref).to.equal(sellprice); 
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
+
+      });
+
+      
+
 
       it('with rETH in the vault and minted nuAssets', async () => 
       {
@@ -335,7 +576,7 @@ describe('NUMA VAULT', function () {
         await VMO.setPrice(newprice);
        
         // set rwd address
-        await Vault1.setRwdAddress(await signer4.getAddress());
+        await Vault1.setRwdAddress(await signer4.getAddress(),false);
 
         let [estimateRewards,newvalue] = await Vault1.rewardsValue();
 
@@ -481,7 +722,7 @@ describe('NUMA VAULT', function () {
       await VMO.setPrice(newprice);
       
       // set rwd address
-      await Vault1.setRwdAddress(await signer4.getAddress());
+      await Vault1.setRwdAddress(await signer4.getAddress(),false);
     
       let [estimateRewards,newvalue] = await Vault1.rewardsValue();
     
@@ -543,7 +784,7 @@ describe('NUMA VAULT', function () {
       let VMO_ADDRESS= await VMO.getAddress();
       await Vault1.setOracle(VMO_ADDRESS);
       // set rwd address
-      await Vault1.setRwdAddress(await signer4.getAddress());
+      await Vault1.setRwdAddress(await signer4.getAddress(),false);
     
       // set new price, simulate a 100% rebase
       let lastprice = await Vault1.last_lsttokenvalueWei();
@@ -668,7 +909,7 @@ describe('NUMA VAULT', function () {
       await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,31*86400);
 
       // test
-      await Vault1.setRwdAddress(await signer4.getAddress());
+      await Vault1.setRwdAddress(await signer4.getAddress(),false);
       await Vault1.setOracle(VO_ADDRESScustomHeartbeat);
 
       let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
@@ -822,7 +1063,7 @@ describe('NUMA VAULT', function () {
     // make vault Numa minter
     await numa.grantRole(roleMinter, VAULT2_ADDRESS);
     // set fee address
-    await Vault2.setFeeAddress(await signer3.getAddress());
+    await Vault2.setFeeAddress(await signer3.getAddress(),false);
 
     // unpause it
     await Vault2.unpause();
@@ -875,7 +1116,7 @@ describe('NUMA VAULT', function () {
     console.log("rwd address");
     console.log(await rwdreceiver.getAddress());
 
-    await Vault1.setRwdAddress(await rwdreceiver.getAddress());
+    await Vault1.setRwdAddress(await rwdreceiver.getAddress(),true);
 
     let [estimateRewards,newvalue] = await Vault1.rewardsValue();
 
@@ -901,70 +1142,70 @@ describe('NUMA VAULT', function () {
     await expect(Vault1.extractRewards()).to.be.reverted;
   });
 
-  it('Buy with rEth and add to skipWallet', async function () {
-    let buypricerefnofees = ethers.parseEther("2")*(BigInt(9000000))/(BigInt(100));
-    let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
+  // it('Buy with rEth and add to skipWallet', async function () {
+  //   let buypricerefnofees = ethers.parseEther("2")*(BigInt(9000000))/(BigInt(100));
+  //   let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
 
 
-    await sendEthToVault();
-    // BUY
-    // paused by default 
-    await expect(Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress())).to.be.reverted;
-    await Vault1.unpause();
-    await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
+  //   await sendEthToVault();
+  //   // BUY
+  //   // paused by default 
+  //   await expect(Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress())).to.be.reverted;
+  //   await Vault1.unpause();
+  //   await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
 
-    // send 1000000 Numa supply to signer3
-    await numa.transfer(await signer3.getAddress(),ethers.parseEther("1000000"));
-    await VM.addToRemovedSupply(await signer3.getAddress());
-
-
-
-    await Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress());
-
-    let balbuyer = await numa.balanceOf(await signer2.getAddress());
-    bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
-    let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
-
-    let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
-    expect(balbuyer).to.equal(buypriceref);
-    expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
-    expect(balfee).to.equal(fees);
-  });
+  //   // send 1000000 Numa supply to signer3
+  //   await numa.transfer(await signer3.getAddress(),ethers.parseEther("1000000"));
+  //   await VM.addToRemovedSupply(await signer3.getAddress());
 
 
-  it('Buy with rEth and add/remove to skipWallet', async function () {
-    let buypricerefnofees = ethers.parseEther("2")*(BigInt(10000000))/(BigInt(100));
-    let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
+
+  //   await Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress());
+
+  //   let balbuyer = await numa.balanceOf(await signer2.getAddress());
+  //   bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+  //   let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
+
+  //   let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
+  //   expect(balbuyer).to.equal(buypriceref);
+  //   expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+  //   expect(balfee).to.equal(fees);
+  // });
 
 
-    await sendEthToVault();
-    // BUY
-    // paused by default 
-    await expect(Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress())).to.be.reverted;
-    await Vault1.unpause();
-    await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
+  // it('Buy with rEth and add/remove to skipWallet', async function () {
+  //   let buypricerefnofees = ethers.parseEther("2")*(BigInt(10000000))/(BigInt(100));
+  //   let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
 
-    // send 1000000 Numa supply to signer3
-    await numa.transfer(await signer3.getAddress(),ethers.parseEther("1000000"));
-    await VM.addToRemovedSupply(await signer3.getAddress());
 
-    // testing remove
-    await VM.removeFromRemovedSupply(await signer3.getAddress());
+  //   await sendEthToVault();
+  //   // BUY
+  //   // paused by default 
+  //   await expect(Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress())).to.be.reverted;
+  //   await Vault1.unpause();
+  //   await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
+
+  //   // send 1000000 Numa supply to signer3
+  //   await numa.transfer(await signer3.getAddress(),ethers.parseEther("1000000"));
+  //   await VM.addToRemovedSupply(await signer3.getAddress());
+
+  //   // testing remove
+  //   await VM.removeFromRemovedSupply(await signer3.getAddress());
     
   
-    await Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress());
+  //   await Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress());
 
-    let balbuyer = await numa.balanceOf(await signer2.getAddress());
-    bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
-    let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
+  //   let balbuyer = await numa.balanceOf(await signer2.getAddress());
+  //   bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+  //   let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
 
-    let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
-    expect(balbuyer).to.equal(buypriceref);
-    expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
-    expect(balfee).to.equal(fees);
+  //   let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
+  //   expect(balbuyer).to.equal(buypriceref);
+  //   expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+  //   expect(balfee).to.equal(fees);
 
 
-  });
+  // });
 
   it('nuAssetManager', async function () {
 
@@ -1068,10 +1309,10 @@ describe('NUMA VAULT', function () {
     await expect( Vault1.connect(signer2).setVaultManager(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 
-    await expect( Vault1.connect(signer2).setRwdAddress(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
+    await expect( Vault1.connect(signer2).setRwdAddress(addy,false)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 
-    await expect( Vault1.connect(signer2).setFeeAddress(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
+    await expect( Vault1.connect(signer2).setFeeAddress(addy,false)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());
 
     await expect( Vault1.connect(signer2).setSellFee(newBuySellFee)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
@@ -1098,11 +1339,11 @@ describe('NUMA VAULT', function () {
     await expect( Vault1.connect(signer2).unpause()).to.not.be.reverted;
 
     // vault manager
-    await expect( VM.connect(signer2).addToRemovedSupply(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    .withArgs(await signer2.getAddress());
+    // await expect( VM.connect(signer2).addToRemovedSupply(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
+    // .withArgs(await signer2.getAddress());
 
-    await expect( VM.connect(signer2).removeFromRemovedSupply(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    .withArgs(await signer2.getAddress());
+    // await expect( VM.connect(signer2).removeFromRemovedSupply(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
+    // .withArgs(await signer2.getAddress());
 
     await expect( VM.connect(signer2).setNuAssetManager(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
     .withArgs(await signer2.getAddress());

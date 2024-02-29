@@ -37,6 +37,12 @@ module.exports = {
       accounts: [process.env.PKEY],
     },
 
+
+    arbitest: {
+      url: process.env.URL5,
+      accounts: [process.env.PKEYARBITEST],
+    },
+
     hardhat: {
       forking: {
         //url: process.env.URL4,// sepolia

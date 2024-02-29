@@ -109,11 +109,18 @@ async function main () {
    let VAULT1_ADDRESS = await Vault1.getAddress();
    console.log('vault rETH address: ', VAULT1_ADDRESS);
 
+
+
+
    await VM.addVault(VAULT1_ADDRESS);
    await Vault1.setVaultManager(VM_ADDRESS);
+
    // fee address
-   await Vault1.setFeeAddress(FEE_ADDRESS);
-   await Vault1.setRwdAddress(RWD_ADDRESS);
+   // use a contract to repro revert in etherscan
+   FEE_ADDRESS = VAULT1_ADDRESS;
+   RWD_ADDRESS = VAULT1_ADDRESS;
+   await Vault1.setFeeAddress(FEE_ADDRESS,false);
+   await Vault1.setRwdAddress(RWD_ADDRESS,false);
 
    // allow vault to mint numa
    let numa = await hre.ethers.getContractAt("NUMA", numa_address);
@@ -126,7 +133,7 @@ async function main () {
 
 //    await VM.startDecaying();
 
-//    await Vault1.unpause();
+   await Vault1.unpause();
 
 
 
