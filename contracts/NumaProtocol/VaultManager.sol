@@ -143,6 +143,31 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return result;
     }
 
+
+    function GetPriceFromVaultWithoutFees(uint _inputAmount) external view returns (uint256)
+    {
+        uint synthValueInEth = getTotalSynthValueEth();
+        uint circulatingNuma = getNumaSupply();
+        uint EthBalance = getTotalBalanceEth();
+
+        require(
+            EthBalance > synthValueInEth,
+            "vault is empty or synth value is too big"
+        );
+        require(circulatingNuma > 0, "no numa in circulation");
+        uint result;
+       
+        // using snaphot price
+        result = FullMath.mulDiv(
+                _inputAmount,
+                EthBalance - synthValueInEth,
+                circulatingNuma
+            );
+        return result;
+
+    }
+
+
     /**
      * @dev Total synth value in Eth
      */

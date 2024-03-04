@@ -281,7 +281,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function buy(
         uint _inputAmount,uint _minNumaAmount,
         address _receiver
-    ) external nonReentrant whenNotPaused 
+    ) external nonReentrant whenNotPaused returns (uint _numaOut)
     {
         require(_inputAmount > MIN, "must trade over min");
         
@@ -309,13 +309,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             _inputAmount
         );
 
-        uint numaMinted =  (numaAmount * buy_fee) / FEE_BASE_1000;
-        require(numaMinted >= _minNumaAmount, "Min NUMA");
+        _numaOut =  (numaAmount * buy_fee) / FEE_BASE_1000;
+        require(_numaOut >= _minNumaAmount, "Min NUMA");
 
         // mint numa
-        numa.mint(_receiver, (numaAmount * buy_fee) / FEE_BASE_1000);
+        numa.mint(_receiver, _numaOut);
         emit Buy(
-            (numaAmount * buy_fee) / FEE_BASE_1000,
+            _numaOut,
             _inputAmount,
             _receiver
         );
@@ -341,7 +341,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function sell(
         uint256 _numaAmount,uint256 _minTokenAmount,
         address _receiver
-    ) external nonReentrant whenNotPaused {
+    ) external nonReentrant whenNotPaused returns (uint _tokenOut) {
         require(_numaAmount > MIN, "must trade over min");
         // extract rewards if any
         extractRewardsNoRequire();
@@ -358,8 +358,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             "not enough liquidity in vault"
         );
 
-        uint256 tokenTobeTransfered = (tokenAmount * sell_fee) / FEE_BASE_1000;
-        require(tokenTobeTransfered >= _minTokenAmount, "Min Token");
+        _tokenOut = (tokenAmount * sell_fee) / FEE_BASE_1000;
+        require(_tokenOut >= _minTokenAmount, "Min Token");
 
         // burning numa tokens
         numa.burnFrom(msg.sender, _numaAmount);
@@ -368,11 +368,11 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         SafeERC20.safeTransfer(
             lstToken,
             _receiver,
-            tokenTobeTransfered
+            _tokenOut
         );
         emit Sell(
             _numaAmount,
-            tokenTobeTransfered,
+            _tokenOut,
             _receiver
         );
         // fee
