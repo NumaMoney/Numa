@@ -281,7 +281,7 @@ describe('NUMA VAULT', function () {
         let feedenom = 1000;
 
 
-        let removedSupply = numaSupply / BigInt(2);
+        let removedSupply = ethers.parseEther("4000000");
         await VM.setDecayValues(removedSupply,400*24*3600);
 
 
@@ -293,17 +293,27 @@ describe('NUMA VAULT', function () {
                    
         await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,400*86400);
         await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,400*86400);
-        await time.increase(300*24*3600);
+        await time.increase(300*24*3600 - 5);// don't know why it gives me 5 more seconds
 
         numaSupply = numaSupply - removedSupply/ BigInt(4);
 
+        console.log(numaSupply);
         // BUY
         let inputreth = ethers.parseEther("2");
         let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
+        console.log(buypricerefnofees);
         // fees
         let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
+        console.log(buypriceref);
+
+        // let pEth = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        // console.log(pEth);
+        let supplyModi = await VM.getNumaSupply();
+        console.log(supplyModi);
+
         let buyprice = await Vault1.getBuyNuma(inputreth);
         expect(buypriceref).to.equal(buyprice);
+        //expect(buypriceref).to.be.closeTo(buyprice,epsilon);
 
         // SELL 
         let inputnuma = ethers.parseEther("1000");
@@ -579,6 +589,11 @@ describe('NUMA VAULT', function () {
         await Vault1.setRwdAddress(await signer4.getAddress(),false);
 
         let [estimateRewards,newvalue] = await Vault1.rewardsValue();
+
+        console.log(estimateRewards);
+        console.log(lastprice);
+        console.log(newvalue);
+
 
         expect(newvalue).to.equal(newprice);
         
@@ -981,14 +996,14 @@ describe('NUMA VAULT', function () {
     });
   });
 
-  // it('test withdraw', async function () 
-  // {
-  //   await sendEthToVault();
-  //   let balbeforeLST = await rEth_contract.balanceOf(await owner.getAddress());    
-  //   await Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"));
-  //   let balafterLST = await rEth_contract.balanceOf(await owner.getAddress());
-  //   expect(balafterLST - balbeforeLST).to.equal(ethers.parseEther("50"));
-  // });
+  it('test withdraw', async function () 
+  {
+    await sendEthToVault();
+    let balbeforeLST = await rEth_contract.balanceOf(await owner.getAddress());    
+    await Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"),await owner.getAddress());
+    let balafterLST = await rEth_contract.balanceOf(await owner.getAddress());
+    expect(balafterLST - balbeforeLST).to.equal(ethers.parseEther("50"));
+  });
 
   it('with another vault', async function () 
   {

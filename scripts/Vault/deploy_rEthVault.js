@@ -10,14 +10,31 @@ let rEth_heartbeat = 86400;
 
 
 
+// TODO
+// ** param values
+
+// Treasury:
+// 0xFC4B72FD6309d2E68B595c56EAcb256D2fE9b881
+
+// Staking Rewards:
+// 0xe5F8aA3f4000Bc6A0F07E9E3a1b9C9A3d48ed4a4
+
+// LST Rewards:
+// 0x52fAb8465f3ce229Fd104FD8155C02990A0E1326
+
 
 let FEE_ADDRESS = "";
 let RWD_ADDRESS = "";
 let newOwner_ADDRESS = "";
-let decayAmount = "1800000";//1800000000000000000000000;
+let decayAmount = "1800000";
+let constantRemoved = "500000";
 let decayPeriod = 365 * 24*3600;
+let burnAmount = "5000000";
 
+// ** check addresses
 
+// ** ask for drew to give me admin rôle on numa
+// TODO: voir comment faire
 
 // numbers
 //203 ETH
@@ -33,17 +50,6 @@ let decayPeriod = 365 * 24*3600;
 // 0.00203 / 93875529661474244165 / 18000000000000000000
 
 
-// ARBITEST
-let arbiTest = true;
-let numaSupply = BigInt(93875529661474244165);
-FEE_ADDRESS = "0x218221CA9740d20e40CFca1bfA6Cb0B22F11b157";
-RWD_ADDRESS = "0x218221CA9740d20e40CFca1bfA6Cb0B22F11b157";
-newOwner_ADDRESS = "0x218221CA9740d20e40CFca1bfA6Cb0B22F11b157";
-
-
-
-decayAmount = "18";//18000000000000000000
-decayPeriod = 48*3600;
 
 
 
@@ -57,63 +63,37 @@ async function main () {
     const [signer] = await ethers.getSigners();
  
 
-//     if (arbiTest)
-//     {
-//         // DEPLOY FAKE NUMA
-//         const Numa = await ethers.getContractFactory('NUMA')
-//         const contract = await upgrades.deployProxy(
-//         Numa,
-//             [],
-//             {
-//                 initializer: 'initialize',
-//                 kind:'uups' 
-//             }
-//         )
-//         await contract.waitForDeployment();
-//         console.log('Numa deployed to:', await contract.getAddress());
-
-//         await contract.mint(
-//             signer.getAddress(),
-//             numaSupply
-//           );
-//        numa_address = await contract.getAddress();
-//     }
-
-//    // *********************** nuAssetManager **********************************
-//    let nuAM = await ethers.deployContract("nuAssetManager",
-//    [UPTIME_FEED]
-//    );
-//    await nuAM.waitForDeployment();
-//    let NUAM_ADDRESS = await nuAM.getAddress();
-//    console.log('nuAssetManager address: ', NUAM_ADDRESS);
+    // *********************** nuAssetManager **********************************
+    let nuAM = await ethers.deployContract("nuAssetManager",
+    [UPTIME_FEED]
+    );
+    await nuAM.waitForDeployment();
+    let NUAM_ADDRESS = await nuAM.getAddress();
+    console.log('nuAssetManager address: ', NUAM_ADDRESS);
 
 
-//    console.log('initial synth value: ', await nuAM.getTotalSynthValueEth());
+    console.log('initial synth value: ', await nuAM.getTotalSynthValueEth());
 
 
-//    // *********************** vaultManager **********************************
-//    let VM = await ethers.deployContract("VaultManager",
-//    [numa_address,NUAM_ADDRESS]);
+   // *********************** vaultManager **********************************
+   let VM = await ethers.deployContract("VaultManager",
+   [numa_address,NUAM_ADDRESS]);
 
-//    await VM.waitForDeployment();
-//    let VM_ADDRESS = await VM.getAddress();
-//    console.log('vault manager address: ', VM_ADDRESS);
+   await VM.waitForDeployment();
+   let VM_ADDRESS = await VM.getAddress();
+   console.log('vault manager address: ', VM_ADDRESS);
 
 
 
 
-//    let VO = await ethers.deployContract("VaultOracleSingle",
-//    [rETH_ADDRESS,RETH_FEED,rEth_heartbeat,UPTIME_FEED]);
-//    await VO.waitForDeployment();
-//    let VO_ADDRESS= await VO.getAddress();
-  
+   let VO = await ethers.deployContract("VaultOracleSingle",
+   [rETH_ADDRESS,RETH_FEED,rEth_heartbeat,UPTIME_FEED]);
+   await VO.waitForDeployment();
+   let VO_ADDRESS= await VO.getAddress();
+   console.log('vault oracle address: ', VO_ADDRESS);
 
 
-    // 2 steps deploy
-    numa_address = "0xc436f6e95E603c7a669872F4CE969594F9cC6230";
-    let VO_ADDRESS = "0xac399dea74f802a336b7D484C64AFDC28490b1c5";
-    let VM_ADDRESS = "0x154829AE752200E8716620e0bC0ba521A4Bf658F";
-    let VM = await hre.ethers.getContractAt("VaultManager", VM_ADDRESS);;
+
 
     // 
 
@@ -125,9 +105,11 @@ async function main () {
    await Vault1.waitForDeployment();
    let VAULT1_ADDRESS = await Vault1.getAddress();
    console.log('vault rETH address: ', VAULT1_ADDRESS);
-   //0x8613177810651E3B948964aC41B1dBCabfdE03e1
+ 
 
+   console.log('add vault to vault manager');
    await VM.addVault(VAULT1_ADDRESS);
+   console.log('set vault manager to reth vault');
    await Vault1.setVaultManager(VM_ADDRESS);
 
    // fee address
@@ -138,30 +120,18 @@ async function main () {
    let numa = await hre.ethers.getContractAt("NUMA", numa_address);
    await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
-   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod);
+   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod,ethers.parseEther(constantRemoved));
+
+   // BUY FEE 25%
+   await Vault1.setBuyFee(750);
 
    // TODO transfer rETH to vault to initialize price
-   // DONE
+  
 
    // TODO: deploy front end
-   // DONE
-
-   // TODO: check price 
-   // 10 cts
-
-   // KO
-
-   // MISSED:
-   // BURN TOKENS 5581112.01
-   // 
-
-
+  
    // TODO START
    // await VM.startDecay();
-
-
-
-   //55811120000000000000
 
    // TODO UNPAUSE
    // await Vault1.unpause();

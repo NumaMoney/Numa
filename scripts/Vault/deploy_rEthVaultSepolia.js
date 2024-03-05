@@ -29,6 +29,8 @@ let numa_address = "0x2e4a312577A78786051052c28D5f1132d93c557A";
 let LST_ADDRESS = "0x1521c67fdfdb670fa21407ebdbbda5f41591646c";
 let uptimeFeedAddress = "";
 
+decayAmount = "26000000";
+decayPeriod = 12*3600;
 
 
 
@@ -126,12 +128,19 @@ async function main () {
    let numa = await hre.ethers.getContractAt("NUMA", numa_address);
    await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
+   // TODO: decay amount/period
+   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod);
+
+
 
    // transfer rETH to vault to initialize price
    let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);
    await lstToken.transfer(VAULT1_ADDRESS, ethers.parseEther("2000"));
 
-//    await VM.startDecaying();
+   await Vault1.setBuyFee(750);//25%
+
+   await VM.startDecay();
+
 
    await Vault1.unpause();
 
