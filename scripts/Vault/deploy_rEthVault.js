@@ -143,15 +143,16 @@ async function main () {
    // new vault?
 
    // - deploy new vault
+   // - pause vault1 - NEVER UNPAUSE BECAUSE EVEN IF EMPTY PEOPLE COULD BUY NUMA
    // - get all rEth from vault1
-   // - pause it
    // - send reth to new vault
    // - remove v1 from vault manager
-   // - add v2 to vauylt manager
+   // - add v2 to vault manager
    // - set vault manager to v2
    // - grant role
    // - set fee/rwd address
-   // - set decay values, startdecay, unpause
+   // - set decay values, startdecay
+   // - unpause
 
 
 
