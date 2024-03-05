@@ -60,6 +60,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     // decimals of lst token
     uint256 immutable decimals;
 
+    bool isWithdrawRevoked = false;
+
     // Events
     event SetOracle(address oracle);
     event SetVaultManager(address vaultManager);
@@ -461,7 +463,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
      */
     function withdrawToken(address _tokenAddress,uint256 _amount,address _receiver) external onlyOwner
     {
+        require(!isWithdrawRevoked);
         SafeERC20.safeTransfer(IERC20(_tokenAddress),_receiver,_amount);
+    }
+
+    function revokeWithdraw() external onlyOwner
+    {
+        isWithdrawRevoked = true;
     }
 
     function isContract(address addr) internal view returns (bool) {

@@ -246,7 +246,7 @@ describe('NUMA VAULT', function () {
 
         let removedSupply = numaSupply / BigInt(2);
        
-        await VM.setDecayValues(removedSupply,365*24*3600);
+        await VM.setDecayValues(removedSupply,365*24*3600,0);
 
 
 
@@ -282,7 +282,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = ethers.parseEther("4000000");
-        await VM.setDecayValues(removedSupply,400*24*3600);
+        await VM.setDecayValues(removedSupply,400*24*3600,0);
 
 
         await VM.startDecay();
@@ -336,7 +336,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = numaSupply / BigInt(2);
-        await VM.setDecayValues(removedSupply,400*24*3600);
+        await VM.setDecayValues(removedSupply,400*24*3600,0);
 
 
         await VM.startDecay();
@@ -382,7 +382,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = numaSupply / BigInt(2);
-        await VM.setDecayValues(removedSupply,100*24*3600);
+        await VM.setDecayValues(removedSupply,100*24*3600,0);
 
 
         await VM.startDecay();
@@ -397,7 +397,7 @@ describe('NUMA VAULT', function () {
 
   
 
-        await VM.setDecayValues(removedSupply,100*24*3600);
+        await VM.setDecayValues(removedSupply,100*24*3600,0);
         await VM.startDecay();
 
 
@@ -444,7 +444,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = numaSupply / BigInt(2);
-        await VM.setDecayValues(removedSupply,400*24*3600);
+        await VM.setDecayValues(removedSupply,400*24*3600,0);
 
 
         await VM.startDecay();
@@ -459,7 +459,7 @@ describe('NUMA VAULT', function () {
 
   
 
-        await VM.setDecayValues(0,0);
+        await VM.setDecayValues(0,0,0);
 
         await VM.startDecay();
         // BUY
@@ -1003,6 +1003,12 @@ describe('NUMA VAULT', function () {
     await Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"),await owner.getAddress());
     let balafterLST = await rEth_contract.balanceOf(await owner.getAddress());
     expect(balafterLST - balbeforeLST).to.equal(ethers.parseEther("50"));
+
+
+    await Vault1.revokeWithdraw();
+
+    await expect(Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"),await owner.getAddress())).to.be.reverted;
+
   });
 
   it('with another vault', async function () 

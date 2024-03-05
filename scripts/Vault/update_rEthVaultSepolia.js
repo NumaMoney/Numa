@@ -55,7 +55,7 @@ async function main () {
  
     let numa = await hre.ethers.getContractAt("NUMA", numa_address);
     let VMO_ADDRESS = "0x331f74F3270d4EdB7F509D75565dafF7D5428dC2";
- 
+    let VM_ADDRESS = "0xF6b774a90854Aa1245dfA1E612d082E0F8f780b5";
 
    // - deploy new vault
    // - pause vault1, revoke minting role
@@ -78,31 +78,38 @@ async function main () {
     // 
 
    // vault1 rETH
-   let Vault2 = await ethers.deployContract("NumaVault",
-   [numa_address,LST_ADDRESS,ethers.parseEther("1"),VMO_ADDRESS]);
-   await Vault2.waitForDeployment();
+//    let Vault2 = await ethers.deployContract("NumaVault",
+//    [numa_address,LST_ADDRESS,ethers.parseEther("1"),VMO_ADDRESS]);
+//    await Vault2.waitForDeployment();
+
+let Vault2  =  await hre.ethers.getContractAt("NumaVault", "0x1c027eb3A6216A0cD6428F8577D231A0EfCA3F50");;
    let VAULT2_ADDRESS = await Vault2.getAddress();
    console.log('vault rETH address: ', VAULT2_ADDRESS);
 
    // pause V1
    let V1_ADDRESS = "0x777DC0e09be08171E0ed656A2BE98AeE427F8Ba3";
-   let V1 = await hre.ethers.getContractAt("NumaVault", VM_ADDRESS);;
-   await V1.pause();
+   let V1 = await hre.ethers.getContractAt("NumaVault", V1_ADDRESS);;
+  // await V1.pause();
    // just in case
    await numa.revokeRole(roleMinter, V1_ADDRESS);
 
     //
-    let VM_ADDRESS = "0xF6b774a90854Aa1245dfA1E612d082E0F8f780b5";
+    
     let VM = await hre.ethers.getContractAt("VaultManager", VM_ADDRESS);;
 
-    await VM.removeVault(V1_ADDRESS);
+    // await VM.removeVault(V1_ADDRESS);
 
-    console.log("number of vaults should be 0");
+    // console.log("number of vaults should be 0");
+    // console.log(await VM.getVaults());
+
+    // await VM.addVault(VAULT2_ADDRESS);
+    // console.log("number of vaults should be 1");
     console.log(await VM.getVaults());
 
-    await VM.addVault(VAULT2_ADDRESS);
-    console.log("number of vaults should be 1");
-    console.log(await VM.getVaults());
+
+
+// **************
+
 
     await Vault2.setVaultManager(VM_ADDRESS);
 
@@ -123,7 +130,7 @@ async function main () {
 
    // TODO transfer rETH to vault to initialize price
    let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);
-   await V1.withdrawToken(LST_ADDRESS,await lstToken.balanceOf(VAULT1_ADDRESS),VAULT2_ADDRESS) ;
+   await V1.withdrawToken(LST_ADDRESS,await lstToken.balanceOf(V1_ADDRESS),VAULT2_ADDRESS) ;
 
    // TODO: deploy front end
   
