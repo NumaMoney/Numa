@@ -11,6 +11,8 @@ import "../Numa.sol";
 
 import "../interfaces/INuAssetManager.sol";
 
+
+
 contract VaultManager is IVaultManager, Ownable2Step {
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
@@ -19,13 +21,12 @@ contract VaultManager is IVaultManager, Ownable2Step {
     NUMA public immutable numa;
     //EnumerableSet.AddressSet removedSupplyAddresses;
 
-    uint initialRemovedSupply;
-    uint decayPeriod;
-    uint startTime;
-    bool isDecaying;
-    uint16 private constant DECAY_BASE = 10000;
-
-
+    uint public initialRemovedSupply;
+    uint public constantRemovedSupply;
+    uint public decayPeriod;
+    uint public startTime;
+    bool public isDecaying;
+   
 
     uint constant max_vault = 50;
     //uint constant max_addresses = 50;
@@ -33,8 +34,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
     event AddedVault(address);
-    event AddedToRemovesupply(address);
-    event RemovedFromRemovesupply(address);
+
 
     constructor(
         address _numaAddress,
@@ -52,10 +52,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
         isDecaying = true;
     }
 
-    function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod) external onlyOwner
+    function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod,uint _constantRemovedSupply) external onlyOwner
     {
         initialRemovedSupply = _initialRemovedSupply;
+        constantRemovedSupply = _constantRemovedSupply;
         decayPeriod = _decayPeriod;
+        // start decay will have to be called again
+        // CAREFUL: IF DECAYING, ALL VAULTS HAVE TO BE PAUSED WHEN CHANGING THESE VALUES, UNTIL startDecay IS CALLED
         isDecaying = false;
 
     }
@@ -190,62 +193,24 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint currentTime = block.timestamp;
         if (isDecaying && (currentTime > startTime) && (decayPeriod > 0))
         {
-            uint delta = ((currentTime - startTime) * DECAY_BASE)/decayPeriod;
-            if (delta >= DECAY_BASE)
+            
+            uint delta = ((currentTime - startTime) * initialRemovedSupply)/decayPeriod;
+            if (delta >= (initialRemovedSupply))
             {
                 currentRemovedSupply = 0;
             }
             else {
-                currentRemovedSupply -= (delta * initialRemovedSupply)/DECAY_BASE;                
+                currentRemovedSupply -= (delta);                
             }
 
         }
 
-     
-        circulatingNuma = circulatingNuma - currentRemovedSupply;
 
+        circulatingNuma = circulatingNuma - currentRemovedSupply - constantRemovedSupply;
 
-
-        // uint256 nbWalletsToRemove = removedSupplyAddresses.length();
-        // require(
-        //     nbWalletsToRemove < max_addresses,
-        //     "too many wallets to remove from supply"
-        // );
-        // // remove wallets balances from numa supply
-        // for (uint256 i = 0; i < nbWalletsToRemove; i++) {
-        //     uint bal = numa.balanceOf(removedSupplyAddresses.at(i));
-        //     circulatingNuma -= bal;
-        // }
         return circulatingNuma;
     }
 
-    // /**
-    //  * @dev list of wallets whose numa balance is removed from total supply
-    //  */
-    // function getRemovedWalletsList() external view returns (address[] memory) {
-    //     return removedSupplyAddresses.values();
-    // }
-
-    // /**
-    //  * @dev adds a wallet to wallets whose numa balance is removed from total supply
-    //  */
-    // function addToRemovedSupply(address _address) external onlyOwner {
-    //     require(
-    //         removedSupplyAddresses.length() < max_addresses,
-    //         "too many wallets in list"
-    //     );
-    //     require(removedSupplyAddresses.add(_address), "already in list");
-    //     emit AddedToRemovesupply(_address);
-    // }
-
-    // /**
-    //  * @dev removes a wallet to wallets whose numa balance is removed from total supply
-    //  */
-    // function removeFromRemovedSupply(address _address) external onlyOwner {
-    //     require(removedSupplyAddresses.contains(_address), "not in list");
-    //     removedSupplyAddresses.remove(_address);
-    //     emit RemovedFromRemovesupply(_address);
-    // }
 
     /**
      * @dev returns vaults list

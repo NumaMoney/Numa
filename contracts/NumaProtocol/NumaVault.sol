@@ -459,10 +459,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev Withdraw any ERC20 from vault
      */
-    // function withdrawToken(address _tokenAddress,uint256 _amount) external onlyOwner
-    // {
-    //     SafeERC20.safeTransfer(IERC20(_tokenAddress),msg.sender,_amount);
-    // }
+    function withdrawToken(address _tokenAddress,uint256 _amount,address _receiver) external onlyOwner
+    {
+        SafeERC20.safeTransfer(IERC20(_tokenAddress),_receiver,_amount);
+    }
 
     function isContract(address addr) internal view returns (bool) {
         uint extSize;
