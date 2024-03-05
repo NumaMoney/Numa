@@ -1,7 +1,9 @@
 // ************* Arbitrum deployment ************************
 // deployer: 0x96bad7E7236BC8EdCE36A9dA71288a39c7638F9a
-// gnosis safe test multi sig: arb1:0x218221CA9740d20e40CFca1bfA6Cb0B22F11b157
-// addresses on arbitrum
+
+
+
+// TODO: CONFIRM
 let numa_address = "0x7FB7EDe54259Cb3D4E1EaF230C7e2b1FfC951E9A";
 let rETH_ADDRESS = "0xec70dcb4a1efa46b8f2d97c310c9c4790ba5ffa8";
 let RETH_FEED = "0xF3272CAfe65b190e76caAF483db13424a3e23dD2";
@@ -23,33 +25,16 @@ let rEth_heartbeat = 86400;
 // 0x52fAb8465f3ce229Fd104FD8155C02990A0E1326
 
 
-let FEE_ADDRESS = "";
-let RWD_ADDRESS = "";
-let newOwner_ADDRESS = "";
+let FEE_ADDRESS = "0xe5F8aA3f4000Bc6A0F07E9E3a1b9C9A3d48ed4a4";
+let RWD_ADDRESS = "0x52fAb8465f3ce229Fd104FD8155C02990A0E1326";
+let newOwner_ADDRESS = "0xFC4B72FD6309d2E68B595c56EAcb256D2fE9b881";
+
+// TODO CONFIRM
 let decayAmount = "1800000";
 let constantRemoved = "500000";
 let decayPeriod = 365 * 24*3600;
+// TODO burn
 let burnAmount = "5000000";
-
-// ** check addresses
-
-// ** ask for drew to give me admin rôle on numa
-// TODO: voir comment faire
-
-// numbers
-//203 ETH
-// 0.00203
-//0.0203 --> scale = 10000
-// 0.00203 --> scale = 100 000
-
-// current numa supply: 9387552966147424416516814
-// scaled supply = 938755296614742441651 / 93875529661474244165
-// whitelist amount = 1 800 000 000000000000000000
-// scaled wl amount = 1 800 000 00000000000000 / 1 800 000 0000000000000
-
-// 0.00203 / 93875529661474244165 / 18000000000000000000
-
-
 
 
 
@@ -117,8 +102,9 @@ async function main () {
    await Vault1.setRwdAddress(RWD_ADDRESS,false);
 
    // allow vault to mint numa
-   let numa = await hre.ethers.getContractAt("NUMA", numa_address);
-   await numa.grantRole(roleMinter, VAULT1_ADDRESS);
+   // TODO: etherscan, 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6
+   //let numa = await hre.ethers.getContractAt("NUMA", numa_address);
+   //await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
    await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod,ethers.parseEther(constantRemoved));
 

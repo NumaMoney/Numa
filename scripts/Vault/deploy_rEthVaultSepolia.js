@@ -38,133 +38,134 @@ const { ethers, upgrades } = require("hardhat");
 const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
 // npx hardhat run --network kovan scripts/deploy_erc20.js
 async function main () {
+   console.log(roleMinter);
     
-    const [signer] = await ethers.getSigners();
+//     const [signer] = await ethers.getSigners();
  
-    let FEE_ADDRESS = await signer.getAddress();
-    let RWD_ADDRESS = await signer.getAddress();
+//     let FEE_ADDRESS = await signer.getAddress();
+//     let RWD_ADDRESS = await signer.getAddress();
 
 
-    // DEPLOY NUMA
-    // const Numa = await ethers.getContractFactory('NUMA')
-    // const contract = await upgrades.deployProxy(
-    // Numa,
-    //     [],
-    //     {
-    //         initializer: 'initialize',
-    //         kind:'uups'
-    //     }
-    // )
-    // await contract.waitForDeployment();
-    // console.log('Numa deployed to:', await contract.getAddress());
+//     // DEPLOY NUMA
+//     // const Numa = await ethers.getContractFactory('NUMA')
+//     // const contract = await upgrades.deployProxy(
+//     // Numa,
+//     //     [],
+//     //     {
+//     //         initializer: 'initialize',
+//     //         kind:'uups'
+//     //     }
+//     // )
+//     // await contract.waitForDeployment();
+//     // console.log('Numa deployed to:', await contract.getAddress());
 
-    // await contract.mint(
-    //     signer.getAddress(),
-    //     ethers.parseEther("10000000.0")
-    //   );
+//     // await contract.mint(
+//     //     signer.getAddress(),
+//     //     ethers.parseEther("10000000.0")
+//     //   );
 
 
    
 
-   // *********************** nuAssetManager **********************************
-   let nuAM = await ethers.deployContract("nuAssetManager",
-   ["0x0000000000000000000000000000000000000000"]// no sequencer up feed on sepolia
-   );
-   await nuAM.waitForDeployment();
-   let NUAM_ADDRESS = await nuAM.getAddress();
-   console.log('nuAssetManager address: ', NUAM_ADDRESS);
+//    // *********************** nuAssetManager **********************************
+//    let nuAM = await ethers.deployContract("nuAssetManager",
+//    ["0x0000000000000000000000000000000000000000"]// no sequencer up feed on sepolia
+//    );
+//    await nuAM.waitForDeployment();
+//    let NUAM_ADDRESS = await nuAM.getAddress();
+//    console.log('nuAssetManager address: ', NUAM_ADDRESS);
 
 
-   console.log('initial synth value: ', await nuAM.getTotalSynthValueEth());
+//    console.log('initial synth value: ', await nuAM.getTotalSynthValueEth());
 
 
-   // *********************** vaultManager **********************************
-   let VM = await ethers.deployContract("VaultManager",
-   [numa_address,NUAM_ADDRESS]);
+//    // *********************** vaultManager **********************************
+//    let VM = await ethers.deployContract("VaultManager",
+//    [numa_address,NUAM_ADDRESS]);
 
-   await VM.waitForDeployment();
-   let VM_ADDRESS = await VM.getAddress();
-   console.log('vault manager address: ', VM_ADDRESS);
-
-
+//    await VM.waitForDeployment();
+//    let VM_ADDRESS = await VM.getAddress();
+//    console.log('vault manager address: ', VM_ADDRESS);
 
 
-   // using custom MockOracle as we don't have rEth chainlink feeds on sepolia
-   let VMO = await ethers.deployContract("VaultMockOracle",[]);
-   await VMO.waitForDeployment();
-   let VMO_ADDRESS= await VMO.getAddress();
+
+
+//    // using custom MockOracle as we don't have rEth chainlink feeds on sepolia
+//    let VMO = await ethers.deployContract("VaultMockOracle",[]);
+//    await VMO.waitForDeployment();
+//    let VMO_ADDRESS= await VMO.getAddress();
   
 
-   // and custom lst token
-//    let lstToken = await ethers.deployContract("LstTokenMock",[await signer.getAddress()]);
-//    await lstToken.waitForDeployment();
-//    let LST_ADDRESS = await lstToken.getAddress();
+//    // and custom lst token
+// //    let lstToken = await ethers.deployContract("LstTokenMock",[await signer.getAddress()]);
+// //    await lstToken.waitForDeployment();
+// //    let LST_ADDRESS = await lstToken.getAddress();
   
 
-   // vault1 rETH
-   //let numa_address = await contract.getAddress();
-   let Vault1 = await ethers.deployContract("NumaVault",
-   [numa_address,LST_ADDRESS,ethers.parseEther("1"),VMO_ADDRESS]);
+//    // vault1 rETH
+//    //let numa_address = await contract.getAddress();
+//    let Vault1 = await ethers.deployContract("NumaVault",
+//    [numa_address,LST_ADDRESS,ethers.parseEther("1"),VMO_ADDRESS]);
    
 
-   await Vault1.waitForDeployment();
-   let VAULT1_ADDRESS = await Vault1.getAddress();
-   console.log('vault rETH address: ', VAULT1_ADDRESS);
+//    await Vault1.waitForDeployment();
+//    let VAULT1_ADDRESS = await Vault1.getAddress();
+//    console.log('vault rETH address: ', VAULT1_ADDRESS);
 
 
 
 
-   await VM.addVault(VAULT1_ADDRESS);
-   await Vault1.setVaultManager(VM_ADDRESS);
+//    await VM.addVault(VAULT1_ADDRESS);
+//    await Vault1.setVaultManager(VM_ADDRESS);
 
-   // fee address
-   // use a contract to repro revert in etherscan
-   FEE_ADDRESS = VAULT1_ADDRESS;
-   RWD_ADDRESS = VAULT1_ADDRESS;
-   await Vault1.setFeeAddress(FEE_ADDRESS,false);
-   await Vault1.setRwdAddress(RWD_ADDRESS,false);
+//    // fee address
+//    // use a contract to repro revert in etherscan
+//    FEE_ADDRESS = VAULT1_ADDRESS;
+//    RWD_ADDRESS = VAULT1_ADDRESS;
+//    await Vault1.setFeeAddress(FEE_ADDRESS,false);
+//    await Vault1.setRwdAddress(RWD_ADDRESS,false);
 
-   // allow vault to mint numa
-   let numa = await hre.ethers.getContractAt("NUMA", numa_address);
-   await numa.grantRole(roleMinter, VAULT1_ADDRESS);
+//    // allow vault to mint numa
+//    let numa = await hre.ethers.getContractAt("NUMA", numa_address);
+//    await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
-   // TODO: decay amount/period
-   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod);
-
-
-
-   // transfer rETH to vault to initialize price
-   let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);
-   await lstToken.transfer(VAULT1_ADDRESS, ethers.parseEther("2000"));
-
-   await Vault1.setBuyFee(750);//25%
-
-   await VM.startDecay();
-
-
-   await Vault1.unpause();
+//    // TODO: decay amount/period
+//    await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod);
 
 
 
+//    // transfer rETH to vault to initialize price
+//    let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);
+//    await lstToken.transfer(VAULT1_ADDRESS, ethers.parseEther("2000"));
+
+//    await Vault1.setBuyFee(750);//25%
+
+//    await VM.startDecay();
 
 
-   // TODO grant ownership to owner
-   // TOKEN
-//    await myToken.grantRole(rolePauser, newRoleOwnerAddress);
-//    await myToken.grantRole(roleMinter, newRoleOwnerAddress);
-//    await myToken.grantRole(roleUpgrade, newRoleOwnerAddress);
-//    await myToken.grantRole(roleAdmin, newRoleOwnerAddress);
+//    await Vault1.unpause();
 
-//    // renounce 
-//    await myToken.renounceRole(rolePauser, owner.address);
-//    await myToken.renounceRole(roleMinter, owner.address);
-//    await myToken.renounceRole(roleUpgrade, owner.address);
-//    await myToken.renounceRole(roleAdmin, owner.address);
 
-// await Vault1.transferOwnership(newOwnerAddress);
-// await nuAM.transferOwnership(newOwnerAddress);
-// await VO.transferOwnership(newOwnerAddress);
-// await VM.transferOwnership(newOwnerAddress);
+
+
+
+//    // TODO grant ownership to owner
+//    // TOKEN
+// //    await myToken.grantRole(rolePauser, newRoleOwnerAddress);
+// //    await myToken.grantRole(roleMinter, newRoleOwnerAddress);
+// //    await myToken.grantRole(roleUpgrade, newRoleOwnerAddress);
+// //    await myToken.grantRole(roleAdmin, newRoleOwnerAddress);
+
+// //    // renounce 
+// //    await myToken.renounceRole(rolePauser, owner.address);
+// //    await myToken.renounceRole(roleMinter, owner.address);
+// //    await myToken.renounceRole(roleUpgrade, owner.address);
+// //    await myToken.renounceRole(roleAdmin, owner.address);
+
+// // await Vault1.transferOwnership(newOwnerAddress);
+// // await nuAM.transferOwnership(newOwnerAddress);
+// // await VO.transferOwnership(newOwnerAddress);
+// // await VM.transferOwnership(newOwnerAddress);
 
 
 
