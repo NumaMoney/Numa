@@ -20,6 +20,7 @@ contract LendingProtocol {
     /// @dev 365 days * 24 hours * 60 minutes * 60 seconds
     uint64 internal constant SECONDS_PER_YEAR = 31_536_000;
     uint256 borrowPerSecondInterestRateBase = 317097919;// 1% APY
+    uint64 baseBorrowIndex;
 
      /// @dev The scale for factors
     uint64 internal constant FACTOR_SCALE = 1e18;
@@ -124,27 +125,139 @@ contract LendingProtocol {
     // - rename functions by "borrow" (cf my function) and simplify
 
     /**
+     * @dev Calculate accrued interest indices for base token supply and borrows
+     **/
+    function accruedInterestIndices(uint timeElapsed) internal view returns (uint64) {
+        //uint64 baseSupplyIndex_ = baseSupplyIndex;
+        uint64 baseBorrowIndex_ = baseBorrowIndex;
+        if (timeElapsed > 0) {
+            //uint utilization = getUtilization();
+            //uint supplyRate = getSupplyRate(utilization);
+            uint borrowRate = getBorrowRate();
+            //baseSupplyIndex_ += safe64(mulFactor(baseSupplyIndex_, supplyRate * timeElapsed));
+            baseBorrowIndex_ += safe64(mulFactor(baseBorrowIndex_, borrowRate * timeElapsed));
+        }
+        return (baseBorrowIndex_);
+    }
+
+    
+    /**
+     * @dev Accrue interest (and rewards) in base token supply and borrows
+     **/
+    function accrueInternal() internal {
+        uint40 now_ = getNowInternal();
+        uint timeElapsed = uint256(now_ - lastAccrualTime);
+
+        if (timeElapsed > 0) {
+            baseBorrowIndex = accruedInterestIndices(timeElapsed);
+
+            if (totalBorrowBase >= baseMinForRewards) {
+                trackingBorrowIndex += safe64(divBaseWei(baseTrackingBorrowSpeed * timeElapsed, totalBorrowBase));
+            }
+            lastAccrualTime = now_;
+        }
+    }
+
+
+    /**
+     * @dev The principal amount projected forward by the borrow index
+     */
+    function presentValueBorrow(uint64 baseBorrowIndex_, uint104 principalValue_) internal pure returns (uint256) {
+        return uint256(principalValue_) * baseBorrowIndex_ / BASE_INDEX_SCALE;
+    }
+
+
+    /**
+     * @dev The positive present supply balance if positive or the negative borrow balance if negative
+     */
+    function presentValue(int104 principalValue_) internal view returns (int256) {
+        // if (principalValue_ >= 0) {
+        //     return signed256(presentValueSupply(baseSupplyIndex, uint104(principalValue_)));
+        // } else {
+            return -signed256(presentValueBorrow(baseBorrowIndex, uint104(-principalValue_)));
+        //}
+    }
+
+
+    /**
+     * @dev The change in principal broken into withdraw and borrow amounts
+     */
+    function withdrawAndBorrowAmount(int104 oldPrincipal, int104 newPrincipal) internal pure returns (uint104, uint104) {
+        // If the new principal is greater than the old principal, then no amount has been withdrawn or borrowed
+        if (newPrincipal > oldPrincipal) return (0, 0);
+
+        // TODO: simplify as we only borrow
+        if (newPrincipal >= 0) {
+            return (uint104(oldPrincipal - newPrincipal), 0);
+        } else if (oldPrincipal <= 0) {
+            return (0, uint104(oldPrincipal - newPrincipal));
+        } else {
+            return (uint104(oldPrincipal), uint104(-newPrincipal));
+        }
+    }
+
+     /**
+     * @dev Write updated principal to store and tracking participation
+     */
+    function updateBasePrincipal(address account, UserBasic memory basic, int104 principalNew) internal
+    {
+        // TODO: simplify as we only do borrows
+        int104 principal = basic.principal;
+        basic.principal = principalNew;
+
+        // if (principal >= 0) {
+        //     uint indexDelta = uint256(trackingSupplyIndex - basic.baseTrackingIndex);
+        //     basic.baseTrackingAccrued += safe64(uint104(principal) * indexDelta / trackingIndexScale / accrualDescaleFactor);
+        // } else {
+            // TODO: understand all the variables
+            // trackingBorrowIndex
+            // basic.baseTrackingIndex
+            // basic.baseTrackingAccrued
+            // trackingIndexScale
+            // accrualDescaleFactor
+
+            uint indexDelta = uint256(trackingBorrowIndex - basic.baseTrackingIndex);
+            basic.baseTrackingAccrued += safe64(uint104(-principal) * indexDelta / trackingIndexScale / accrualDescaleFactor);
+        //}
+
+        // if (principalNew >= 0) {
+        //     basic.baseTrackingIndex = trackingSupplyIndex;
+        // } else {
+            basic.baseTrackingIndex = trackingBorrowIndex;
+        //}
+
+        userBasic[account] = basic;
+    }
+
+
+    /**
      * @dev Withdraw an amount of base asset from src to `to`, borrowing if possible/necessary
      */
     function withdrawBase(address src, address to, uint256 amount) internal {
         accrueInternal();
 
-        // UserBasic memory srcUser = userBasic[src];
-        // int104 srcPrincipal = srcUser.principal;
-        // int256 srcBalance = presentValue(srcPrincipal) - signed256(amount);
-        // int104 srcPrincipalNew = principalValue(srcBalance);
+        UserBasic memory srcUser = userBasic[src];updateBasePrincipal
+        int104 srcPrincipal = srcUser.principal;// TODO: when is it set?
 
-        // (uint104 withdrawAmount, uint104 borrowAmount) = withdrawAndBorrowAmount(srcPrincipal, srcPrincipalNew);
+        // real balance after borrow
+        int256 srcBalance = presentValue(srcPrincipal) - signed256(amount);
+
+        // in principal using current interest rate
+        int104 srcPrincipalNew = principalValue(srcBalance);
+
+        (uint104 withdrawAmount, uint104 borrowAmount) = withdrawAndBorrowAmount(srcPrincipal, srcPrincipalNew);
 
         // totalSupplyBase -= withdrawAmount;
-        // totalBorrowBase += borrowAmount;
+        totalBorrowBase += borrowAmount;
 
-        // updateBasePrincipal(src, srcUser, srcPrincipalNew);
+        (src, srcUser, srcPrincipalNew);
 
-        // if (srcBalance < 0) {
-        //     if (uint256(-srcBalance) < baseBorrowMin) revert BorrowTooSmall();
-        //     if (!isBorrowCollateralized(src)) revert NotCollateralized();
-        // }
+        if (srcBalance < 0) {
+            if (uint256(-srcBalance) < baseBorrowMin) revert BorrowTooSmall();
+            if (!isBorrowCollateralized(src)) revert NotCollateralized();
+        }
+
+        // TODO: transfer tokens
 
         // doTransferOut(baseToken, to, amount);
 
