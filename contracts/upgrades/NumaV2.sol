@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
@@ -11,8 +11,8 @@ import "../NumaStore.sol";
 
 error NotUpgradable();
 
-// Numa upgrade that disable fee
-contract NUMAV2 is
+// Numa upgrade that removes upgradability
+contract NumaV2 is
     NumaStore,
     Initializable,
     ERC20Upgradeable,
@@ -67,6 +67,6 @@ contract NUMAV2 is
         address newImplementation
     ) internal override onlyRole(UPGRADER_ROLE) {
         // not upgradable anymore
-        //revert NotUpgradable();
+        revert NotUpgradable();
     }
 }

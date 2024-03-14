@@ -52,6 +52,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
         isDecaying = true;
     }
 
+    function setConstantRemovedSupply(uint _constantRemovedSupply) external onlyOwner
+    {
+        constantRemovedSupply = _constantRemovedSupply;
+    }
+
     function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod,uint _constantRemovedSupply) external onlyOwner
     {
         initialRemovedSupply = _initialRemovedSupply;
