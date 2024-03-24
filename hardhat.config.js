@@ -18,7 +18,15 @@ module.exports = {
       },
       {
         version: "0.8.20",
-      },
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
+          viaIR: true,
+        },
+
+    },
       {
         version: "0.8.0",
       },
@@ -48,7 +56,8 @@ module.exports = {
         //url: process.env.URL4,// sepolia
         url: process.env.URL5,// arbitrum
       },
-      allowUnlimitedContractSize: true
+      allowUnlimitedContractSize: true,
+      blockNumber: 187501896
     }
   },
 };
