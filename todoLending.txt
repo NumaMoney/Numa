@@ -2,13 +2,22 @@
 // feature: faisable/quoi modifier/ combien de temps
 
 
-// - supply numa / borrow rEth
-// - supply rEth / borrow numa
+// - supply numa 
+// - supply rEth 
 
-a verifier que numa supplied pour borrow de l'eth est utilisé as lending et réciproquement
 
-// CHECK VALUES: balances, interest rate, liquidation values, exchange rates etc... according to different steps in time
-// check all values from compound front end: interest rates, etc...
+
+// - borrow rEth
+// - borrow numa
+
+
+// TODO check values: log cf compound dashboard
+
+
+// ALL INTERACTIONS: REDEEM, LIQUIDATE
+// cf doc: https://docs.compound.finance/v2/ctokens/#:~:text=When%20a%20market%20is%20launched,exchange%20rate%20might%20equal%200.021591.
+
+// liquidate borrow et noter quand ça se produit et les incentives (pour voir ce qu'il faudra changer)
 
 // - custom oracle for numa price
 // - vault as a rEth supplier
@@ -28,6 +37,8 @@ a verifier que numa supplied pour borrow de l'eth est utilisé as lending et ré
 //       - offer flashloan option
 
 // - autres: relire Stiive msg
+// Add Synth_scaling_PID here? When CF<110%, start scaling every synth price down every 24hrs to democratize losses.
+// use cf to limit synth minting?
 
 // - test/liquidation tests/front end tests
 
@@ -35,12 +46,15 @@ a verifier que numa supplied pour borrow de l'eth est utilisé as lending et ré
 // ***************************** Q ************************
 // - supply rEth, get less rEth (rewards extracted)?
 // - rEth price for numa borrows, based on numa buy price?, but how it works with rewards extraction
+// - are the oracles in Eth?
 
 
+// NOTES
+
+ 0.05 < closeFactorMantissa < 0.9
 
 
-
-
+--> on ne peut pas rembourser plus (by liquidation) que 90% du borrow amount et moins que 5%
 
 
 

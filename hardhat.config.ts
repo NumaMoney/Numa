@@ -49,6 +49,12 @@ const config: HardhatUserConfig = {
       },
       {
         version: "0.8.20",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
       },
       {
         version: "0.8.0",
@@ -57,7 +63,7 @@ const config: HardhatUserConfig = {
     
   },
   defaultNetwork: "hardhat",
-  
+  allowUnlimitedContractSize: true,
   networks: {
     sepolia: {
       url: process.env.URL,
