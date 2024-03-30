@@ -29,12 +29,17 @@ contract VaultManager is IVaultManager, Ownable2Step {
    
 
     uint constant max_vault = 50;
-    //uint constant max_addresses = 50;
+    uint constant BASE_1000 = 1000;
+
 
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
     event AddedVault(address);
 
+
+    // collateral factor
+    // TODO: set & event
+    uint public maxCF = 2000;// 200%
 
     constructor(
         address _numaAddress,
@@ -173,6 +178,34 @@ contract VaultManager is IVaultManager, Ownable2Step {
             );
         return result;
 
+    }
+
+
+    // function GetCollateralFactor() external view returns (uint256)
+    // { 
+    //     uint synthValueInEth = getTotalSynthValueEth();
+    //     uint EthBalance = getTotalBalanceEth();
+
+    //     require(
+    //         EthBalance > synthValueInEth,
+    //         "vault is empty or synth value is too big"
+    //     );
+    //     uint collateralFactor = FullMath.mulDiv(EthBalance,1e18,synthValueInEth);
+    //     return collateralFactor;
+    // }
+
+
+    function GetMaxBorrowEth() external view returns (uint256)
+    { 
+        uint synthValueInEth = getTotalSynthValueEth();
+        uint EthBalance = getTotalBalanceEth();
+
+        require(
+            EthBalance > synthValueInEth,
+            "vault is empty or synth value is too big"
+        );
+        uint result = EthBalance - FullMath.mulDiv(synthValueInEth,maxCF,BASE_1000);
+        return result;
     }
 
 

@@ -62,6 +62,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     bool isWithdrawRevoked = false;
 
+
+    uint debt;
+
     // Events
     event SetOracle(address oracle);
     event SetVaultManager(address vaultManager);
@@ -272,6 +275,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function getEthBalance() external view returns (uint256) {
         require(address(oracle) != address(0), "oracle not set");
         uint balance = lstToken.balanceOf(address(this));
+        
+        balance += debt;
         // we use last reference value for balance computation
         uint result = FullMath.mulDiv(last_lsttokenvalueWei, balance, decimals);
         return result;

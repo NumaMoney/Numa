@@ -94,12 +94,17 @@ let IMV2 = await ethers.getContractAt("BaseJumpRateModelV2", IM_address);
 // await IMV2.updateJumpRateModel(ethers.parseEther('0.02'),ethers.parseEther('0.18')
 // ,ethers.parseEther('4'),ethers.parseEther('0.8'));
 
-console.log("cancelling interest rates");
+
 await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
 ,ethers.parseEther('0'),ethers.parseEther('1'));
 
 
+  console.log(cTokens);
   // userA will deposit numa and borrow rEth
+  console.log("numa ctoken");
+  console.log(await cNuma.getAddress());
+  console.log("reth ctoken");
+  console.log(await clstETH.getAddress());
   await comptroller.connect(userA).enterMarkets([cNuma.getAddress()]);
 
 
@@ -116,8 +121,8 @@ await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
   // get associated signer
   const signer = await ethers.getSigner(numawhale);
 
-  // console.log(await signer.getAddress());
-  // console.log(await numa.balanceOf(signer.getAddress()));
+  console.log(await signer.getAddress());
+  console.log(await numa.balanceOf(signer.getAddress()));
  // not needed as I already transfered
  let balNuma = await numa.balanceOf(userA.getAddress());
 
@@ -127,19 +132,21 @@ await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
    console.log("transferring numas");
    await numa.connect(signer).transfer(userA.getAddress(),numaDepositAmount);
  }
-
- // approve
- await numa.connect(userA).approve(await cNuma.getAddress(),numaDepositAmount);
- // deposit (mint cnuma)
- console.log("deposit numa");
- console.log(ethers.formatEther(numaDepositAmount));
- await cNuma.connect(userA).mint(numaDepositAmount);
+ else
+ {
+  console.log("numa balance");
+  console.log(balNuma);
+ }
+  console.log(await numa.balanceOf(userA.getAddress()));
+  // approve
+  await numa.connect(userA).approve(await cNuma.getAddress(),numaDepositAmount);
+  await cNuma.connect(userA).mint(numaDepositAmount);
 
  console.log(await cNuma.balanceOf(userA.getAddress()));
  
 
  // userB mints crEth
- //console.log(await reth.balanceOf(signer.getAddress()));
+ console.log(await reth.balanceOf(signer.getAddress()));
  // not needed as I already transfered
  let balREth = await reth.balanceOf(userB.getAddress());
  if (balREth === 0n)
@@ -147,16 +154,12 @@ await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
   console.log("transferring rEth");
   await reth.connect(signer).transfer(userB.getAddress(),ethers.parseEther("100"));
  }
-
+  console.log(await reth.balanceOf(userB.getAddress()));
   // approve
-  let rethdepositamount = ethers.parseEther("10");
-  await reth.connect(userB).approve(await clstETH.getAddress(),rethdepositamount);
+  await reth.connect(userB).approve(await clstETH.getAddress(),ethers.parseEther("10"));
+  await clstETH.connect(userB).mint(ethers.parseEther("10"));
 
-  console.log("deposit rEth");
-  console.log(ethers.formatEther(rethdepositamount));
-  await clstETH.connect(userB).mint(rethdepositamount);
-
-  console.log(await clstETH.balanceOf(userB.getAddress()));
+ console.log(await clstETH.balanceOf(userB.getAddress()));
 
 
 
@@ -166,6 +169,8 @@ await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
  // exchangeRateCurrent
  let numa_borrowRatePerBlock = await cNuma.borrowRatePerBlock();
  let numa_supplyRatePerBlock = await cNuma.supplyRatePerBlock();
+ //let numa_totalBorrowsCurrent = await cNuma.totalBorrowsCurrent();
+
  let numa_borrowIndex = await cNuma.borrowIndex();
  let numa_totalBorrows = await cNuma.totalBorrows();
  let numa_totalReserves = await cNuma.totalReserves();
@@ -247,29 +252,20 @@ await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
 
 
  // borrow numa
- console.log("**************** Borrow numa *****************************");
+ console.log("borrow numa");
 
  let bal = await numa.balanceOf(userB.getAddress());
- console.log('balance bef '+ ethers.formatEther(bal));
+ console.log('balance before '+ bal);
 
  // need to enter market to be able to borrow?
  await comptroller.connect(userB).enterMarkets([clstETH.getAddress()]);
- await cNuma.connect(userB).borrow(ethers.parseEther("1"));
+
+
+ //await cNuma.connect(userB).borrow(ethers.parseEther("1"));
+ await cNuma.connect(userB).borrow(ethers.parseEther("36000"));
  bal = await numa.balanceOf(userB.getAddress());
- console.log('balance aft '+ ethers.formatEther(bal));
- printAccountLiquidity(await userB.getAddress(),comptroller);
+ console.log('balance after '+ bal);
 
- console.log("**************** Borrow reth *****************************");
-
- let bal2 = await reth.balanceOf(userA.getAddress());
- console.log('balance bef '+ ethers.formatEther(bal2));
-
- // need to enter market to be able to borrow?
- await comptroller.connect(userA).enterMarkets([cNuma.getAddress()]);
- await clstETH.connect(userA).borrow(ethers.parseEther("1"));
- bal2 = await reth.balanceOf(userA.getAddress());
- console.log('balance aft '+ ethers.formatEther(bal2));
- printAccountLiquidity(await userA.getAddress(),comptroller);
 
 
 
@@ -283,28 +279,28 @@ await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
 //  console.log('balance after '+ bal);
 
 
-//  console.log("************************* STATS AFER BORROW **********************************");
-//  console.log("************************* CNUMA **********************************");
-//  // total borrow
-//  numa_totalBorrows = await cNuma.totalBorrows();
-//  console.log("numa_totalBorrows");
-//  console.log(ethers.formatEther(numa_totalBorrows));
+ console.log("************************* STATS AFER BORROW **********************************");
+ console.log("************************* CNUMA **********************************");
+ // total borrow
+ numa_totalBorrows = await cNuma.totalBorrows();
+ console.log("numa_totalBorrows");
+ console.log(ethers.formatEther(numa_totalBorrows));
 
-//  // collateral factor
-//  console.log("collateral factor");
-//  res = await comptroller.markets(await cNuma.getAddress());
-//  console.log(ethers.formatEther(res[1]));
+ // collateral factor
+ console.log("collateral factor");
+ res = await comptroller.markets(await cNuma.getAddress());
+ console.log(ethers.formatEther(res[1]));
 
-//  //
-//  console.log("utilization");
-//  getCashPrior = await numa.balanceOf(await cNuma.getAddress());//cNuma.getCashPrior();
+ //
+ console.log("utilization");
+ getCashPrior = await numa.balanceOf(await cNuma.getAddress());//cNuma.getCashPrior();
 
-//  totalReserves = await cNuma.totalReserves();
+ totalReserves = await cNuma.totalReserves();
  
 
 
-//  utilizationRate = await IM.utilizationRate(getCashPrior,numa_totalBorrows,totalReserves);
-//  console.log(utilizationRate);
+ utilizationRate = await IM.utilizationRate(getCashPrior,numa_totalBorrows,totalReserves);
+ console.log(utilizationRate);
 
 
 
@@ -312,73 +308,73 @@ await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
 
 
 
-//  // LIQUIDATE
-//  // liquidateBorrow
+ // LIQUIDATE
+ // liquidateBorrow
 
-//  // liquidate numa borrower
-//  // is he liquiditable?
-//  // rEth supplied as collateral
-//  // 
+ // liquidate numa borrower
+ // is he liquiditable?
+ // rEth supplied as collateral
+ // 
 
-//  reth_exchangeRateCurrent = await clstETH.exchangeRateStored();
-//  console.log("reth exchange rate");
-//  console.log(reth_exchangeRateCurrent);
-
-
-//  console.log("reth supplied");
-//  console.log(ethers.formatEther(reth_totalSupply));
-
-//  console.log("numa borrowed");
-//  console.log(ethers.formatEther(numa_totalBorrows));
+ reth_exchangeRateCurrent = await clstETH.exchangeRateStored();
+ console.log("reth exchange rate");
+ console.log(reth_exchangeRateCurrent);
 
 
-// //  cToken: 'cNuma',
-// //  underlying: numaAddress,
-// //  underlyingPrice:'500000000000000000',
-// //  collateralFactor: '800000000000000000',
+ console.log("reth supplied");
+ console.log(ethers.formatEther(reth_totalSupply));
 
-// //  cToken: 'clstETH',
-// //  underlying: rethAddress,
-// //  underlyingPrice: '3000000000000000000000',
-// //  collateralFactor: '600000000000000000',
+ console.log("numa borrowed");
+ console.log(ethers.formatEther(numa_totalBorrows));
 
-// // exchange rate 200000000000000000000000000n
-// // 200000000
 
-// // rEth supplied = 0.00000005
-// // 0.00000005 x 3000000000000000000000 = 0.00000005 x 3000 = 0.00015
-// // x exchangerate = 200000000 x 0.00015 = 30000
-// // x collateralFactor = 600000000000000000 = 0.6 = 18000
+//  cToken: 'cNuma',
+//  underlying: numaAddress,
+//  underlyingPrice:'500000000000000000',
+//  collateralFactor: '800000000000000000',
+
+//  cToken: 'clstETH',
+//  underlying: rethAddress,
+//  underlyingPrice: '3000000000000000000000',
+//  collateralFactor: '600000000000000000',
+
+// exchange rate 200000000000000000000000000n
+// 200000000
+
+// rEth supplied = 0.00000005
+// 0.00000005 x 3000000000000000000000 = 0.00000005 x 3000 = 0.00015
+// x exchangerate = 200000000 x 0.00015 = 30000
+// x collateralFactor = 600000000000000000 = 0.6 = 18000
  
-// // numa borrowed = X
-// // X x 0.5 = 0.5 X
+// numa borrowed = X
+// X x 0.5 = 0.5 X
 
 
 
-//  let resliq = await comptroller.getAccountLiquidity(await userB.getAddress());
-//  console.log("userB (numa borrower) liquidity:")
-//  console.log(resliq);
+ let resliq = await comptroller.getAccountLiquidity(await userB.getAddress());
+ console.log("userB (numa borrower) liquidity:")
+ console.log(resliq);
 
-//  // we have 18000 collat for a borrow of 36000 x 0.5
-//  // change some price to be liquiditable
-// //  let fakeOracle = await ethers.getContractAt("NumaPriceOracle", priceOracle);;
-// //  await fakeOracle.setUnderlyingPrice(await cNuma.getAddress(),ethers.parseEther("1"));
+ // we have 18000 collat for a borrow of 36000 x 0.5
+ // change some price to be liquiditable
+//  let fakeOracle = await ethers.getContractAt("NumaPriceOracle", priceOracle);;
+//  await fakeOracle.setUnderlyingPrice(await cNuma.getAddress(),ethers.parseEther("1"));
 
-//  resliq = await comptroller.getAccountLiquidity(await userB.getAddress());
-//  console.log("userB (numa borrower) liquidity after changing numa price:")
-//  printAccountLiquidity(await userB.getAddress(),comptroller);
+ resliq = await comptroller.getAccountLiquidity(await userB.getAddress());
+ console.log("userB (numa borrower) liquidity after changing numa price:")
+ printAccountLiquidity(await userB.getAddress(),comptroller);
 
 
-//  // liquidate numa borrower and check received incentives and check balances
+ // liquidate numa borrower and check received incentives and check balances
 
-//  // how much collateral have been seized?
-// let collatBefore = await clstETH.balanceOf(await userB.getAddress());
-// console.log("collateral before");
-// console.log(collatBefore);
+ // how much collateral have been seized?
+let collatBefore = await clstETH.balanceOf(await userB.getAddress());
+console.log("collateral before");
+console.log(collatBefore);
 
-// let receivedBefore = await clstETH.balanceOf(await deployer.getAddress());
-// console.log("received before");
-// console.log(receivedBefore);
+let receivedBefore = await clstETH.balanceOf(await deployer.getAddress());
+console.log("received before");
+console.log(receivedBefore);
 
 // INCENTIVE
 // await comptroller._setLiquidationIncentive(ethers.parseEther("1.08"));

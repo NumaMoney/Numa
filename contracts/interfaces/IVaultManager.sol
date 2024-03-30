@@ -18,4 +18,7 @@ interface IVaultManager {
 
 
     function isVault(address _addy) external view returns (bool);
+
+    
+    function GetMaxBorrowEth() external view returns (uint256);
 }

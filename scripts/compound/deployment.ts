@@ -13,10 +13,14 @@ import {
   CEther__factory,
   Comptroller,
   Comptroller__factory,
+  NumaComptroller,
   JumpRateModelV2__factory,
   LegacyJumpRateModelV2__factory,
+  NumaComptroller__factory,
   SimplePriceOracle,
   SimplePriceOracle__factory,
+  NumaPriceOracle,
+  NumaPriceOracle__factory,
   WhitePaperInterestRateModel,
   WhitePaperInterestRateModel__factory,
 } from '../../typechain-types';
@@ -245,15 +249,8 @@ export async function deployCErc20Immutable(
   overrides?: Overrides
 ): Promise<CErc20Immutable> {
 
-  console.log("deploy ctoken");
-  // console.log(args.underlying);
-  // console.log(args.comptroller);
-  // console.log(args.interestRateModel);
-  // console.log(args.initialExchangeRateMantissa);
-  // console.log(args.name);
-  // console.log(args.symbol);
-  // console.log(args.decimals);
-  // console.log(args.admin);
+
+
   return new CErc20Immutable__factory(deployer).deploy(
     args.underlying,
     args.comptroller,
@@ -346,17 +343,18 @@ async function deployNumaCTokens(
   //   else 
   //   {
     // 
-    console.log(await cToken.getAddress());
+
     // for now hardcoded prices
-      console.log("setting underlying price");
-      await priceOracle.setUnderlyingPrice(await cToken.getAddress(), u.underlyingPrice || 0, overrides);
+    // not needed anymore
+      //console.log("setting underlying price");
+      //await priceOracle.setUnderlyingPrice(await cToken.getAddress(), u.underlyingPrice || 0, overrides);
   //   }
 
-    if (u.collateralFactor) 
-    {
-      console.log("setting collateral factor");
-      await comptroller._setCollateralFactor(await cToken.getAddress(), u.collateralFactor, overrides);
-    }
+    // if (u.collateralFactor) 
+    // {
+    //   console.log("setting collateral factor");
+    //   await comptroller._setCollateralFactor(await cToken.getAddress(), u.collateralFactor, overrides);
+    // }
 
      cTokens.push(cToken);
   }
@@ -374,7 +372,7 @@ export async function deployNumaCToken(
   if ('implementation' in args) {
     return deployCErc20Delegator(args as CErc20DelegatorArgs, deployer, overrides);
   }
-  console.log("deploy immutable erc20");
+ // console.log("deploy immutable erc20");
   return deployCErc20Immutable(args, deployer, overrides);
 }
 
@@ -399,12 +397,13 @@ async function deployNumaInterestRateModels(
         overrides
       );
     } else if (item.type === InterestRateModelType.LegacyJumpRateModelV2) {
+      // disabled
     //  console.log("LegacyJumpRateModelV2");
-      model = await deployLegacyJumpRateModelV2(
-        item.args as LegacyJumpRateModelV2Args,
-        deployer,
-        overrides
-      );
+      // model = await deployLegacyJumpRateModelV2(
+      //   item.args as LegacyJumpRateModelV2Args,
+      //   deployer,
+      //   overrides
+      // );
     } else {
     //  console.log("JumpRateModelV2");
       model = await deployJumpRateModelV2(item.args as JumpRateModelV2Args, deployer, overrides);
@@ -417,15 +416,15 @@ async function deployNumaInterestRateModels(
 export async function deployNumaComptroller(
   deployer: SignerWithAddress,
   overrides?: Overrides
-): Promise<Comptroller> {
-  return new Comptroller__factory(deployer).deploy(overrides);
+): Promise<NumaComptroller> {
+  return new NumaComptroller__factory(deployer).deploy(overrides);
 }
 
 export async function deployNumaPriceOracle(
   deployer: SignerWithAddress,
   overrides?: Overrides
-): Promise<SimplePriceOracle> {
-  return new SimplePriceOracle__factory(deployer).deploy(overrides);
+): Promise<NumaPriceOracle> {
+  return new NumaPriceOracle__factory(deployer).deploy(overrides);
 }
 
 export async function deployNumaCompoundV2(
@@ -458,6 +457,7 @@ export async function deployNumaCompoundV2(
     deployer,
     overrides
   );
+  
 
   // cTokenLikes.map((_ctoken, index) => {
   //   console.log(`#5-${index + 1} CTokens Deployed at: ', ${_ctoken.getAddress()}`);
@@ -468,6 +468,7 @@ export async function deployNumaCompoundV2(
     cTokens[u.cToken] = cTokenLikes[idx];
   });
 
+ 
   return {
     comptroller,
     priceOracle,
