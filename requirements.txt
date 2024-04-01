@@ -1,9 +1,9 @@
-- specific oracles for numa and lst token
-    ** TODO: check reth price
-- TODO add other tokens or redeploy a lending protocol (wsteth)
 
-- vault as a lender
-    --> see getCashPrior + dotransfer
+SINGLE MARKET 1 MARKET PER VAULT 
+    - oracle & prices
+    TODO different price for supply vs borrow?
+--> getUnderlyingPrice
+
 
     - use vault liquidity
     ** compute CF
@@ -11,19 +11,51 @@
     ** lenders are first
 
     - repay vault as a %, keep some utilization for lenders 20% (repay and liquidations)
-    - redeem 
 
+    - redeem --> rien a faire?
     - vault approve clst
 
 - lst management
+    --> proposal avec mon systeme de debtRwd
+
+
+2 possibilités:
+    - extract en proportion de repaid
+    - extract toute la debt 
+
+Commencer par 1. pour voir 2. --> eventuellement faire les deux: extract toute la debt si il ya assez de rEth
+
+TODO: extract at each borrow repay
+
+    suivre rewardsValue
+ATTENTION
+    - getSellNumaSimulateExtract doit simuler qu'on a aussi extrait les rewards de la debt
+    - getBuyNumaSimulateExtract/sell fonctionne? pourtant la balance ne change pas (j'avais confirmé que OK mais j'ai un doute)
+
+    - voir si c'est ok avec CF 
+
+REVOIR TOUT CE CODE DE DEBT REWARD + PRICE + CF --> etre sur que ok
 
 - remove unused code: comp distribution & governance
+OK
 
 - liquidations
+    ** test standart compound liquidations
+    ** custom liquidations/stiive incentives
+    ** use vault liquidity
+    ** flashloan?
+
+- start new script & tests
+
 
 - modif in vaults/vaultmanager: remove debt, add pid, collateral factor, + limit synths minting
 
 --> check how to deploy new vault manager, replace reth vault
+
+
+- TESTS
+
+- check specs (stiive messages) to see if I got it all
 
 Q:
 
@@ -118,9 +150,14 @@ No need to worry about changing the pricing feed to average since this always st
 
 re 2) liquidations would still work because rETH is first returned to vault to repay Numa loan, and then Numa is sold back into vault. Need to make sure this liquidation is all done in one txn, and will revert if someone steals the rETH (eg via sells) once debt is repaid and before Numa can be sold.
 
+**
 
+The main important thing is that borrowed rETH is removed from the CF equation.
 
+This is important such that when Numa is liquidated, the CF value goes up.
 
+However Numa price needs to account for the borrowed rETH to ensure Numa price does not change upon loan being taken out.
+When liquidated, Numa price will go up due to liquidation fee + vault fee of Numa being burned, and net rETH returned to vault.
 
 
 

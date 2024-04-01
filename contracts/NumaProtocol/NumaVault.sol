@@ -55,15 +55,18 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     // minimum input amount for buy/sell
     uint256 public constant MIN = 1000;
     //uint16 public constant DECAY_BASE_100 = 100;
-    uint16 public constant FEE_BASE_1000 = 1000;
+    uint16 public constant FEE_BASE_1000 = 1000;// todo rename base_1000
 
     // decimals of lst token
     uint256 immutable decimals;
 
     bool isWithdrawRevoked = false;
 
-
+    // collateral factor
+    // TODO: set & event
+    uint public maxCF = 2000;// 200%
     uint debt;
+    uint rewardsFromDebt;
 
     // Events
     event SetOracle(address oracle);
@@ -206,23 +209,25 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev returns the estimated rewards value of lst token
      */
-    function rewardsValue() public view returns (uint256, uint256) {
+    function rewardsValue() public view returns (uint256, uint256,uint256) {
         require(address(oracle) != address(0), "oracle not set");
         //uint currentvalueWei = oracle.getTokenPrice(address(lstToken),decimals);
         uint currentvalueWei = oracle.getTokenPrice(decimals);
         if (currentvalueWei <= last_lsttokenvalueWei) {
-            return (0, currentvalueWei);
+            return (0, currentvalueWei,0);
         }
         uint diff = (currentvalueWei - last_lsttokenvalueWei);
         uint balance = lstToken.balanceOf(address(this));
         uint rwd = FullMath.mulDiv(balance, diff, currentvalueWei);
-        return (rwd, currentvalueWei);
+        uint debtRwd = FullMath.mulDiv(debt, diff, currentvalueWei);
+        return (rwd, currentvalueWei,debtRwd);
     }
 
-    function extractInternal(uint rwd, uint currentvalueWei) internal {
+    function extractInternal(uint rwd, uint currentvalueWei,uint rwdDebt) internal {
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalueWei = currentvalueWei;
 
+        rewardsFromDebt += rwdDebt;
         if (rwd_address != address(0))
         {
             SafeERC20.safeTransfer(IERC20(lstToken), rwd_address, rwd);
@@ -247,9 +252,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             "reward already extracted"
         );
 
-        (uint256 rwd, uint256 currentvalueWei) = rewardsValue();
+        (uint256 rwd, uint256 currentvalueWei,uint256 rwdDebt) = rewardsValue();
         require(rwd > rwd_threshold, "not enough rewards to collect");
-        extractInternal(rwd, currentvalueWei);
+        extractInternal(rwd, currentvalueWei,rwdDebt);
     }
 
     /**
@@ -260,10 +265,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function extractRewardsNoRequire() internal {
         if (block.timestamp >= (last_extracttimestamp + 24 hours)) 
         {
-            (uint256 rwd, uint256 currentvalueWei) = rewardsValue();
+            (uint256 rwd, uint256 currentvalueWei,uint256 rwdDebt) = rewardsValue();
             if (rwd > rwd_threshold) 
             {
-                extractInternal(rwd, currentvalueWei);
+                extractInternal(rwd, currentvalueWei,rwdDebt);
             }
             
         }
@@ -276,7 +281,19 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         require(address(oracle) != address(0), "oracle not set");
         uint balance = lstToken.balanceOf(address(this));
         
-        balance += debt;
+        balance += (debt - rewardsFromDebt);// debt is owned by us but rewards will be sent
+        // we use last reference value for balance computation
+        uint result = FullMath.mulDiv(last_lsttokenvalueWei, balance, decimals);
+        return result;
+    }
+
+    /**
+     * @dev vaults' balance in Eth
+     */
+    function getEthBalanceNoDebt() public view returns (uint256) {
+        require(address(oracle) != address(0), "oracle not set");
+        uint balance = lstToken.balanceOf(address(this));
+        
         // we use last reference value for balance computation
         uint result = FullMath.mulDiv(last_lsttokenvalueWei, balance, decimals);
         return result;
@@ -430,7 +447,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint256 _amount
     ) external view returns (uint256) {
         uint256 refValue = last_lsttokenvalueWei;
-        (uint256 rwd, uint256 currentvalueWei) = rewardsValue();
+        (uint256 rwd, uint256 currentvalueWei,uint256 rwdDebt) = rewardsValue();
         if (rwd > rwd_threshold) {
             refValue = currentvalueWei;
         }
@@ -450,7 +467,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint256 _amount
     ) external view returns (uint256) {
         uint256 refValue = last_lsttokenvalueWei;
-        (uint256 rwd, uint256 currentvalueWei) = rewardsValue();
+        (uint256 rwd, uint256 currentvalueWei,uint256 rwdDebt) = rewardsValue();
         if (rwd > rwd_threshold) {
             refValue = currentvalueWei;
         }
@@ -461,6 +478,75 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             decimals
         );
         return (tokenAmount * sell_fee) / FEE_BASE_1000;
+    }
+
+    
+    function GetMaxBorrow() external view returns (uint256)
+    { 
+        // TODO: check 
+        // TODO: simplify
+        uint synthValueInEth = vaultManager.getTotalSynthValueEth();
+        uint EthBalance = getEthBalanceNoDebt();
+
+        require(
+            EthBalance > synthValueInEth,
+            "vault is empty or synth value is too big"
+        );
+        uint resultEth = EthBalance - FullMath.mulDiv(synthValueInEth,maxCF,FEE_BASE_1000);  
+        // TODO add another max? (n% of vault?)      
+        uint resultToken = FullMath.mulDiv(resultEth, decimals, last_lsttokenvalueWei);
+        return resultToken;
+    }
+
+    function getDebt() external view returns (uint)
+    {
+        return debt;
+    }
+    // function setDebt(uint newDebt) external
+    // {
+    //     debt = newDebt;
+
+    // }
+
+    function repay(uint _amount) external
+    {
+        // extract rewards if any
+        extractRewardsNoRequire();
+
+        // extract from repaid debt
+        uint extractedRwdFromDebt = FullMath.mulDiv(rewardsFromDebt, _amount, debt);
+
+        if ((extractedRwdFromDebt > 0) && (rwd_address != address(0)))
+        {
+            rewardsFromDebt -= extractedRwdFromDebt;
+            SafeERC20.safeTransfer(IERC20(lstToken), rwd_address, extractedRwdFromDebt);
+            if (isContract(rwd_address) && isRwdReceiver) 
+            {
+                // we don't check result as contract might not implement the deposit function (if multi sig for example)
+                rwd_address.call(
+                    abi.encodeWithSignature("DepositFromVault(uint256)", extractedRwdFromDebt)
+                    );
+            }
+        }
+        // TODO event
+        //emit RewardsExtracted(rwd, currentvalueWei);
+
+
+        SafeERC20.safeTransferFrom(lstToken,msg.sender, address(this), _amount);
+        debt = debt - _amount;
+        // TODO event
+        // TODO extract
+
+    }
+
+    function borrow(uint _amount) external
+    {
+        // extract rewards if any
+        extractRewardsNoRequire();
+        // TODO: whitelist
+        // TODO event
+        SafeERC20.safeTransfer(lstToken,msg.sender,_amount);
+        debt = debt + _amount;
     }
 
     /**

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity 0.8.20;
 
-import "./CErc20.sol";
+import "./CErc20Immutable.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../interfaces/IVaultManager.sol";
+
 import "../interfaces/INumaVault.sol";
 
 /**
@@ -12,12 +12,41 @@ import "../interfaces/INumaVault.sol";
  * @notice CTokens which wrap an EIP-20 underlying
  * @author Compound
  */
-contract CNumaLst is CErc20
+contract CNumaLst is CErc20Immutable
 {
-    // TODO: set vaultmanager & event
-
-    IVaultManager vaultManager;
+    
     INumaVault vault;
+
+    /// @notice set vault event
+    event SetVault(address vaultAddress);
+    
+    constructor(address underlying_,
+                ComptrollerInterface comptroller_,
+                InterestRateModel interestRateModel_,
+                uint initialExchangeRateMantissa_,
+                string memory name_,
+                string memory symbol_,
+                uint8 decimals_,
+                address payable admin_,address _vault)
+                CErc20Immutable(underlying_,
+                comptroller_,
+                interestRateModel_,
+                initialExchangeRateMantissa_,
+                name_,
+                symbol_,
+                decimals_,
+                 admin_)
+    {
+        vault = INumaVault(_vault);
+    }
+
+    function setVault(address _vault) external  
+    {
+        require(msg.sender == admin, "only admin can set vault");
+        vault = INumaVault(_vault);
+        emit SetVault(_vault);
+    }
+
 
     /**
      * @notice Applies accrued interest to total borrows and reserves
@@ -36,9 +65,9 @@ contract CNumaLst is CErc20
 
         /* Read the previous values out of storage */
         // NUMALENDING
-        uint maxBorrowableAmountFromVaults;
-        if (address(vaultManager) != address(0))
-            maxBorrowableAmountFromVaults = vaultManager.GetMaxBorrowEth();
+        uint maxBorrowableAmountFromVault;
+        if (address(vault) != address(0))
+            maxBorrowableAmountFromVault = vault.GetMaxBorrow();
 
         uint cashPrior = getCashPrior();
         uint borrowsPrior = totalBorrows;
@@ -46,7 +75,7 @@ contract CNumaLst is CErc20
         uint borrowIndexPrior = borrowIndex;
 
         /* Calculate the current borrow interest rate */
-        uint borrowRateMantissa = interestRateModel.getBorrowRate(cashPrior+maxBorrowableAmountFromVaults, borrowsPrior, reservesPrior);
+        uint borrowRateMantissa = interestRateModel.getBorrowRate(cashPrior+maxBorrowableAmountFromVault, borrowsPrior, reservesPrior);
         require(borrowRateMantissa <= borrowRateMaxMantissa, "borrow rate is absurdly high");
 
         /* Calculate the number of blocks elapsed since the last accrual */
@@ -107,34 +136,38 @@ contract CNumaLst is CErc20
         {
             // NUMALENDING
             // 
-            uint amountNeeded = borrowAmount - cashPrior;
-            // amount is in lstToken
-            // get associated vault from vaultmanager (add a mapping lst --> vault)
-            // or put vault here
+            if (address(vault) != address(0))
+            {
+                uint amountNeeded = borrowAmount - cashPrior;
+                uint maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+                if (amountNeeded <= maxBorrowableAmountFromVault)
+                {
+                    // if ok, borrow from vault
+            
+                    // transferFromVault
+                    // TODO vault function with whitelist! (because we can take money)
+                    // uint currentDebt = vault.getDebt();
+                    // //vault.SetDebt(currentDebt + amountNeeded);// careful onlyowner
+                    // // TODO: approve
+                    // SafeERC20.safeTransferFrom(
+                    //     IERC20(underlying),
+                    //     address(vault),
+                    //     address(this),
+                    // amountNeeded);
 
+                    vault.borrow(amountNeeded);
+                }
+                else
+                {
+                    // TODO specific error
+                    revert BorrowCashNotAvailable();
+                }
+            }
+            else
+            {
+                revert BorrowCashNotAvailable();
+            }
 
-            // TODO
-            // get lst price from vault: last_lsttokenvalueWei
-            // compute amountNeeded in Eth
-            // compare with limit from vault manager and revert if not possible
-
-            // if ok, borrow from vault
-            // check that we have enough liq in vault (should we also use a max here?)
-
-            // transferFromVault
-            // 
-            vault.debt += amountNeeded;
-            SafeERC20.safeTransferFrom(
-            IERC20(underlying),
-            address(vault),
-            address(this),
-            amountNeeded);
-
-
-            // update debt in Eth in vault manager
-
-            // TODO add reverts for 2 cases where this does not work
-            //revert BorrowCashNotAvailable();
         }
 
         /*
@@ -222,16 +255,25 @@ contract CNumaLst is CErc20
         totalBorrows = totalBorrowsNew;
 
         // NUMALENDING
-        if (vault.debt > 0)
+        uint vaultDebt = vault.getDebt();
+        if (vaultDebt > 0)
         {
-            // if vault has debt, we repay 50% to vault
-            // TODO: better formula, keeping a utilization rate of x%?
-            uint repayTovault = min(vault.debt,(50*actualRepayAmount)/100);
+            //if vault has debt, we repay 50% to vault
+            //TODO: better formula, keeping a utilization rate of x%?
+           
+            uint repayTovault = vaultDebt;
+            uint percentAmount = (5*actualRepayAmount)/10;
+            if (percentAmount < repayTovault)
+                repayTovault = percentAmount;
+   
+            // TODO: ces deux fonctions à remplacer par RepayDebt sur le vault
+            // qui fera aussi l'extract de cette dette
             // transfer to vault 
-            SafeERC20.safeTransfer(underlying, address(vault), repayTovault);
+            vault.repay(repayTovault);
+            // SafeERC20.safeTransfer(IERC20(underlying), address(vault), repayTovault);
 
-            // cancel debt
-            vault.debt -= repayTovault;
+            // // cancel debt
+            // vault.SetDebt(vaultDebt - repayTovault);
         }
 
         /* We emit a RepayBorrow event */

@@ -9,15 +9,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract NumaPriceOracle is PriceOracle,Ownable {
     INumaVault vault;
     
-
+    /// @notice set vault event
+    event SetVault(address vaultAddress);
     constructor() Ownable(msg.sender)
     {
 
     }
-    function setVault(INumaVault _vault) external onlyOwner 
+    function setVault(address _vault) external onlyOwner 
     {
-        vault = _vault;
-        // todo event
+        vault = INumaVault(_vault);
+        emit SetVault(_vault);
     }
     function getUnderlyingPrice(CToken cToken) public override view returns (uint) {
         require((address(vault) != address(0)),"vault null address");
