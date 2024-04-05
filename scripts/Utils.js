@@ -6,7 +6,7 @@ const { Pool, nearestUsableTick, TickMath, TICK_SPACINGS, FeeAmount, Trade: V3Tr
 const { MixedRouteTrade, Trade: RouterTrade } = require('@uniswap/router-sdk');
 const IUniswapV3Pool = require('@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
 const JSBI = require('jsbi');
-const erc20Abi = require('../abis/erc20.json');
+//const erc20Abi = require('../abis/erc20.json');
 
 const artifacts = {
   UniswapV3Factory: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"),

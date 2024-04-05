@@ -45,6 +45,8 @@ OK
     ** use vault liquidity
     ** flashloan?
 
+
+- prevent borrow numa using numa collat because of different prices)
 - start new script & tests
 
 
@@ -164,3 +166,37 @@ When liquidated, Numa price will go up due to liquidation fee + vault fee of Num
 ******** divers
 
 un contrat qui reference tous les contracts addresses comme ça plus simple pour les updates
+
+
+
+
+
+
+
+
+
+
+
+
+**********QUESTIONS NON REPONDUES
+
+- liquidations 
+    - incentive: pourquoi 100 dollars
+pourquoi ne pas garder standart liquidations? (% du collat en plus)
+
+    - should we make a bot too? (will be less fast than pro)
+
+    - how to handle numa liquidations (standart?)
+
+
+rq: we might need a subgraph
+rq: compound has an api to request underwater accounts which we don't!!!
+
+
+
+- max borrowable
+
+- exact rules for repayment
+
+- utilization rate uses vault's borrowable amount?
+

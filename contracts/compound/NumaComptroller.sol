@@ -3,10 +3,12 @@ pragma solidity 0.8.20;
 
 import "./CToken.sol";
 import "./ErrorReporter.sol";
-import "./PriceOracle.sol";
+import "./PriceOracleCollateralBorrow.sol";
 import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
+
+import "hardhat/console.sol";
 // TOBEREMOVED
 //import "./Governance/Comp.sol";
 
@@ -34,7 +36,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
     event NewLiquidationIncentive(uint oldLiquidationIncentiveMantissa, uint newLiquidationIncentiveMantissa);
 
     /// @notice Emitted when price oracle is changed
-    event NewPriceOracle(PriceOracle oldPriceOracle, PriceOracle newPriceOracle);
+    event NewPriceOracle(PriceOracleCollateralBorrow oldPriceOracle, PriceOracleCollateralBorrow newPriceOracle);
 
     /// @notice Emitted when pause guardian is changed
     event NewPauseGuardian(address oldPauseGuardian, address newPauseGuardian);
@@ -362,7 +364,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             assert(markets[cToken].accountMembership[borrower]);
         }
 
-        if (oracle.getUnderlyingPrice(CToken(cToken)) == 0) {
+        if (oracle.getUnderlyingPriceAsBorrowed(CToken(cToken)) == 0) {
             return uint(Error.PRICE_ERROR);
         }
 
@@ -380,6 +382,8 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             return uint(err);
         }
         if (shortfall > 0) {
+            console.log("not enough collateral");
+            console.logUint(shortfall);
             return uint(Error.INSUFFICIENT_LIQUIDITY);
         }
 
@@ -667,11 +671,14 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         uint cTokenBalance;
         uint borrowBalance;
         uint exchangeRateMantissa;
-        uint oraclePriceMantissa;
+        uint oraclePriceMantissaCollateral;
+        uint oraclePriceMantissaBorrowed;
         Exp collateralFactor;
         Exp exchangeRate;
-        Exp oraclePrice;
-        Exp tokensToDenom;
+        Exp oraclePriceCollateral;
+        Exp oraclePriceBorrowed;
+        Exp tokensToDenomCollateral;
+        Exp tokensToDenomBorrowed;
     }
 
     /**
@@ -743,44 +750,68 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
 
             // Read the balances and exchange rate from the cToken
             (oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = asset.getAccountSnapshot(account);
-            if (oErr != 0) { // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
+            if (oErr != 0) 
+            { 
+                console.log("SNAPSHOT_ERROR");
+                // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
                 return (Error.SNAPSHOT_ERROR, 0, 0);
             }
             vars.collateralFactor = Exp({mantissa: markets[address(asset)].collateralFactorMantissa});
             vars.exchangeRate = Exp({mantissa: vars.exchangeRateMantissa});
 
             // Get the normalized price of the asset
-            vars.oraclePriceMantissa = oracle.getUnderlyingPrice(asset);
-            if (vars.oraclePriceMantissa == 0) {
+            // TODO: one function that returns 2 values
+            vars.oraclePriceMantissaCollateral = oracle.getUnderlyingPriceAsCollateral(asset);
+            vars.oraclePriceMantissaBorrowed = oracle.getUnderlyingPriceAsBorrowed(asset);
+             console.log("price borrowed");
+            console.logUint(vars.oraclePriceMantissaBorrowed);
+            if (vars.oraclePriceMantissaCollateral == 0) {
                 return (Error.PRICE_ERROR, 0, 0);
             }
-            vars.oraclePrice = Exp({mantissa: vars.oraclePriceMantissa});
+            vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
+            vars.oraclePriceBorrowed = Exp({mantissa: vars.oraclePriceMantissaBorrowed});
 
             // Pre-compute a conversion factor from tokens -> ether (normalized price value)
-            vars.tokensToDenom = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePrice);
+            vars.tokensToDenomCollateral = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceCollateral);
+            vars.tokensToDenomBorrowed = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceBorrowed);
 
             // sumCollateral += tokensToDenom * cTokenBalance
-            vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenom, vars.cTokenBalance, vars.sumCollateral);
 
+            // XCZ should use collateral price
+            vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, vars.cTokenBalance, vars.sumCollateral);
+
+             console.log("check collat");
+            console.logUint(vars.cTokenBalance);
+            console.logUint(truncate(vars.collateralFactor));
+            console.logUint(truncate(vars.exchangeRate));
+            console.logUint(truncate(vars.oraclePriceCollateral));
+
+             console.log("end");
             // sumBorrowPlusEffects += oraclePrice * borrowBalance
-            vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePrice, vars.borrowBalance, vars.sumBorrowPlusEffects);
+            vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, vars.borrowBalance, vars.sumBorrowPlusEffects);
 
             // Calculate effects of interacting with cTokenModify
             if (asset == cTokenModify) {
                 // redeem effect
                 // sumBorrowPlusEffects += tokensToDenom * redeemTokens
-                vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.tokensToDenom, redeemTokens, vars.sumBorrowPlusEffects);
+                // TODO: confirm the choice of price
+                vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.tokensToDenomBorrowed, redeemTokens, vars.sumBorrowPlusEffects);
 
                 // borrow effect
                 // sumBorrowPlusEffects += oraclePrice * borrowAmount
-                vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePrice, borrowAmount, vars.sumBorrowPlusEffects);
+                vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, borrowAmount, vars.sumBorrowPlusEffects);
             }
         }
 
         // These are safe, as the underflow condition is checked first
-        if (vars.sumCollateral > vars.sumBorrowPlusEffects) {
+        console.logUint(vars.sumCollateral);
+        console.logUint(vars.sumBorrowPlusEffects);
+        if (vars.sumCollateral > vars.sumBorrowPlusEffects) 
+        {
             return (Error.NO_ERROR, vars.sumCollateral - vars.sumBorrowPlusEffects, 0);
-        } else {
+        }
+        else 
+        {
             return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral);
         }
     }
@@ -795,8 +826,8 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
      */
     function liquidateCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint actualRepayAmount) override external view returns (uint, uint) {
         /* Read oracle prices for borrowed and collateral markets */
-        uint priceBorrowedMantissa = oracle.getUnderlyingPrice(CToken(cTokenBorrowed));
-        uint priceCollateralMantissa = oracle.getUnderlyingPrice(CToken(cTokenCollateral));
+        uint priceBorrowedMantissa = oracle.getUnderlyingPriceAsBorrowed(CToken(cTokenBorrowed));
+        uint priceCollateralMantissa = oracle.getUnderlyingPriceAsCollateral(CToken(cTokenCollateral));
         if (priceBorrowedMantissa == 0 || priceCollateralMantissa == 0) {
             return (uint(Error.PRICE_ERROR), 0);
         }
@@ -829,14 +860,14 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
       * @dev Admin function to set a new price oracle
       * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
       */
-    function _setPriceOracle(PriceOracle newOracle) public returns (uint) {
+    function _setPriceOracle(PriceOracleCollateralBorrow newOracle) public returns (uint) {
         // Check caller is admin
         if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PRICE_ORACLE_OWNER_CHECK);
         }
 
         // Track the old oracle for the comptroller
-        PriceOracle oldOracle = oracle;
+        PriceOracleCollateralBorrow oldOracle = oracle;
 
         // Set comptroller's oracle to newOracle
         oracle = newOracle;
@@ -892,7 +923,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         }
 
         // If collateral factor != 0, fail if price == 0
-        if (newCollateralFactorMantissa != 0 && oracle.getUnderlyingPrice(cToken) == 0) {
+        if (newCollateralFactorMantissa != 0 && oracle.getUnderlyingPriceAsCollateral(cToken) == 0) {
             return fail(Error.PRICE_ERROR, FailureInfo.SET_COLLATERAL_FACTOR_WITHOUT_PRICE);
         }
 

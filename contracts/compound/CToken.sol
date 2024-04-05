@@ -7,7 +7,7 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
-
+import "hardhat/console.sol";
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -577,7 +577,9 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         }
 
         /* Fail gracefully if protocol has insufficient underlying cash */
-        if (getCashPrior() < borrowAmount) {
+        if (getCashPrior() < borrowAmount) 
+        {
+            console.log("ctoken no cash");
             revert BorrowCashNotAvailable();
         }
 

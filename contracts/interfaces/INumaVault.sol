@@ -12,4 +12,5 @@ interface INumaVault {
         
     function GetMaxBorrow() external view returns (uint256);
     function getSellNumaSimulateExtract(uint256 _amount) external view returns (uint256);
+    function getBuyNumaSimulateExtract(uint256 _amount) external view returns (uint256);
 }

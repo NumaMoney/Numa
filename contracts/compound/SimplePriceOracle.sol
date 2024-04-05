@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity 0.8.20;
 
-import "./PriceOracle.sol";
+import "./PriceOracleCollateralBorrow.sol";
 import "./CErc20.sol";
-
-contract SimplePriceOracle is PriceOracle {
+import "hardhat/console.sol";
+contract SimplePriceOracle is PriceOracleCollateralBorrow {
     mapping(address => uint) prices;
     event PricePosted(address asset, uint previousPriceMantissa, uint requestedPriceMantissa, uint newPriceMantissa);
 
@@ -18,8 +18,17 @@ contract SimplePriceOracle is PriceOracle {
         return asset;
     }
 
-    function getUnderlyingPrice(CToken cToken) public override view returns (uint) {
+    function getUnderlyingPrice(CToken cToken) public view returns (uint) {
+        console.log("fake oracle called");
         return prices[_getUnderlyingAddress(cToken)];
+    }
+
+    function getUnderlyingPriceAsCollateral(CToken cToken) public override view returns (uint) {
+        return getUnderlyingPrice(cToken);
+    }
+
+    function getUnderlyingPriceAsBorrowed(CToken cToken) public override view returns (uint) {
+        return getUnderlyingPrice(cToken);
     }
 
     function setUnderlyingPrice(CToken cToken, uint underlyingPriceMantissa) public {

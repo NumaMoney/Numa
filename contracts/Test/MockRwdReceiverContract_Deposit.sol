@@ -9,7 +9,7 @@ contract MockRwdReceiverContract_Deposit {
     uint public test = 1;
     function DepositFromVault(uint _amount) external payable
     {
-        console.log("desposit ok");
+        console.log("deposit ok");
         test = _amount;
 
     }

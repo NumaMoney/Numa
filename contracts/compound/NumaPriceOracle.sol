@@ -5,7 +5,7 @@ import "./CErc20.sol";
 import "../interfaces/INumaVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// TODO: setvault
+
 contract NumaPriceOracle is PriceOracle,Ownable {
     INumaVault vault;
     

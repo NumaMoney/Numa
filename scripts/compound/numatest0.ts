@@ -1,7 +1,7 @@
 //
 
 import { ethers,network } from 'hardhat';
-import { CTokenDeployArg, deployNumaCompoundV2 } from './';
+import { CTokenDeployArg, deployNumaCompoundV2 } from '.';
 import "colors";
 import { assert } from "chai";
 const ERC20abi = [

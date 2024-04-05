@@ -6,7 +6,7 @@ import "./CErc20Immutable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../interfaces/INumaVault.sol";
-
+import "hardhat/console.sol";
 /**
  * @title Compound's CErc20 Contract
  * @notice CTokens which wrap an EIP-20 underlying
@@ -140,6 +140,9 @@ contract CNumaLst is CErc20Immutable
             {
                 uint amountNeeded = borrowAmount - cashPrior;
                 uint maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+                console.log("borrowfresh numalst");
+                console.logUint(maxBorrowableAmountFromVault);
+                console.logUint(amountNeeded);
                 if (amountNeeded <= maxBorrowableAmountFromVault)
                 {
                     // if ok, borrow from vault
@@ -165,6 +168,7 @@ contract CNumaLst is CErc20Immutable
             }
             else
             {
+                console.log("no vault");
                 revert BorrowCashNotAvailable();
             }
 
