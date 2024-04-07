@@ -707,6 +707,39 @@ describe('NUMA LENDING', function () {
     {
         it('Borrow numa, repay numa', async () => 
         {
+          // supply rEth as collateral
+          let rethsupplyamount = ethers.parseEther("2");
+          await rEth_contract.connect(userA).approve(await cReth.getAddress(),rethsupplyamount);
+          await cReth.connect(userA).mint(rethsupplyamount);
+  
+
+          // userB supply numa 
+          let numasupplyamount = ethers.parseEther("200000");
+          await numa.connect(userB).approve(await cNuma.getAddress(),numasupplyamount);
+          await cNuma.connect(userB).mint(numasupplyamount);
+
+
+          // ******************* userA borrow numa ************************
+          await comptroller.connect(userA).enterMarkets([cReth.getAddress()]);
+
+          // max borrow
+          // how many numas for 1 rEth
+          let numaFromREth = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("1"));
+          console.log("how many numa with 1 rEth "+ ethers.formatEther(numaFromREth));
+          let numaBuyPriceInReth = (ethers.parseEther("1") * ethers.parseEther("1")) / numaFromREth;
+
+          // add 1 because we round up division
+          numaBuyPriceInReth = numaBuyPriceInReth +BigInt(1);
+
+          let collateralValueInNumaWei =  (ethers.parseEther(rEthCollateralFactor.toString())*ethers.parseEther("2")) / numaBuyPriceInReth;
+          console.log("collateral value in numa (wei) "+collateralValueInNumaWei);
+          console.log("collateral value in numa "+ethers.formatEther(collateralValueInNumaWei));
+
+          let notTooMuchNuma = collateralValueInNumaWei;
+
+          await expect(cNuma.connect(userA).borrow(notTooMuchNuma)).to.not.be.reverted;
+
+
         
         });
 
