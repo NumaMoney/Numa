@@ -1,0 +1,43 @@
+TODO:
+
+utilizationrate devra être modifié aussi dans getsupplyrate/getborrowrate pour le display des APY
+
+
+
+- flashloan:
+
+    - au niveau du vault
+        - si rETh, ajouter une variable comme debt pour ajouter à la balance pendant le FL
+        - si numa, ajouter une var dans le vaultmanager et que seuls les vaults peuvent modifier
+
+
+
+Q: 
+
+- est-ce que le tx de change compound depend de la supply en numa, si oui attention (à tous points de vue car on mint/burn sans cesse: vault synth etc...)
+
+--> a priori non, c'est (cash + borrow) / ctoken supply
+
+MAIS borrow peut inclure du vault (pour reth)
+
+ex: 2 eth supplied --> 100 ctokens tx change = 0.02
+
+mais borrow 1 du vault --> tx change = 0.03 car 3/100
+
+a quoi sert le taux de change, risk????
+
+
+
+- flashloan fait toute l'operation je pense plus sur!!! (mint, borrow etc...)
+
+
+Q: pour repay aussi, veut-on autoriser le repay manuel?
+Q: la ca revet si je n'ajoute pas le leding en whitelist
+veut-on gérer ce cas? par exemple s'il n'est pas white listé il n'utilera que la balance cash
+pareil si vault = null
+
+notes:
+
+- peut-on casser le protocol si on repay la dette du vault manuellement
+
+

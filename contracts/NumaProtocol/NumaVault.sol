@@ -68,7 +68,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     uint debt;
     uint rewardsFromDebt;
 
+    mapping(address => bool) lendingwl;
+   
+
     // Events
+    event AddedToLendingwl(address indexed a);
+    event RemovedFromLendingwl(address indexed a);
     event SetOracle(address oracle);
     event SetVaultManager(address vaultManager);
     event Buy(uint256 received, uint256 sent, address receiver);
@@ -85,6 +90,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     event RemovedFromRemoveSupply(address _address);
     event RewardsExtracted(uint _rwd, uint _currentvalueWei);
     event StartDecay();
+
+    modifier onlyLendingProtocol() {
+        require(isLendingAuth(msg.sender));
+        _;
+    }
+
 
     constructor(
         address _numaAddress,
@@ -205,6 +216,21 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         rwd_threshold = _threshold;
         emit ThresholdUpdated(_threshold);
     }
+
+    function addToLendingwl(address _address) public onlyOwner {
+        lendingwl[_address] = true;
+        emit AddedToLendingwl(_address);
+    }
+
+    function removeFromLendingwl(address _address) public onlyOwner {
+        lendingwl[_address] = false;
+        emit RemovedFromLendingwl(_address);
+    }
+
+    function isLendingAuth(address _address) public view returns(bool) {
+        return lendingwl[_address];
+    }
+
 
     /**
      * @dev returns the estimated rewards value of lst token
@@ -508,11 +534,17 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     // }
 
-    function repay(uint _amount) external
+    function repay(uint _amount) external onlyLendingProtocol
     {
+         // TODO: whitelist
         // extract rewards if any
         extractRewardsNoRequire();
 
+        // TODO: should we revert if debt == 0 ?
+        require(_amount > 0,"can not repay 0");
+        require(_amount <= debt,"repay more than debt");
+        // repay
+        SafeERC20.safeTransferFrom(lstToken,msg.sender, address(this), _amount);
         // extract from repaid debt
         uint extractedRwdFromDebt = FullMath.mulDiv(rewardsFromDebt, _amount, debt);
 
@@ -528,18 +560,16 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                     );
             }
         }
+        debt = debt - _amount;
         // TODO event
         //emit RewardsExtracted(rwd, currentvalueWei);
 
-
-        SafeERC20.safeTransferFrom(lstToken,msg.sender, address(this), _amount);
-        debt = debt - _amount;
         // TODO event
         // TODO extract
 
     }
 
-    function borrow(uint _amount) external
+    function borrow(uint _amount) external onlyLendingProtocol
     {
         // extract rewards if any
         extractRewardsNoRequire();

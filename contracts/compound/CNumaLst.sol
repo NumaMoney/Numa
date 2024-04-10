@@ -113,6 +113,7 @@ contract CNumaLst is CErc20Immutable
     }
 
 
+// TODO: only for rETh!!!
      /**
       * @notice Users borrow assets from the protocol to their own address
       * @param borrowAmount The amount of the underlying asset to borrow
@@ -259,25 +260,68 @@ contract CNumaLst is CErc20Immutable
         totalBorrows = totalBorrowsNew;
 
         // NUMALENDING
+        // TODO: only for crETH!!!
         uint vaultDebt = vault.getDebt();
         if (vaultDebt > 0)
         {
-            //if vault has debt, we repay 50% to vault
-            //TODO: better formula, keeping a utilization rate of x%?
-           
-            uint repayTovault = vaultDebt;
-            uint percentAmount = (5*actualRepayAmount)/10;
-            if (percentAmount < repayTovault)
-                repayTovault = percentAmount;
-   
-            // TODO: ces deux fonctions à remplacer par RepayDebt sur le vault
-            // qui fera aussi l'extract de cette dette
-            // transfer to vault 
-            vault.repay(repayTovault);
-            // SafeERC20.safeTransfer(IERC20(underlying), address(vault), repayTovault);
+            // parameters: 
+            // - URtarget: 80%
+            // - vaultPercent: 80%
+            // we keep what's needed to keep a X% Utilization rate
+            uint URtarget = 0.8 ether;
+            uint vaultPercent = 0.8 ether;
 
-            // // cancel debt
-            // vault.SetDebt(vaultDebt - repayTovault);
+            // what is current UR (considering repayment)
+            uint cashPrior = getCashPrior();
+            uint borrowsPrior = totalBorrows;
+            uint reservesPrior = totalReserves;
+
+            uint realURAfterRepay = interestRateModel.utilizationRate(cashPrior, borrowsPrior, reservesPrior);
+            console.log("real UR after repay");
+            console.logUint(realURAfterRepay);
+            if (realURAfterRepay < URtarget)
+            {
+                // how much cash do we need in the lending protocol to keep URTarget
+                uint cashMin = (borrowsPrior * (1 ether - URtarget))/URtarget;
+                console.log("compute");
+                 console.logUint(borrowsPrior);
+                 console.logUint(borrowsPrior * (1 ether - URtarget));
+                 
+
+                 console.logUint(cashMin);
+                // how much can we keep after keeping this target UR
+                uint remainingAmountAfterKeepingUR = cashPrior - cashMin;
+
+                console.logUint(remainingAmountAfterKeepingUR);
+                // only take from what was repaid, if it's above, it means we were already under targetUR
+                if (remainingAmountAfterKeepingUR > actualRepayAmount)
+                {
+                    console.log("only take from what was repaid");
+                    remainingAmountAfterKeepingUR = actualRepayAmount;
+                }
+                if (remainingAmountAfterKeepingUR > 0)
+                {
+                    console.log("send to vault");
+                    // we have more than what was needed to keep target UR
+                    // then 80% go to vault
+                    console.logUint(remainingAmountAfterKeepingUR);
+                    
+                    uint amountToRepayToVault = (remainingAmountAfterKeepingUR *vaultPercent) / (1 ether);
+                    console.logUint(amountToRepayToVault);
+                    if (amountToRepayToVault > vaultDebt)
+                    {
+                        console.log("more than debt");
+                        // if we have more than vault debt, cap it
+                        amountToRepayToVault = vaultDebt;   
+                        
+                    }
+                    EIP20Interface(underlying).approve(address(vault),amountToRepayToVault);
+                    vault.repay(amountToRepayToVault);
+
+                }
+            }
+
+
         }
 
         /* We emit a RepayBorrow event */
@@ -285,5 +329,36 @@ contract CNumaLst is CErc20Immutable
 
         return actualRepayAmount;
     }
+
+
+    /**
+     * @notice Calculates the exchange rate from the underlying to the CToken
+     * @dev This function does not accrue interest before calculating the exchange rate
+     * @return calculated exchange rate scaled by 1e18
+     */
+    function exchangeRateStoredInternal() override internal view returns (uint) {
+        uint _totalSupply = totalSupply;
+        if (_totalSupply == 0) {
+            /*
+             * If there are no tokens minted:
+             *  exchangeRate = initialExchangeRate
+             */
+            return initialExchangeRateMantissa;
+        } else {
+            /*
+             * Otherwise:
+             *  exchangeRate = (totalCash + totalBorrows - totalReserves) / totalSupply
+             */
+            uint totalCash = getCashPrior();
+            // NUMALENDING
+            // vault debt does not count for exchange rate
+            uint vaultDebt = vault.getDebt();
+            uint cashPlusBorrowsMinusReserves = totalCash + totalBorrows - vaultDebt - totalReserves;
+            uint exchangeRate = cashPlusBorrowsMinusReserves * expScale / _totalSupply;
+
+            return exchangeRate;
+        }
+    }
+
   
 }
