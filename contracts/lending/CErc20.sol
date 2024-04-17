@@ -12,7 +12,7 @@ interface CompLike {
  * @notice CTokens which wrap an EIP-20 underlying
  * @author Compound
  */
-contract CErc20 is CToken, CErc20Interface {
+abstract contract CErc20 is CToken, CErc20Interface {
     /**
      * @notice Initialize the new money market
      * @param underlying_ The address of the underlying asset
@@ -104,18 +104,18 @@ contract CErc20 is CToken, CErc20Interface {
         return NO_ERROR;
     }
 
-    /**
-     * @notice The sender liquidates the borrowers collateral.
-     *  The collateral seized is transferred to the liquidator.
-     * @param borrower The borrower of this cToken to be liquidated
-     * @param repayAmount The amount of the underlying borrowed asset to repay
-     * @param cTokenCollateral The market in which to seize collateral from the borrower
-     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
-     */
-    function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) override external returns (uint) {
-        liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
-        return NO_ERROR;
-    }
+    // /**
+    //  * @notice The sender liquidates the borrowers collateral.
+    //  *  The collateral seized is transferred to the liquidator.
+    //  * @param borrower The borrower of this cToken to be liquidated
+    //  * @param repayAmount The amount of the underlying borrowed asset to repay
+    //  * @param cTokenCollateral The market in which to seize collateral from the borrower
+    //  * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+    //  */
+    // function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) override external returns (uint) {
+    //     liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
+    //     return NO_ERROR;
+    // }
 
     /**
      * @notice A public function to sweep accidental ERC-20 transfers to this contract. Tokens are sent to admin (timelock)

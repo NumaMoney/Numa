@@ -716,7 +716,71 @@ contract NumaVaultMock is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         emit RepaidVault(_amount);
 
     }
+function liquidateNumaBorrower(address _borrower,uint _numaAmount) external whenNotPaused
+ {
+    // extract rewards if any
+        extractRewardsNoRequire();
+       
+        // rEth collat / borrow numa
+        // require(address(_collateralToken) == address(cLstToken),"bad input token");
+        // require(address(_borrowToken) == address(cNuma),"bad input token");
 
+        // mint numa
+        vaultManager.lockSupplyFlashloan(true);
+        // user supplied funds
+         SafeERC20.safeTransferFrom(
+                IERC20(address(numa)),
+                msg.sender,
+                address(this),
+                _numaAmount
+            ); 
+
+
+        // lock lst balance for pricing
+        uint bal = getVaultBalance();
+        lstLockedBalance = bal;
+        isLiquidityLocked = true;
+
+
+        // liquidate
+      
+        numa.approve(address(cNuma),_numaAmount);
+        cNuma.liquidateBorrow(_borrower, _numaAmount,CTokenInterface(address(cLstToken))) ;
+
+        // we should have received crEth with discount
+        // redeem rEth
+        uint balcToken = IERC20(address(cLstToken)).balanceOf(address(this));
+
+        uint balBefore = IERC20(lstToken).balanceOf(address(this));
+        cLstToken.redeem(balcToken); 
+        uint balAfter = IERC20(lstToken).balanceOf(address(this));
+        uint receivedlst = balAfter - balBefore;
+
+        // sell rEth to numa
+        // TODO: better minamount
+        uint numaReceived = NumaVaultMock(address(this)).buy(receivedlst, _numaAmount,address(this));
+
+        uint numaLiquidatorProfit = numaReceived - _numaAmount;
+
+
+        if (numaLiquidatorProfit > maxNumaProfitForLiquidations)
+            numaLiquidatorProfit = maxNumaProfitForLiquidations;
+
+        uint numaToSend = numaLiquidatorProfit + _numaAmount;
+        uint numaToBurn = numaReceived - numaToSend;
+        SafeERC20.safeTransfer(IERC20(address(numa)), msg.sender, numaToSend);
+       
+       console.log("liquidation");
+       console.logUint(numaLiquidatorProfit);
+              console.logUint(numaToBurn);
+        // burn the rest
+        numa.burn(numaToBurn);
+        vaultManager.lockSupplyFlashloan(false);
+        
+        // unlock use real balance for price
+        isLiquidityLocked = false;
+
+    }
     function borrow(uint _amount) external 
     {
         require(msg.sender == address(cLstToken));

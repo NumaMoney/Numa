@@ -16,8 +16,6 @@ import "hardhat/console.sol";
 contract CNumaLst is CNumaToken
 {
     
-    uint ur_target;
-    uint vault_repay_percent;
     constructor(address underlying_,
                 ComptrollerInterface comptroller_,
                 InterestRateModel interestRateModel_,
@@ -26,9 +24,7 @@ contract CNumaLst is CNumaToken
                 string memory symbol_,
                 uint8 decimals_,
                 address payable admin_,
-                address _vault,
-                uint _ur_target,
-                uint _vault_repay_percent)
+                address _vault)
                 CNumaToken(underlying_,
                 comptroller_,
                 interestRateModel_,
@@ -39,16 +35,10 @@ contract CNumaLst is CNumaToken
                 admin_,
                 _vault)
     {
-        ur_target = _ur_target;
-        vault_repay_percent = _vault_repay_percent;
+       
     }
 
-    function setRepayParameters(uint _ur_target,uint _vault_repay_percent) external 
-    {
-        require(msg.sender == admin, "only admin");
-        ur_target = _ur_target;
-        vault_repay_percent = _vault_repay_percent;
-    }
+
 
 
     /**
@@ -269,57 +259,14 @@ contract CNumaLst is CNumaToken
         uint vaultDebt = vault.getDebt();
         if (vaultDebt > 0)
         {
-            // parameters: 
-            // - URtarget: 80%
-            // - vaultPercent: 80%
-            // we keep what's needed to keep a X% Utilization rate
-            uint URtarget = ur_target;      
-            uint vaultPercent = vault_repay_percent;
-
-            // what is current UR (considering repayment)
-            uint cashPrior = getCashPrior();
-            uint borrowsPrior = totalBorrows;
-            uint reservesPrior = totalReserves;
-            // NUMALENDING pas bon car devrait considérer seulement selon les assets supplied
-            uint realURAfterRepay = interestRateModel.utilizationRate(cashPrior, borrowsPrior, reservesPrior);
-
-            if (realURAfterRepay < URtarget)
+            uint repayToVault = vaultDebt;
+            if (actualRepayAmount <= vaultDebt)
             {
-                // how much cash do we need in the lending protocol to keep URTarget
-                uint cashMin = (borrowsPrior * (1 ether - URtarget))/URtarget;
-     
-                // how much can we keep after keeping this target UR
-                uint remainingAmountAfterKeepingUR = cashPrior - cashMin;
-
-
-                // only take from what was repaid, if it's above, it means we were already under targetUR
-                if (remainingAmountAfterKeepingUR > actualRepayAmount)
-                {
- 
-                    remainingAmountAfterKeepingUR = actualRepayAmount;
-                }
-                if (remainingAmountAfterKeepingUR > 0)
-                {
-
-                    // we have more than what was needed to keep target UR
-                    // then 80% go to vault
-                  
-                    
-                    uint amountToRepayToVault = (remainingAmountAfterKeepingUR *vaultPercent) / (1 ether);
-                  
-                    if (amountToRepayToVault > vaultDebt)
-                    {
-
-                        // if we have more than vault debt, cap it
-                        amountToRepayToVault = vaultDebt;   
-                        
-                    }
-                    EIP20Interface(underlying).approve(address(vault),amountToRepayToVault);
-                    vault.repay(amountToRepayToVault);
-
-                }
+                repayToVault = actualRepayAmount;
             }
-
+            // repay vault debt
+            EIP20Interface(underlying).approve(address(vault),repayToVault);
+            vault.repay(repayToVault);
 
         }
 
@@ -329,6 +276,109 @@ contract CNumaLst is CNumaToken
         return actualRepayAmount;
     }
 
+
+    /**
+     * @notice User redeems cTokens in exchange for the underlying asset
+     * @dev Assumes interest has already been accrued up to the current block
+     * @param redeemer The address of the account which is redeeming the tokens
+     * @param redeemTokensIn The number of cTokens to redeem into underlying (only one of redeemTokensIn or redeemAmountIn may be non-zero)
+     * @param redeemAmountIn The number of underlying tokens to receive from redeeming cTokens (only one of redeemTokensIn or redeemAmountIn may be non-zero)
+     */
+    function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) override internal {
+        require(redeemTokensIn == 0 || redeemAmountIn == 0, "one of redeemTokensIn or redeemAmountIn must be zero");
+
+        /* exchangeRate = invoke Exchange Rate Stored() */
+        Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal() });
+
+        uint redeemTokens;
+        uint redeemAmount;
+
+
+        /* If redeemTokensIn > 0: */
+        if (redeemTokensIn > 0) {
+            /*
+             * We calculate the exchange rate and the amount of underlying to be redeemed:
+             *  redeemTokens = redeemTokensIn
+             *  redeemAmount = redeemTokensIn x exchangeRateCurrent
+             */
+            redeemTokens = redeemTokensIn;
+            redeemAmount = mul_ScalarTruncate(exchangeRate, redeemTokensIn);
+        } else {
+            /*
+             * We get the current exchange rate and calculate the amount to be redeemed:
+             *  redeemTokens = redeemAmountIn / exchangeRate
+             *  redeemAmount = redeemAmountIn
+             */
+
+            redeemTokens = div_(redeemAmountIn, exchangeRate);
+            redeemAmount = redeemAmountIn;
+            // NUMALENDING
+            // this was not in original compound code but I think it's necessary
+            // because due to exchange rate we might ask for more underlying tokens than equvalent in cTokens
+            // for example X + 500 000 000 wei is equivalent to X
+            redeemAmount = mul_ScalarTruncate(exchangeRate, redeemTokens);
+        }
+
+        /* Fail if redeem not allowed */
+        uint allowed = comptroller.redeemAllowed(address(this), redeemer, redeemTokens);
+        if (allowed != 0) {
+            revert RedeemComptrollerRejection(allowed);
+        }
+
+        /* Verify market's block number equals current block number */
+        if (accrualBlockNumber != getBlockNumber()) {
+            revert RedeemFreshnessCheck();
+        }
+
+        
+        /* Fail gracefully if protocol has insufficient cash */
+        if (getCashPrior() < redeemAmount) 
+        {
+            
+            uint amountNeeded = redeemAmount - getCashPrior();
+            // try to redeem from vault
+            uint maxBorrowableAmountFromVault;
+            if (address(vault) != address(0))
+                maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+            if (amountNeeded <= maxBorrowableAmountFromVault)
+            {
+                // if ok, borrow from vault
+                vault.borrow(amountNeeded);
+            }
+            else
+            {
+                revert RedeemTransferOutNotPossible();
+            }
+        }
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+
+        /*
+         * We write the previously calculated values into storage.
+         *  Note: Avoid token reentrancy attacks by writing reduced supply before external transfer.
+         */
+        totalSupply = totalSupply - redeemTokens;
+        accountTokens[redeemer] = accountTokens[redeemer] - redeemTokens;
+
+        /*
+         * We invoke doTransferOut for the redeemer and the redeemAmount.
+         *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
+         *  On success, the cToken has redeemAmount less of cash.
+         *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
+         */
+         console.log("doTransferOut redeem");
+        doTransferOut(redeemer, redeemAmount);
+ console.logUint(redeemAmount);
+        /* We emit a Transfer event, and a Redeem event */
+        emit Transfer(redeemer, address(this), redeemTokens);
+        emit Redeem(redeemer, redeemAmount, redeemTokens);
+
+        /* We call the defense hook */
+        comptroller.redeemVerify(address(this), redeemer, redeemAmount, redeemTokens);
+    }
 
     /**
      * @notice Calculates the exchange rate from the underlying to the CToken

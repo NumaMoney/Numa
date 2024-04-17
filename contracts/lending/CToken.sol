@@ -479,7 +479,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
      * @param redeemTokensIn The number of cTokens to redeem into underlying (only one of redeemTokensIn or redeemAmountIn may be non-zero)
      * @param redeemAmountIn The number of underlying tokens to receive from redeeming cTokens (only one of redeemTokensIn or redeemAmountIn may be non-zero)
      */
-    function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) internal {
+    function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) virtual internal {
         require(redeemTokensIn == 0 || redeemAmountIn == 0, "one of redeemTokensIn or redeemAmountIn must be zero");
 
         /* exchangeRate = invoke Exchange Rate Stored() */
@@ -487,6 +487,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         uint redeemTokens;
         uint redeemAmount;
+        console.log("*****redeemFresh ***********");
+        console.logUint(redeemAmountIn);
         /* If redeemTokensIn > 0: */
         if (redeemTokensIn > 0) {
             /*
@@ -496,6 +498,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
              */
             redeemTokens = redeemTokensIn;
             redeemAmount = mul_ScalarTruncate(exchangeRate, redeemTokensIn);
+
         } else {
             /*
              * We get the current exchange rate and calculate the amount to be redeemed:
@@ -503,6 +506,9 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
              *  redeemAmount = redeemAmountIn
              */
             redeemTokens = div_(redeemAmountIn, exchangeRate);
+             
+             console.logUint(exchangeRateStoredInternal());
+           console.logUint(redeemTokens);
             redeemAmount = redeemAmountIn;
         }
 

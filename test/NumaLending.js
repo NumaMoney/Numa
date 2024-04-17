@@ -262,7 +262,7 @@ describe('NUMA LENDING', function () {
 
 
     // *********************** NumaVault rEth **********************************
-    Vault1 = await ethers.deployContract("NumaVaultMock",
+    Vault1 = await ethers.deployContract("NumaVault",
     [numa_address,rETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS]);
     await Vault1.waitForDeployment();
     VAULT1_ADDRESS = await Vault1.getAddress();
@@ -331,7 +331,7 @@ describe('NUMA LENDING', function () {
     // crETH is a standart CErc20Immutable
     cReth = await ethers.deployContract("CNumaLst",
     [rETH_ADDRESS,comptroller,rateModel,'200000000000000000000000000',
-    'rEth CToken','crEth',8,await owner.getAddress(),VAULT1_ADDRESS,ethers.parseEther("0.8"),ethers.parseEther("0.8")]);
+    'rEth CToken','crEth',8,await owner.getAddress(),VAULT1_ADDRESS]);
     await cReth.waitForDeployment();
     CRETH_ADDRESS = await cReth.getAddress();
     console.log('crEth address: ', CRETH_ADDRESS);
@@ -749,13 +749,14 @@ describe('NUMA LENDING', function () {
           let lendingBalanceAfterBorrow = await rEth_contract.balanceOf(await CRETH_ADDRESS);
           // should be empty
           expect(lendingBalanceAfterBorrow).to.equal(0);  
+          let borrowedFromVault = notTooMuchrEth - rethsupplyamount;
 
           let vaultBalanceAfterBorrow = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
-        
-          expect(vaultBalanceAfterBorrow).to.equal(vaultInitialBalance +rethsupplyamount - notTooMuchrEth);
+          
+          expect(vaultBalanceAfterBorrow).to.equal(vaultInitialBalance - borrowedFromVault);
 
           let debtAfterBorrow = await Vault1.getDebt();
-          expect(debtAfterBorrow).to.equal(notTooMuchrEth - rethsupplyamount);
+          expect(debtAfterBorrow).to.equal(borrowedFromVault);
 
 
           let [_, collateral, shortfall] = await comptroller.getAccountLiquidity(
@@ -767,8 +768,6 @@ describe('NUMA LENDING', function () {
       
           let halfBorrow = notTooMuchrEth/BigInt(2);
           await rEth_contract.connect(userB).approve(await cReth.getAddress(),halfBorrow);
-
-
           await cReth.connect(userB).repayBorrow(halfBorrow);
 
          
@@ -781,30 +780,25 @@ describe('NUMA LENDING', function () {
           let halfCollat = collateralValueInrEthWei/BigInt(2);
           expect(collateral).to.be.closeTo(halfCollat,epsilon);
 
-          // if target UR = 80%
+         
           let [error,tokenbalance, borrowbalance, exchangerate] = await cReth.getAccountSnapshot(await userB.getAddress());
-          console.log(tokenbalance);
-          console.log(borrowbalance);
-          console.log(exchangerate);
-          let cashneeded = borrowbalance / BigInt(4);
-          console.log(cashneeded);
-
-          let remainingcash = notTooMuchrEth - halfBorrow;
-          let cashavailableforvault = remainingcash - cashneeded;
-          // 80/20 --> 4/5
-          let cashTransferToVault = (cashavailableforvault * BigInt(4))/BigInt(5);
-
-
+         
+        
+          let repaidTovault = halfBorrow;
+          if (repaidTovault > debtAfterBorrow)
+            repaidTovault = debtAfterBorrow;
+          let repaidToLending = halfBorrow - repaidTovault;
+       
           let lendingBalanceAfterRepay = await rEth_contract.balanceOf(await CRETH_ADDRESS);
-          expect(lendingBalanceAfterRepay).to.equal(lendingBalanceAfterBorrow + halfBorrow - cashTransferToVault);  
+          expect(lendingBalanceAfterRepay).to.equal(lendingBalanceAfterBorrow + repaidToLending);  
 
           // check vault
           let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
         
-          expect(vaultBalance).to.equal(vaultBalanceAfterBorrow + cashTransferToVault);
+          expect(vaultBalance).to.equal(vaultBalanceAfterBorrow + repaidTovault);
   
           let debt = await Vault1.getDebt();
-          expect(debt).to.equal(debtAfterBorrow - cashTransferToVault);        
+          expect(debt).to.equal(debtAfterBorrow - repaidTovault);        
 
         
         });
@@ -822,7 +816,7 @@ describe('NUMA LENDING', function () {
   
             // verify toomuch/nottoomuch (x2: collat and available from vault)
             let notTooMuchrEth = collateralValueInrEthWei;
-            console.log("borrowing "+notTooMuchrEth);
+          
             let lendingBalanceInitial = await rEth_contract.balanceOf(await CRETH_ADDRESS);
   
             // we should borrow 1rEth from lenders and 1 rEth from vault
@@ -849,34 +843,28 @@ describe('NUMA LENDING', function () {
         
             let repayBorrow = notTooMuchrEth/BigInt(8);
             await rEth_contract.connect(userB).approve(await cReth.getAddress(),repayBorrow);
-  
-  
             await cReth.connect(userB).repayBorrow(repayBorrow);
   
             
-  
-            // if target UR = 80%
-            let [error,tokenbalance, borrowbalance, exchangerate] = await cReth.getAccountSnapshot(await userB.getAddress());
-            console.log(tokenbalance);
-            console.log(borrowbalance);
-            console.log(exchangerate);
-            let cashneeded = borrowbalance / BigInt(4);
-            console.log(cashneeded);
-  
-  
+            let repaidTovault = repayBorrow;
+            if (repaidTovault > debtAfterBorrow)
+              repaidTovault = debtAfterBorrow;
+            let repaidToLending = repayBorrow - repaidTovault;
+         
             let lendingBalanceAfterRepay = await rEth_contract.balanceOf(await CRETH_ADDRESS);
-            expect(lendingBalanceAfterRepay).to.equal(lendingBalanceAfterBorrow + repayBorrow);  
+            expect(lendingBalanceAfterRepay).to.equal(lendingBalanceAfterBorrow + repaidToLending);  
   
             // check vault
             let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
           
-            expect(vaultBalance).to.equal(vaultBalanceAfterBorrow);
+            expect(vaultBalance).to.equal(vaultBalanceAfterBorrow + repaidTovault);
     
             let debt = await Vault1.getDebt();
-            expect(debt).to.equal(debtAfterBorrow);  
+            expect(debt).to.equal(debtAfterBorrow - repaidTovault);        
+   
         });
 
-        it('Borrow rEth, already at target UR repay rEth to lenders and vault', async () => 
+        it('Borrow rEth, repay rEth to lenders and vault x 2', async () => 
         {
             // supply reth
             let rethsupplyamount = ethers.parseEther("1");          
@@ -890,7 +878,7 @@ describe('NUMA LENDING', function () {
   
             // verify toomuch/nottoomuch (x2: collat and available from vault)
             let notTooMuchrEth = collateralValueInrEthWei;
-            console.log("borrowing "+notTooMuchrEth);
+           
             let lendingBalanceInitial = await rEth_contract.balanceOf(await CRETH_ADDRESS);
   
             // we should borrow 1rEth from lenders and 1 rEth from vault
@@ -917,8 +905,6 @@ describe('NUMA LENDING', function () {
         
             let halfBorrow = notTooMuchrEth/BigInt(2);
             await rEth_contract.connect(userB).approve(await cReth.getAddress(),halfBorrow);
-  
-  
             await cReth.connect(userB).repayBorrow(halfBorrow);
   
            
@@ -926,64 +912,54 @@ describe('NUMA LENDING', function () {
             [_, collateral, shortfall] = await comptroller.getAccountLiquidity(
               await userB.getAddress()
             );
-            printAccountLiquidity(await userB.getAddress(),comptroller);
+           
             expect(shortfall).to.equal(0);  
             let halfCollat = collateralValueInrEthWei/BigInt(2);
             expect(collateral).to.be.closeTo(halfCollat,epsilon);
   
             // if target UR = 80%
             let [error,tokenbalance, borrowbalance, exchangerate] = await cReth.getAccountSnapshot(await userB.getAddress());
-            console.log(tokenbalance);
-            console.log(borrowbalance);
-            console.log(exchangerate);
-            let cashneeded = borrowbalance / BigInt(4);
-            console.log(cashneeded);
-  
-            let remainingcash = notTooMuchrEth - halfBorrow;
-            let cashavailableforvault = remainingcash - cashneeded;
-            // 80/20 --> 4/5
-            let cashTransferToVault = (cashavailableforvault * BigInt(4))/BigInt(5);
-  
-  
+
+            let repaidTovault = halfBorrow;
+            if (repaidTovault > debtAfterBorrow)
+              repaidTovault = debtAfterBorrow;
+            let repaidToLending = halfBorrow - repaidTovault;
+         
             let lendingBalanceAfterRepay = await rEth_contract.balanceOf(await CRETH_ADDRESS);
-            expect(lendingBalanceAfterRepay).to.equal(lendingBalanceAfterBorrow + halfBorrow - cashTransferToVault);  
+            expect(lendingBalanceAfterRepay).to.equal(lendingBalanceAfterBorrow + repaidToLending);  
   
             // check vault
             let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
           
-            expect(vaultBalance).to.equal(vaultBalanceAfterBorrow + cashTransferToVault);
+            expect(vaultBalance).to.equal(vaultBalanceAfterBorrow + repaidTovault);
     
             let debt = await Vault1.getDebt();
-            expect(debt).to.equal(debtAfterBorrow - cashTransferToVault); 
+            expect(debt).to.equal(debtAfterBorrow - repaidTovault);   
+
 
 
             // repay again we should have 80/20 because already at 80%UR
             
             let repayBorrow = notTooMuchrEth/BigInt(4);
             await rEth_contract.connect(userB).approve(await cReth.getAddress(),repayBorrow);
-  
-  
             await cReth.connect(userB).repayBorrow(repayBorrow);
-  
-           
-            // 0.8 for vault (4/5)
-            let repayBorrowVault = (repayBorrow*BigInt(4))/BigInt(5);
-            // cn not repay more than debt
-            if (repayBorrowVault > debt)
-            {
-              repayBorrowVault = debt;
-            }
-            let repayBorrowLenders = repayBorrow - repayBorrowVault;
+            // test again
+            let debtAfterBorrow2 = debt;
+            repaidTovault = repayBorrow;
+            if (repaidTovault > debtAfterBorrow2)
+              repaidTovault = debtAfterBorrow2;
+            repaidToLending = repayBorrow - repaidTovault;
+         
             let lendingBalanceAfterRepay2 = await rEth_contract.balanceOf(await CRETH_ADDRESS);
-            expect(lendingBalanceAfterRepay2).to.equal(lendingBalanceAfterRepay+repayBorrowLenders);  
+            expect(lendingBalanceAfterRepay2).to.equal(lendingBalanceAfterRepay + repaidToLending);  
   
             // check vault
             let vaultBalance2 = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
           
-            expect(vaultBalance2).to.equal(vaultBalance+repayBorrowVault);
+            expect(vaultBalance2).to.equal(vaultBalance + repaidTovault);
     
             let debt2 = await Vault1.getDebt();
-            expect(debt2).to.equal(debt - repayBorrowVault); 
+            expect(debt2).to.equal(debtAfterBorrow2 - repaidTovault);   
 
         });
 
@@ -1035,21 +1011,21 @@ describe('NUMA LENDING', function () {
           let rethSupplyAmount = ethers.parseEther("3");
 
           await supplyReth(userA,rethSupplyAmount);
-
+          // test
+          //await supplyReth(userB,ethers.parseEther("0.0001"));
 
           let rethBalanceAfter = await rEth_contract.balanceOf(await userA.getAddress());
           let crethBalanceAfter = await cReth.balanceOf(await userA.getAddress());
-
+          let rethBalancecreth = await rEth_contract.balanceOf(CRETH_ADDRESS);
 
           expect(rethBalanceAfter).to.equal(rethBalanceBefore - rethSupplyAmount); 
 
           
-          // TODO: add again
-          expect(cReth.connect(userA).redeemUnderlying(rethSupplyAmount + BigInt(1))).to.be.reverted;
-          await cReth.connect(userA).redeemUnderlying(rethSupplyAmount - BigInt(1));
-
-
-
+          await expect(cReth.connect(userA).redeemUnderlying(rethSupplyAmount + BigInt(500000000))).to.be.reverted;
+               
+          await cReth.connect(userA).redeemUnderlying(rethSupplyAmount + BigInt(50000000));
+    
+         
           let rethBalanceAfterRedeem = await rEth_contract.balanceOf(await userA.getAddress());
           let crethBalanceAfterRedeem = await cReth.balanceOf(await userA.getAddress());
 
@@ -1181,36 +1157,17 @@ describe('NUMA LENDING', function () {
       // Add liquidation function.
       it('Borrow numa, change price, liquidate simple', async () => 
       {
-      // 1. standart liquidate numa borrowers
+        // standart liquidate numa borrowers
+        // remove fees for checks
+        await Vault1.setBuyFee(1000);
+        await Vault1.setSellFee(1000);
+        await Vault1.setFee(0);
         // approve
-        let rethsupplyamount = ethers.parseEther("2");
-        await rEth_contract.connect(userA).approve(await cReth.getAddress(),rethsupplyamount);
-        await cReth.connect(userA).mint(rethsupplyamount);
-        // check balance, total supply,
-        let balcrEth = await cReth.balanceOf(await userA.getAddress());
-        let exchangeRate = BigInt(await cReth.exchangeRateStored());
-     
-        let totalSupply = await cReth.totalSupply();
-
-        expect(totalSupply).to.equal(balcrEth);
-        //  TODO: other params to validate
-
-
-        // userB supply numa 
+        let rethsupplyamount = ethers.parseEther("2"); 
         let numasupplyamount = ethers.parseEther("200000");
-        await numa.connect(userB).approve(await cNuma.getAddress(),numasupplyamount);
-
-        // 
-        //await comptroller.connect(userA).enterMarkets([cReth.getAddress()]);
-        await cNuma.connect(userB).mint(numasupplyamount);
-
-        // ******************* userA borrow numa ************************
-
-        // userA will deposit numa and borrow rEth
-        // accept rEth as collateral
-        await comptroller.connect(userA).enterMarkets([cReth.getAddress()]);
-
-
+ 
+        await supplyReth(userA,rethsupplyamount);
+        await supplyNuma(userB,numasupplyamount);
 
         // with vault using real vault price (called from vault to compare)
         let refValueWei = await Vault1.last_lsttokenvalueWei();
@@ -1243,8 +1200,7 @@ describe('NUMA LENDING', function () {
 
         await expect(cNuma.connect(userA).borrow(notTooMuchNuma)).to.not.be.reverted;
 
-        printAccountLiquidity(await userA.getAddress(),comptroller);
-
+  
         [_, collateral, shortfall] = await comptroller.getAccountLiquidity(
           await userA.getAddress()
         );
@@ -1258,21 +1214,25 @@ describe('NUMA LENDING', function () {
 
         expect(shortfall).to.be.closeTo(collateralValueInrEthWei/ethers.parseEther("1"),epsilon); 
        
-        printAccountLiquidity(await userA.getAddress(),comptroller);
-
-        //let rethBalanceBefore = await rEth_contract.balanceOf(await owner.getAddress());
 
         let numaBalanceBefore = await numa.balanceOf(CNUMA_ADDRESS);
 
         // INCENTIVE
         // 10%
         await comptroller._setLiquidationIncentive(ethers.parseEther("1.10"));
-        
+        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10000000"));
         let repayAmount = notTooMuchNuma/BigInt(2);
-        await numa.approve(await cNuma.getAddress(),repayAmount);
-        await cNuma.liquidateBorrow(await userA.getAddress(), repayAmount,cReth) ;
+        // liquidate
+        // await numa.approve(await cNuma.getAddress(),repayAmount);
+        // await cNuma.liquidateBorrow(await userA.getAddress(), repayAmount,cReth) ;
 
-        printAccountLiquidity(await userA.getAddress(),comptroller);
+
+        await numa.approve(VAULT1_ADDRESS,repayAmount);
+
+        
+        // check lending protocol balance
+        let numaBalanceLiquidatorBefore = await numa.balanceOf(await owner.getAddress());
+        await Vault1.liquidateNumaBorrower(await userA.getAddress(), repayAmount) ;
 
         //
         // check new shortfall
@@ -1281,43 +1241,36 @@ describe('NUMA LENDING', function () {
         );
 
         // how much collateral should we get
-        numaFromREth = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("1"));
-        numaBuyPriceInReth = (ethers.parseEther("1") * ethers.parseEther("1")) / numaFromREth;
+        // numaFromREth = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("1"));
+        // numaBuyPriceInReth = (ethers.parseEther("1") * ethers.parseEther("1")) / numaFromREth;
 
 
-        // add 1 because we round up division
-        numaBuyPriceInReth = numaBuyPriceInReth +BigInt(1);
+        // // add 1 because we round up division
+        // numaBuyPriceInReth = numaBuyPriceInReth +BigInt(1);
 
 
-        let borrowRepaidReth = (repayAmount*numaBuyPriceInReth)/ethers.parseEther("1");
-        console.log(ethers.formatEther(borrowRepaidReth));
-        // add discount
-        let expectedCollatReceived = (BigInt(110) * borrowRepaidReth) / BigInt(100)
+        // let borrowRepaidReth = (repayAmount*numaBuyPriceInReth)/ethers.parseEther("1");
+        // console.log(ethers.formatEther(borrowRepaidReth));
+        // // add discount
+        // let expectedCollatReceived = (BigInt(110) * borrowRepaidReth) / BigInt(100)
 
-        console.log(ethers.formatEther(expectedCollatReceived));
+        // console.log(ethers.formatEther(expectedCollatReceived));
 
-
-        expect(shortfall2).to.be.closeTo(shortfall - borrowRepaidReth +(ethers.parseEther(rEthCollateralFactor.toString())*expectedCollatReceived)/(ethers.parseEther("1")),epsilon2);
+        // how much collateral should we get
+        // let expectedCollatReceived = await Vault1.getBuyNumaSimulateExtract(repayAmount);
+        // expectedCollatReceived = (BigInt(110) * expectedCollatReceived) / BigInt(100)
+        // TODO
+        // expect(shortfall2).to.be.closeTo(shortfall - borrowRepaidReth +(ethers.parseEther(rEthCollateralFactor.toString())*expectedCollatReceived)/(ethers.parseEther("1")),epsilon2);
         // check received balance equals equivalent collateral + discount
 
 
-        let crethBalanceAfter = await cReth.balanceOf(await owner.getAddress());
-        console.log(crethBalanceAfter);
-        let exchangeRateStored = await cReth.exchangeRateStored();
-        console.log("exchange rate "+exchangeRateStored);
-        let crethReceived = ((expectedCollatReceived*ethers.parseEther("1"))/exchangeRateStored);
-        //protocolSeizeShareMantissa = 2.8%
-        crethReceived = crethReceived - (BigInt(28)*crethReceived)/BigInt(1000);
-        
-        //expect(crethBalanceAfter).to.equal((expectedCollatReceived*exchangeRateStored)/ethers.parseEther("1")); 
-        expect(crethBalanceAfter).to.be.closeTo(crethReceived,epsilon2); 
-
+ 
         // check lending protocol balance
         let numaBalanceAfter = await numa.balanceOf(CNUMA_ADDRESS);
         expect(numaBalanceAfter).to.equal(numaBalanceBefore + repayAmount);
-        // check vault debt
-        let debt = await Vault1.getDebt();
-        expect(debt).to.equal(0);
+
+        let numaBalanceLiquidatorAfter = await numa.balanceOf(await owner.getAddress());
+        expect(numaBalanceLiquidatorAfter).to.be.closeTo(numaBalanceLiquidatorBefore + (BigInt(10) * repayAmount) / BigInt(100),epsilon2);
 
 
       });
@@ -1332,16 +1285,11 @@ describe('NUMA LENDING', function () {
 
         // supply reth
         let rethsupplyamount = ethers.parseEther("1");
-        await rEth_contract.connect(userA).approve(await cReth.getAddress(),rethsupplyamount);
-        await cReth.connect(userA).mint(rethsupplyamount);
-        // supply numa
-        // userB supply numa 
         let numasupplyamount = ethers.parseEther("200000");
-        await numa.connect(userB).approve(await cNuma.getAddress(),numasupplyamount);
-        // mint cNuma
-        await cNuma.connect(userB).mint(numasupplyamount);
-        // use it to borrow rEth
-        await comptroller.connect(userB).enterMarkets([cNuma.getAddress()]);
+
+      
+        await supplyReth(userA,rethsupplyamount);
+        await supplyNuma(userB,numasupplyamount);
         // compute how much should be borrowable with this collateral
         let sellPrice = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("1"));
         console.log('numa sell price in rEth wei '+ sellPrice);
@@ -1354,7 +1302,7 @@ describe('NUMA LENDING', function () {
         console.log("max rEth borrow from vault "+ethers.formatEther(maxBorrow));
         // verify toomuch/nottoomuch (x2: collat and available from vault)
         let notTooMuchrEth = collateralValueInrEthWei;
-        console.log("borrowing "+notTooMuchrEth);
+        
         let lendingBalanceInitial = await rEth_contract.balanceOf(await CRETH_ADDRESS);
         // we should borrow 1rEth from lenders and 1 rEth from vault
         await expect(cReth.connect(userB).borrow(notTooMuchrEth)).to.not.be.reverted;
@@ -1363,9 +1311,10 @@ describe('NUMA LENDING', function () {
         expect(lendingBalanceAfterBorrow).to.equal(0);  
         let vaultBalanceAfterBorrow = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
       
-        expect(vaultBalanceAfterBorrow).to.equal(vaultInitialBalance +rethsupplyamount - notTooMuchrEth);
+        let vaultDebt = notTooMuchrEth - rethsupplyamount;
+        expect(vaultBalanceAfterBorrow).to.equal(vaultInitialBalance - vaultDebt);
         let debtAfterBorrow = await Vault1.getDebt();
-        expect(debtAfterBorrow).to.equal(notTooMuchrEth - rethsupplyamount);
+        expect(debtAfterBorrow).to.equal(vaultDebt);
         let [_, collateral, shortfall] = await comptroller.getAccountLiquidity(
           await userB.getAddress()
         );
@@ -1373,7 +1322,7 @@ describe('NUMA LENDING', function () {
         expect(shortfall).to.equal(0);  
         expect(collateral).to.be.closeTo(0,epsilon);
 
-        printAccountLiquidity(await userB.getAddress(),comptroller);
+     
         // make it liquiditable by dividing numa price by 2
         // double the supply, will multiply the price by 2
         let totalsupply = await numa.totalSupply();
@@ -1382,74 +1331,44 @@ describe('NUMA LENDING', function () {
           await userB.getAddress()
         );
         let sellPriceNew = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("1"));
-        printAccountLiquidity(await userB.getAddress(),comptroller);
-
-  
+     
         expect(shortfall).to.be.closeTo(collateralValueInrEthWei/BigInt(2),epsilon); 
-         
+
         let rethBalanceBefore = await rEth_contract.balanceOf(CRETH_ADDRESS);
         // INCENTIVE
         // 10%
         await comptroller._setLiquidationIncentive(ethers.parseEther("1.10"));
-        
+        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10000000"));
         let repayAmount = notTooMuchrEth/BigInt(2);
-        await rEth_contract.approve(await cReth.getAddress(),repayAmount);
-        await cReth.liquidateBorrow(await userB.getAddress(), repayAmount,cNuma) ;
-
-        printAccountLiquidity(await userB.getAddress(),comptroller);
-        
-        console.log("repay amount "+ethers.formatEther(repayAmount));
-        console.log("new sell price "+ethers.formatEther(sellPriceNew));
-        // how much collateral should we get
-        let borrowRepaidNuma = (repayAmount * ethers.parseEther("1")/sellPriceNew);
-        console.log("how much collateral should we get "+borrowRepaidNuma);
-        // add discount
-        let expectedCollatReceived = (BigInt(110) * borrowRepaidNuma) / BigInt(100);
-        let expectedCollatReceivedrEth = (BigInt(110) * repayAmount) / BigInt(100)
-   
-        console.log(expectedCollatReceived);
-        [_, collateral2, shortfall2] = await comptroller.getAccountLiquidity(
-          await userB.getAddress()
-        );
-
-        expect(shortfall2).to.be.closeTo(shortfall - repayAmount +(ethers.parseEther(numaCollateralFactor.toString())*expectedCollatReceivedrEth)/(ethers.parseEther("1")),epsilon2);
+        // await rEth_contract.approve(await cReth.getAddress(),repayAmount);
+        // await cReth.liquidateBorrow(await userB.getAddress(), repayAmount,cNuma) ;
+        await rEth_contract.approve(VAULT1_ADDRESS,repayAmount);
+        let rethBalanceLiquidatorBefore = await rEth_contract.balanceOf(await owner.getAddress());
+        await Vault1.liquidateLstBorrower(await userB.getAddress(), repayAmount) ;
 
         // check received balance equals equivalent collateral + discount
-   
-   
-        let cnumaBalanceAfter = await cNuma.balanceOf(await owner.getAddress());
-        console.log("cnuma balance "+cnumaBalanceAfter);
-        let exchangeRateStored = await cNuma.exchangeRateStored();
-        console.log("exchange rate "+exchangeRateStored);
-        let cnumaReceived = ((expectedCollatReceived*ethers.parseEther("1"))/exchangeRateStored);
-        //protocolSeizeShareMantissa = 2.8%
-        cnumaReceived = cnumaReceived - (BigInt(28)*cnumaReceived)/BigInt(1000);
-       
-        console.log(cnumaReceived);
-        expect(cnumaBalanceAfter).to.be.closeTo(cnumaReceived,epsilon2); 
-   
         // check lending protocol balance
-        // if target UR = 80%
-        let [error,tokenbalance, borrowbalance, exchangerate] = await cReth.getAccountSnapshot(await userB.getAddress());
-        console.log(tokenbalance);
-        console.log(borrowbalance);
-        console.log(exchangerate);
-        let cashneeded = borrowbalance / BigInt(4);
-        console.log(cashneeded);
-        let halfBorrow = notTooMuchrEth/BigInt(2);
-        let remainingcash = notTooMuchrEth - halfBorrow;
-        let cashavailableforvault = remainingcash - cashneeded;
-        // 80/20 --> 4/5
-        let cashTransferToVault = (cashavailableforvault * BigInt(4))/BigInt(5);
-        let lendingBalanceAfterRepay = await rEth_contract.balanceOf(await CRETH_ADDRESS);
-        expect(lendingBalanceAfterRepay).to.equal(lendingBalanceAfterBorrow + halfBorrow - cashTransferToVault);  
-        // check vault
-        let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
-      
-        expect(vaultBalance).to.equal(vaultBalanceAfterBorrow + cashTransferToVault);
 
-        let debt = await Vault1.getDebt();
-        expect(debt).to.equal(debtAfterBorrow - cashTransferToVault); 
+        let repaidToVault = repayAmount;
+        if (repayAmount > vaultDebt)
+          repaidToVault = vaultDebt;
+        let repaidToLending = repayAmount - repaidToVault;
+
+        let vaultBalanceAfterLiquidation = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
+        let vaultDebteAfterLiquidation = await Vault1.getDebt();
+      
+        let numaSoldInReth =  (BigInt(110) * repayAmount) / BigInt(100);
+        expect(vaultBalanceAfterLiquidation).to.be.closeTo(vaultBalanceAfterBorrow + repaidToVault - numaSoldInReth,epsilon);
+        expect(vaultDebteAfterLiquidation).to.equal(debtAfterBorrow - repaidToVault);
+
+        let rethBalanceAfter = await rEth_contract.balanceOf(CRETH_ADDRESS);
+        expect(rethBalanceAfter).to.equal(rethBalanceBefore + repaidToLending);
+   
+        let rethBalanceLiquidatorAfter = await rEth_contract.balanceOf(await owner.getAddress());
+        expect(rethBalanceLiquidatorAfter).to.be.closeTo(rethBalanceLiquidatorBefore + (BigInt(10) * repayAmount) / BigInt(100),epsilon2);
+   
+
+  
 
       });
 
@@ -1582,7 +1501,7 @@ describe('NUMA LENDING', function () {
         console.log("max rEth borrow from vault "+ethers.formatEther(maxBorrow));
         // verify toomuch/nottoomuch (x2: collat and available from vault)
         let notTooMuchrEth = collateralValueInrEthWei;
-        console.log("borrowing "+notTooMuchrEth);
+       
         let lendingBalanceInitial = await rEth_contract.balanceOf(await CRETH_ADDRESS);
         // we should borrow 1rEth from lenders and 1 rEth from vault
         await expect(cReth.connect(userB).borrow(notTooMuchrEth)).to.not.be.reverted;

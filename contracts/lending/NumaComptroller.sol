@@ -791,7 +791,9 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             if (asset == cTokenModify) {
                 // redeem effect
                 // sumBorrowPlusEffects += tokensToDenom * redeemTokens   
-                // NUMALENDING: use numa as collateral price        
+                // NUMALENDING: use numa as collateral price  
+                 console.log("mountredeem")   ;
+                 console.logUint(redeemTokens);   
                 vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, redeemTokens, vars.sumBorrowPlusEffects);
 
                 // borrow effect
@@ -810,7 +812,8 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         {
              if (vars.sumCollateral == vars.sumBorrowPlusEffects) 
                  console.log("need one more wei");
-
+            console.logUint(vars.sumCollateral);
+            console.logUint(vars.sumBorrowPlusEffects);
             console.log("shortfall");
             return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral);
         }

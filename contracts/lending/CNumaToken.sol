@@ -103,6 +103,19 @@ contract CNumaToken is CErc20Immutable
        
     }
 
+    /**
+     * @notice The sender liquidates the borrowers collateral.
+     *  The collateral seized is transferred to the liquidator.
+     * @param borrower The borrower of this cToken to be liquidated
+     * @param repayAmount The amount of the underlying borrowed asset to repay
+     * @param cTokenCollateral The market in which to seize collateral from the borrower
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) override external returns (uint) {
+        require(msg.sender == address(vault),"vault only");
+        liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
+        return NO_ERROR;
+    }
 
   
 }
