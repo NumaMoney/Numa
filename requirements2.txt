@@ -106,3 +106,45 @@ un contrat qui reference tous les contracts addresses comme ça plus simple pour
 ******************** flash and loops
 https://www.rareskills.io/post/erc-3156
 
+3 e18
+
+150 e8
+
+
+3 e18 + 500 000 000
+
+0.0000000001
+
+CASHPRIOR:
+
+- supplyrate, borrow rate --> use maxborrowable
+- accrueinterest: borrowRateMantissa
+- borrow from vault if no liquidity in lending protocol
+
+1) borrow from lenders first
+
+2) repay vault first
+
+3) si rien à redeem, on tape dans le vault
+
+4) pareil pour seize tokens --> marchera car on doit redeem si on veut swap
+
+
+internal liquidations
+
+- to do: factoriser le code
+
++ virer les input tokens puisqu'on les a au niveau du vault
+
+todo: check accrueinterest, voir si on a une meilleure solution que de l'appeler depuis vault&synth
+
+check exchangeRateStoredInternal si on redeem du vault
+
+FIX TOUS LES TEST + CLEAN test & code
+
+tester redeem from vault
+
+ATTENTION on ne peut plus liquider quand le vault est paused
+
+briefer stiive sur nos liquidations --> profit numa ou reth selon les 4 modalités
+
