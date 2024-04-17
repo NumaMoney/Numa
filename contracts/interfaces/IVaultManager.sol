@@ -18,6 +18,7 @@ interface IVaultManager {
 
     function getTotalSynthValueEth() external view returns (uint256);
     function isVault(address _addy) external view returns (bool);
-
-
+    //function setRemovedSupplyFlashloan(uint _removedSupply) external ;
+    function lockSupplyFlashloan(bool _lock) external ;
+  
 }

@@ -10,7 +10,7 @@ import "../interfaces/INumaVault.sol";
 import "../Numa.sol";
 
 import "../interfaces/INuAssetManager.sol";
-
+import "hardhat/console.sol";
 
 
 contract VaultManager is IVaultManager, Ownable2Step {
@@ -23,6 +23,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     uint public initialRemovedSupply;
     uint public constantRemovedSupply;
+    //uint public removedSupplyFlashloan;
+    bool public islockedSupply;
+    uint public lockedSupply;
+
     uint public decayPeriod;
     uint public startTime;
     bool public isDecaying;
@@ -59,6 +63,22 @@ contract VaultManager is IVaultManager, Ownable2Step {
         constantRemovedSupply = _constantRemovedSupply;
     }
 
+    // function setRemovedSupplyFlashloan(uint _removedSupply) external 
+    // {
+    //     require(isVault(msg.sender),"only vault");
+    //     removedSupplyFlashloan = _removedSupply;
+    // }
+
+    function lockSupplyFlashloan(bool _lock) external 
+     {
+        require(isVault(msg.sender),"only vault");      
+        if (_lock)
+        {
+            lockedSupply = getNumaSupply();
+        }
+        islockedSupply = _lock;
+    }
+
     function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod,uint _constantRemovedSupply) external onlyOwner
     {
         initialRemovedSupply = _initialRemovedSupply;
@@ -71,7 +91,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
 
-    function isVault(address _addy) external view returns (bool)
+    function isVault(address _addy) public view returns (bool)
     {
         return (vaultsList.contains(_addy));
 
@@ -111,6 +131,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
             EthBalance > synthValueInEth,
             "vault is empty or synth value is too big"
         );
+
        
         uint result = FullMath.mulDiv(
             EthValue,
@@ -150,6 +171,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
             _decimals,
             _refValueWei
         );
+
+        
         return result;
     }
 
@@ -197,6 +220,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
      * @notice for another vault, either we use this function from this vault, either we need to set list in the other vault too
      */
     function getNumaSupply() public view returns (uint) {
+        if (islockedSupply)
+            return lockedSupply;
+
         uint circulatingNuma = numa.totalSupply();
         uint currentRemovedSupply = initialRemovedSupply;
 
