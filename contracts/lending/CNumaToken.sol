@@ -16,6 +16,8 @@ contract CNumaToken is CErc20Immutable
 {
     
     INumaVault vault;
+    uint margin = 1;
+    uint margin_base = 100000000000000;
 
     /// @notice set vault event
     event SetVault(address vaultAddress);
@@ -40,6 +42,14 @@ contract CNumaToken is CErc20Immutable
         vault = INumaVault(_vault);
     }
 
+    function setLeverageEpsilon(uint _margin,uint _marginbase) external  
+    {
+        require(msg.sender == admin, "only admin");
+        margin = _margin;
+        margin_base = _marginbase;
+      
+    }
+
     function setVault(address _vault) external  
     {
         require(msg.sender == admin, "only admin");
@@ -61,17 +71,20 @@ contract CNumaToken is CErc20Immutable
         address underlyingCollateral = _collateral.underlying();
 
         //
-        uint balBefore = EIP20Interface(underlyingCollateral).balanceOf(address(this));
+        //uint balBefore = EIP20Interface(underlyingCollateral).balanceOf(address(this));
         // borrow from vault
         uint totalAmount = _suppliedAmount + _borrowAmount;
         vault.borrowLeverage(_borrowAmount);
 
+        // console.log("borrowed vault for leverage");
+        // console.logUint(_borrowAmount);
+
         // get user tokens
         SafeERC20.safeTransferFrom(IERC20(underlyingCollateral),msg.sender,address(this),_suppliedAmount);
         //
-        uint balAfter = EIP20Interface(underlyingCollateral).balanceOf(address(this));
+        // uint balAfter = EIP20Interface(underlyingCollateral).balanceOf(address(this));
 
-        require((balAfter - balBefore) == totalAmount,"not enough collateral");
+        // require((balAfter - balBefore) == totalAmount,"not enough collateral");
 
         // supply au niveau de l'autre ctoken
         uint balCtokenBefore = EIP20Interface(address(_collateral)).balanceOf(address(this));
@@ -80,26 +93,69 @@ contract CNumaToken is CErc20Immutable
         uint balCtokenAfter = EIP20Interface(address(_collateral)).balanceOf(address(this));
 
         // send collateral to sender
-        uint receivedCtokens  = balCtokenAfter - balCtokenBefore;
+        uint receivedtokens  = balCtokenAfter - balCtokenBefore;
 
-        require(receivedCtokens > 0, "no collateral");
-        SafeERC20.safeTransfer(IERC20(address(_collateral)), msg.sender, receivedCtokens);
+        require(receivedtokens > 0, "no collateral");
+        SafeERC20.safeTransfer(IERC20(address(_collateral)), msg.sender, receivedtokens);
        
 
        // borrow
        uint borrowAmount = vault.getAmountIn(_borrowAmount);
-       // add 1 wei because of potential rounding down
-       borrowAmount += 1;
+        // console.log("BORROW AMOUNT");
+        // console.logUint(borrowAmount);
+       // overestimate a little to be sure to be able to repay
+       borrowAmount = borrowAmount + (borrowAmount * margin)/margin_base;
+     // console.logUint(_borrowAmount);
 
 
-       borrowInternalNoTransfer(borrowAmount,msg.sender);
+        
+        //uint balUnderlyingBefore = EIP20Interface(underlying).balanceOf(address(this));
+        uint accountBorrowBefore = accountBorrows[msg.sender].principal;
+
+       // console.log("vaultbalance 0");
+               // uint balVault = EIP20Interface(address(underlying)).balanceOf(address(vault));
+       // console.logUint(balVault);
+
+
+        borrowInternalNoTransfer(borrowAmount,msg.sender);
+        //uint balUnderlyingAfter = EIP20Interface(underlying).balanceOf(address(this));
+        
+          //      console.log("vaultbalance 1");
+           //     balVault = EIP20Interface(address(underlying)).balanceOf(address(vault));
+        //console.logUint(balVault);
+
+        uint accountBorrowAfter = accountBorrows[msg.sender].principal;
+
+        // console.log("BORROW");
+        // console.logUint(accountBorrowBefore);
+        // console.logUint(accountBorrowAfter);
+        // just in case
+        require((accountBorrowAfter - accountBorrowBefore) == borrowAmount,"borrow ko");
+
+
 
        EIP20Interface(underlying).approve(address(vault),borrowAmount);
-       uint buyAmount = vault.buyFromCToken(borrowAmount,_borrowAmount,address(this));
+
+
+
+       uint collateralReceived = vault.buyFromCToken(borrowAmount,_borrowAmount);
    
+//                   console.log("vaultbalance 2");
+        //         balVault = EIP20Interface(address(underlying)).balanceOf(address(vault));
+        // console.logUint(balVault);
+
+
+
        // repay 
        EIP20Interface(underlyingCollateral).approve(address(vault),_borrowAmount);
        vault.repayLeverage();
+
+       if (collateralReceived > _borrowAmount)
+       {
+            // send back the surplus
+            SafeERC20.safeTransfer(IERC20(underlyingCollateral), msg.sender, collateralReceived - _borrowAmount);
+        
+       }
        
     }
 

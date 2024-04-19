@@ -53,7 +53,7 @@ contract NumaPriceOracleNew is PriceOracleCollateralBorrow,Ownable {
         } 
         else if (compareStrings(cToken.symbol(), "crEth")) 
         {
-            // 
+            //  
             return 1e18;// rEth has 18 decimals
         }
         else

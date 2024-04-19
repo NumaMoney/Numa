@@ -177,6 +177,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
 
+
+   
+
+
     function GetPriceFromVaultWithoutFees(uint _inputAmount) external view returns (uint256)
     {
         uint synthValueInEth = getTotalSynthValueEth();

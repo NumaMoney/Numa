@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../Numa.sol";
@@ -17,7 +17,7 @@ interface INuma {
 
 
 /// @title Numa minter
-contract NumaMinter is Ownable2Step, Pausable 
+contract NumaMinter is Ownable2Step
 {
     //
     INuma public numa;
@@ -47,7 +47,7 @@ contract NumaMinter is Ownable2Step, Pausable
         emit SetToken(_token);
     }
 
-    function mint(address to, uint256 amount) external whenNotPaused onlyMinters
+    function mint(address to, uint256 amount) external onlyMinters
     {
         require(address(numa) != address(0),"token address invalid");
         numa.mint(to,amount);

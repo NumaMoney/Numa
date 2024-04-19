@@ -791,15 +791,24 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             if (asset == cTokenModify) {
                 // redeem effect
                 // sumBorrowPlusEffects += tokensToDenom * redeemTokens   
-                // NUMALENDING: use numa as collateral price  
-                 console.log("mountredeem")   ;
-                 console.logUint(redeemTokens);   
+                // NUMALENDING: use numa as collateral price                   
                 vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, redeemTokens, vars.sumBorrowPlusEffects);
 
                 // borrow effect
                 // sumBorrowPlusEffects += oraclePrice * borrowAmount
-                // NUMALENDING: use numa as borrowed price        
+                // NUMALENDING: use numa as borrowed price  
+                if (borrowAmount > 0)      
+                {
+                    console.log("getaccountliquidity borrow amoun");
+                    console.logUint(borrowAmount);
+                    console.logUint(vars.oraclePriceMantissaBorrowed);
+                                         console.logUint(vars.sumBorrowPlusEffects);
+                }
                 vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, borrowAmount, vars.sumBorrowPlusEffects);
+                if (borrowAmount > 0)      
+                {
+                     console.logUint(vars.sumBorrowPlusEffects);
+                }
             }
         }
 
@@ -810,11 +819,12 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         }
         else 
         {
-             if (vars.sumCollateral == vars.sumBorrowPlusEffects) 
-                 console.log("need one more wei");
-            console.logUint(vars.sumCollateral);
-            console.logUint(vars.sumBorrowPlusEffects);
-            console.log("shortfall");
+            console.log("SHORTFALL");
+             //if (vars.sumCollateral == vars.sumBorrowPlusEffects) 
+            //      console.log("need one more wei");
+            // console.logUint(vars.sumCollateral);
+            // console.logUint(vars.sumBorrowPlusEffects);
+            // console.log("shortfall");
             return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral);
         }
     }

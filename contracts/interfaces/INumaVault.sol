@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 interface INumaVault {
 
-    function buyFromCToken(uint _inputAmount,uint _minNumaAmount,address _receiver) external returns (uint);
+    function buyFromCToken(uint _inputAmount,uint _minNumaAmount) external returns (uint);
     function getDebt() external view returns (uint);
     //function setDebt(uint newDebt) external;
     function repay(uint amount) external;
