@@ -1,5 +1,21 @@
 
+**********
 
+
+fix tests
+
+
+tester maxprofit
+tester redeem from vault & vault debt
+
+tester leverage results
+
+autre test de leverage avec reth lenders 
+
+
+
+
+*************
 mods from standard compound fork:
 - remove COMP token stuff
 - account psuedo rETH supply for calculating utilization rate (rETH_lendingcontract + rETH_value/collateralFactor).
