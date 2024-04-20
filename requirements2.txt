@@ -5,8 +5,8 @@
 fix tests
 
 
-tester maxprofit
-tester redeem from vault & vault debt
+tester maxprofit STARTED
+tester redeem from vault & vault debt STARTED
 
 tester leverage results
 
@@ -153,15 +153,13 @@ check exchangeRateStoredInternal si on redeem du vault
 FIX TOUS LES TEST + CLEAN test & code
 
 check if other things need to be implemented
-tester redeem from vault
 
-repasser sur chaque test, les compléter, cleaner test & code
 
-relire tout le code
+- repasser sur chaque test, les compléter, cleaner test & code
+
+- relire tout le code
 
 ATTENTION on ne peut plus liquider quand le vault est paused
 
 briefer stiive sur nos liquidations --> profit numa ou reth selon les 4 modalités
-
-numaminter
 

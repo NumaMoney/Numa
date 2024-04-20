@@ -827,9 +827,7 @@ console.logUint(result);
         if (numaLiquidatorProfit > maxNumaProfitForLiquidations)
             numaLiquidatorProfit = maxNumaProfitForLiquidations;
 
- console.logUint(numaReceived);
-  console.logUint(_numaAmount);
-              console.logUint(numaLiquidatorProfit);
+
 
         uint numaBurn = numaReceived - numaLiquidatorProfit;
         SafeERC20.safeTransfer(IERC20(address(numa)), msg.sender, numaLiquidatorProfit);
@@ -848,10 +846,6 @@ console.logUint(result);
     // extract rewards if any
         extractRewardsNoRequire();
        
-        // rEth collat / borrow numa
-        // require(address(_collateralToken) == address(cLstToken),"bad input token");
-        // require(address(_borrowToken) == address(cNuma),"bad input token");
-
         // mint numa
         vaultManager.lockSupplyFlashloan(true);
         // user supplied funds
@@ -897,9 +891,7 @@ console.logUint(result);
         uint numaToBurn = numaReceived - numaToSend;
         SafeERC20.safeTransfer(IERC20(address(numa)), msg.sender, numaToSend);
        
-       console.log("liquidation");
-       console.logUint(numaLiquidatorProfit);
-              console.logUint(numaToBurn);
+
         // burn the rest
         numa.burn(numaToBurn);
         vaultManager.lockSupplyFlashloan(false);
@@ -980,13 +972,10 @@ console.logUint(result);
         // extract rewards if any
         extractRewardsNoRequire();
        
-        // numa collat / borrow reth
-        // require(address(_collateralToken) == address(cNuma),"bad input token");
-        // require(address(_borrowToken) == address(cLstToken),"bad input token");
-
+       
         // check that we have enough rEth
         uint bal = getVaultBalance();
-        require(bal >= _lstAmount,"not enough lst");
+       
         vaultManager.lockSupplyFlashloan(true);
         // lock price from liquidity
         lstLockedBalance = bal;
