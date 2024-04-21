@@ -5,13 +5,11 @@ import "./CNumaToken.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-//import "../interfaces/INumaVault.sol";
 
-import "hardhat/console.sol";
 /**
- * @title Compound's CErc20 Contract
- * @notice CTokens which wrap an EIP-20 underlying
- * @author Compound
+ * @title CNumaLst
+ * @notice CTokens used for numa lst and vault
+ * @author 
  */
 contract CNumaLst is CNumaToken
 {
@@ -46,7 +44,8 @@ contract CNumaLst is CNumaToken
      * @return The borrow interest rate per block, scaled by 1e18
      */
     function borrowRatePerBlock() override external view returns (uint) {
-         // NUMALENDING
+        // NUMALENDING
+        // borrow rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
             maxBorrowableAmountFromVault = vault.GetMaxBorrow();
@@ -59,7 +58,8 @@ contract CNumaLst is CNumaToken
      * @return The supply interest rate per block, scaled by 1e18
      */
     function supplyRatePerBlock() override external view returns (uint) {
-         // NUMALENDING
+        // NUMALENDING
+        // supply rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
             maxBorrowableAmountFromVault = vault.GetMaxBorrow();
@@ -84,6 +84,7 @@ contract CNumaLst is CNumaToken
 
         /* Read the previous values out of storage */
         // NUMALENDING
+        // interest rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
             maxBorrowableAmountFromVault = vault.GetMaxBorrow();
@@ -150,7 +151,7 @@ contract CNumaLst is CNumaToken
         /* Fail gracefully if protocol has insufficient underlying cash */
         uint cashPrior = getCashPrior();
         if (cashPrior < borrowAmount)
-        {
+        {   // not enough cash in lending contract, check if we can get some from the vault
             // NUMALENDING
             // 
             if (address(vault) != address(0))
@@ -164,14 +165,13 @@ contract CNumaLst is CNumaToken
                     vault.borrow(amountNeeded);
                 }
                 else
-                {
-                    // TODO specific error
+                {       
+                    // not enough in vault             
                     revert BorrowCashNotAvailable();
                 }
             }
             else
-            {
-                console.log("no vault");
+            {              
                 revert BorrowCashNotAvailable();
             }
 
@@ -256,6 +256,7 @@ contract CNumaLst is CNumaToken
         totalBorrows = totalBorrowsNew;
 
         // NUMALENDING
+        // if we have debt from the vault, repay vault first
         uint vaultDebt = vault.getDebt();
         if (vaultDebt > 0)
         {
@@ -331,10 +332,11 @@ contract CNumaLst is CNumaToken
         }
 
         
-        /* Fail gracefully if protocol has insufficient cash */
+        
         if (getCashPrior() < redeemAmount) 
         {
-            
+            // NUMALENDING
+            // try to redeem from vault            
             uint amountNeeded = redeemAmount - getCashPrior();
             // try to redeem from vault
             uint maxBorrowableAmountFromVault;
@@ -369,9 +371,8 @@ contract CNumaLst is CNumaToken
          *  On success, the cToken has redeemAmount less of cash.
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
-         console.log("doTransferOut redeem");
         doTransferOut(redeemer, redeemAmount);
- console.logUint(redeemAmount);
+
         /* We emit a Transfer event, and a Redeem event */
         emit Transfer(redeemer, address(this), redeemTokens);
         emit Redeem(redeemer, redeemAmount, redeemTokens);
