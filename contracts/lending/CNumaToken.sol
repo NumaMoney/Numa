@@ -6,11 +6,11 @@ import "./CErc20Immutable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../interfaces/INumaVault.sol";
-import "hardhat/console.sol";
+
 /**
- * @title Compound's CErc20 Contract
- * @notice CTokens which wrap an EIP-20 underlying
- * @author Compound
+ * @title CNumaToken
+ * @notice CTokens used with numa vault
+ * @author 
  */
 contract CNumaToken is CErc20Immutable
 {
@@ -70,23 +70,15 @@ contract CNumaToken is CErc20Immutable
     {
         address underlyingCollateral = _collateral.underlying();
 
-        //
-        //uint balBefore = EIP20Interface(underlyingCollateral).balanceOf(address(this));
+
         // borrow from vault
-        uint totalAmount = _suppliedAmount + _borrowAmount;
         vault.borrowLeverage(_borrowAmount);
-
-        // console.log("borrowed vault for leverage");
-        // console.logUint(_borrowAmount);
-
         // get user tokens
         SafeERC20.safeTransferFrom(IERC20(underlyingCollateral),msg.sender,address(this),_suppliedAmount);
-        //
-        // uint balAfter = EIP20Interface(underlyingCollateral).balanceOf(address(this));
 
-        // require((balAfter - balBefore) == totalAmount,"not enough collateral");
+        uint totalAmount = _suppliedAmount + _borrowAmount;
 
-        // supply au niveau de l'autre ctoken
+        // supply (mint collateral)
         uint balCtokenBefore = EIP20Interface(address(_collateral)).balanceOf(address(this));
         EIP20Interface(underlyingCollateral).approve(address(_collateral),totalAmount);
         _collateral.mint(totalAmount);
@@ -96,67 +88,31 @@ contract CNumaToken is CErc20Immutable
         uint receivedtokens  = balCtokenAfter - balCtokenBefore;
 
         require(receivedtokens > 0, "no collateral");
+        // transfer collateral to sender
         SafeERC20.safeTransfer(IERC20(address(_collateral)), msg.sender, receivedtokens);
        
 
-       // borrow
+       // how much to we need to borrow to repay vault
        uint borrowAmount = vault.getAmountIn(_borrowAmount);
-        // console.log("BORROW AMOUNT");
-        // console.logUint(borrowAmount);
        // overestimate a little to be sure to be able to repay
        borrowAmount = borrowAmount + (borrowAmount * margin)/margin_base;
-     // console.logUint(_borrowAmount);
-
-
-        
-        //uint balUnderlyingBefore = EIP20Interface(underlying).balanceOf(address(this));
-        uint accountBorrowBefore = accountBorrows[msg.sender].principal;
-
-       // console.log("vaultbalance 0");
-               // uint balVault = EIP20Interface(address(underlying)).balanceOf(address(vault));
-       // console.logUint(balVault);
-
-
-        borrowInternalNoTransfer(borrowAmount,msg.sender);
-        //uint balUnderlyingAfter = EIP20Interface(underlying).balanceOf(address(this));
-        
-          //      console.log("vaultbalance 1");
-           //     balVault = EIP20Interface(address(underlying)).balanceOf(address(vault));
-        //console.logUint(balVault);
-
-        uint accountBorrowAfter = accountBorrows[msg.sender].principal;
-
-        // console.log("BORROW");
-        // console.logUint(accountBorrowBefore);
-        // console.logUint(accountBorrowAfter);
-        // just in case
-        require((accountBorrowAfter - accountBorrowBefore) == borrowAmount,"borrow ko");
-
-
-
+       uint accountBorrowBefore = accountBorrows[msg.sender].principal;
+       // borrow but do not transfer borrowed tokens
+       borrowInternalNoTransfer(borrowAmount,msg.sender);
+       uint accountBorrowAfter = accountBorrows[msg.sender].principal;
+       require((accountBorrowAfter - accountBorrowBefore) == borrowAmount,"borrow ko");
+       // buy/sell from the vault
        EIP20Interface(underlying).approve(address(vault),borrowAmount);
-
-
-
        uint collateralReceived = vault.buyFromCToken(borrowAmount,_borrowAmount);
-   
-//                   console.log("vaultbalance 2");
-        //         balVault = EIP20Interface(address(underlying)).balanceOf(address(vault));
-        // console.logUint(balVault);
-
-
-
-       // repay 
+       // repay vault
        EIP20Interface(underlyingCollateral).approve(address(vault),_borrowAmount);
        vault.repayLeverage();
-
+       // refund if needed
        if (collateralReceived > _borrowAmount)
        {
             // send back the surplus
-            SafeERC20.safeTransfer(IERC20(underlyingCollateral), msg.sender, collateralReceived - _borrowAmount);
-        
+           SafeERC20.safeTransfer(IERC20(underlyingCollateral), msg.sender, collateralReceived - _borrowAmount);
        }
-       
     }
 
     /**
@@ -168,6 +124,7 @@ contract CNumaToken is CErc20Immutable
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
     function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) override external returns (uint) {
+        // only vault can liquidate
         require(msg.sender == address(vault),"vault only");
         liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
         return NO_ERROR;

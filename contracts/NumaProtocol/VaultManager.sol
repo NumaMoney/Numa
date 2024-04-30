@@ -10,7 +10,6 @@ import "../interfaces/INumaVault.sol";
 import "../Numa.sol";
 
 import "../interfaces/INuAssetManager.sol";
-import "hardhat/console.sol";
 
 
 contract VaultManager is IVaultManager, Ownable2Step {
@@ -19,11 +18,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     INuAssetManager public nuAssetManager;
     NUMA public immutable numa;
-    //EnumerableSet.AddressSet removedSupplyAddresses;
+  
 
     uint public initialRemovedSupply;
     uint public constantRemovedSupply;
-    //uint public removedSupplyFlashloan;
+  
     bool public islockedSupply;
     uint public lockedSupply;
 
@@ -63,11 +62,6 @@ contract VaultManager is IVaultManager, Ownable2Step {
         constantRemovedSupply = _constantRemovedSupply;
     }
 
-    // function setRemovedSupplyFlashloan(uint _removedSupply) external 
-    // {
-    //     require(isVault(msg.sender),"only vault");
-    //     removedSupplyFlashloan = _removedSupply;
-    // }
 
     function lockSupplyFlashloan(bool _lock) external 
      {

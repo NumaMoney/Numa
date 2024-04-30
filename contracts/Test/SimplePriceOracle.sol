@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity 0.8.20;
 
-import "./PriceOracleCollateralBorrow.sol";
-import "./CErc20.sol";
-import "hardhat/console.sol";
+import "../lending/PriceOracleCollateralBorrow.sol";
+import "../lending/CErc20.sol";
+
 contract SimplePriceOracle is PriceOracleCollateralBorrow {
     mapping(address => uint) prices;
     event PricePosted(address asset, uint previousPriceMantissa, uint requestedPriceMantissa, uint newPriceMantissa);

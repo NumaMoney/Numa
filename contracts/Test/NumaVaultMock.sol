@@ -18,8 +18,8 @@ import "../lending/CTokenInterfaces.sol";
 import "../lending/NumaComptroller.sol";
 import "../lending/CNumaToken.sol";
 
-import "./NumaVault.sol";
-import "hardhat/console.sol";
+import "../NumaProtocol/NumaVault.sol";
+
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVaultMock is NumaVault
 {

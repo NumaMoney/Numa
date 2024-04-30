@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title CNumaLst
- * @notice CTokens used for numa lst and vault
+ * @notice CTokens used with numa vault
  * @author 
  */
 contract CNumaLst is CNumaToken
@@ -63,6 +63,10 @@ contract CNumaLst is CNumaToken
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
             maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+
+
+        console.log("reserve factor");
+        console.logUint(reserveFactorMantissa);
         return interestRateModel.getSupplyRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves, reserveFactorMantissa);
     }
 
@@ -337,8 +341,7 @@ contract CNumaLst is CNumaToken
         {
             // NUMALENDING
             // try to redeem from vault            
-            uint amountNeeded = redeemAmount - getCashPrior();
-            // try to redeem from vault
+            uint amountNeeded = redeemAmount - getCashPrior();        
             uint maxBorrowableAmountFromVault;
             if (address(vault) != address(0))
                 maxBorrowableAmountFromVault = vault.GetMaxBorrow();

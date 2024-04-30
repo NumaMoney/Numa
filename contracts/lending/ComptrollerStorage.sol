@@ -68,8 +68,7 @@ contract ComptrollerV2Storage is ComptrollerV1Storage {
         // Per-market mapping of "accounts in this asset"
         mapping(address => bool) accountMembership;
 
-        // Whether or not this market receives COMP
-        bool isComped;
+
     }
 
     /**

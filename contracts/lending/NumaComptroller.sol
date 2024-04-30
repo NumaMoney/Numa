@@ -8,13 +8,10 @@ import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
 
-import "hardhat/console.sol";
-// TOBEREMOVED
-//import "./Governance/Comp.sol";
 
 /**
- * @title Compound's Comptroller Contract
- * @author Compound
+ * @title Numa's Comptroller Contract (forked from compound)
+ * @author 
  */
 contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, ComptrollerErrorReporter, ExponentialNoError {
     /// @notice Emitted when an admin supports a market
@@ -248,11 +245,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             return uint(Error.MARKET_NOT_LISTED);
         }
 
-        // TOBEREMOVED
-        // Keep the flywheel moving
-        // updateCompSupplyIndex(cToken);
-        // distributeSupplierComp(cToken, minter);
-
         return uint(Error.NO_ERROR);
     }
 
@@ -288,11 +280,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         if (allowed != uint(Error.NO_ERROR)) {
             return allowed;
         }
-
-        // TOBEREMOVED
-        // // Keep the flywheel moving
-        // updateCompSupplyIndex(cToken);
-        // distributeSupplierComp(cToken, redeemer);
 
         return uint(Error.NO_ERROR);
     }
@@ -389,12 +376,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             return uint(Error.INSUFFICIENT_LIQUIDITY);
         }
 
-        // TOBEREMOVED
-        // // Keep the flywheel moving
-        // Exp memory borrowIndex = Exp({mantissa: CToken(cToken).borrowIndex()});
-        // updateCompBorrowIndex(cToken, borrowIndex);
-        // distributeBorrowerComp(cToken, borrower, borrowIndex);
-
         return uint(Error.NO_ERROR);
     }
 
@@ -437,12 +418,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
-
-        // TOBEREMOVED
-        // // Keep the flywheel moving
-        // Exp memory borrowIndex = Exp({mantissa: CToken(cToken).borrowIndex()});
-        // updateCompBorrowIndex(cToken, borrowIndex);
-        // distributeBorrowerComp(cToken, borrower, borrowIndex);
 
         return uint(Error.NO_ERROR);
     }
@@ -578,12 +553,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             return uint(Error.COMPTROLLER_MISMATCH);
         }
 
-        // TOBEREMOVED
-        // // Keep the flywheel moving
-        // updateCompSupplyIndex(cTokenCollateral);
-        // distributeSupplierComp(cTokenCollateral, borrower);
-        // distributeSupplierComp(cTokenCollateral, liquidator);
-
         return uint(Error.NO_ERROR);
     }
 
@@ -632,12 +601,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         if (allowed != uint(Error.NO_ERROR)) {
             return allowed;
         }
-
-        // TOBEREMOVED
-        // // Keep the flywheel moving
-        // updateCompSupplyIndex(cToken);
-        // distributeSupplierComp(cToken, src);
-        // distributeSupplierComp(cToken, dst);
 
         return uint(Error.NO_ERROR);
     }
@@ -756,7 +719,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             (oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = asset.getAccountSnapshot(account);
             if (oErr != 0) 
             { 
-                console.log("SNAPSHOT_ERROR");
                 // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
                 return (Error.SNAPSHOT_ERROR, 0, 0);
             }
@@ -779,14 +741,23 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
 
             // sumCollateral += tokensToDenom * cTokenBalance
 
-            // XCZ should use collateral price
+            // NUMALENDING: use collateral price
             vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, vars.cTokenBalance, vars.sumCollateral);
 
+   console.log("collat ");
+                console.logUint(vars.cTokenBalance);
+                console.logUint(vars.oraclePriceMantissaCollateral);
 
 
 
             // sumBorrowPlusEffects += oraclePrice * borrowBalance
+
+            // NUMALENDING: use borrow price
             vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, vars.borrowBalance, vars.sumBorrowPlusEffects);
+                          console.log("borrow 0");
+                console.logUint(vars.borrowBalance);
+                console.logUint(vars.oraclePriceMantissaBorrowed);
+
             // Calculate effects of interacting with cTokenModify
             if (asset == cTokenModify) {
                 // redeem effect
@@ -797,20 +768,15 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
                 // borrow effect
                 // sumBorrowPlusEffects += oraclePrice * borrowAmount
                 // NUMALENDING: use numa as borrowed price  
-                if (borrowAmount > 0)      
-                {
-                    console.log("getaccountliquidity borrow amoun");
-                    console.logUint(borrowAmount);
-                    console.logUint(vars.oraclePriceMantissaBorrowed);
-                                         console.logUint(vars.sumBorrowPlusEffects);
-                }
+                console.log("borrow");
+                console.logUint(borrowAmount);
+                console.logUint(vars.oraclePriceMantissaBorrowed);
+
                 vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, borrowAmount, vars.sumBorrowPlusEffects);
-                if (borrowAmount > 0)      
-                {
-                     console.logUint(vars.sumBorrowPlusEffects);
-                }
             }
         }
+        console.log("vars.sumBorrowPlusEffects");
+        console.logUint(vars.sumBorrowPlusEffects);
 
         // These are safe, as the underflow condition is checked first
         if (vars.sumCollateral > vars.sumBorrowPlusEffects) 
@@ -819,12 +785,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         }
         else 
         {
-            console.log("SHORTFALL");
-             //if (vars.sumCollateral == vars.sumBorrowPlusEffects) 
-            //      console.log("need one more wei");
-            // console.logUint(vars.sumCollateral);
-            // console.logUint(vars.sumBorrowPlusEffects);
-            // console.log("shortfall");
             return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral);
         }
     }
@@ -839,6 +799,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
      */
     function liquidateCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint actualRepayAmount) override external view returns (uint, uint) {
         /* Read oracle prices for borrowed and collateral markets */
+        // NUMALENDING: different oracle functions depending on the token is borrowed or collateral
         uint priceBorrowedMantissa = oracle.getUnderlyingPriceAsBorrowed(CToken(cTokenBorrowed));
         uint priceCollateralMantissa = oracle.getUnderlyingPriceAsCollateral(CToken(cTokenCollateral));
         if (priceBorrowedMantissa == 0 || priceCollateralMantissa == 0) {
@@ -992,10 +953,9 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
 
         cToken.isCToken(); // Sanity check to make sure its really a CToken
 
-        // Note that isComped is not in active use anymore
+        
         Market storage newMarket = markets[address(cToken)];
         newMarket.isListed = true;
-        newMarket.isComped = false;
         newMarket.collateralFactorMantissa = 0;
 
         _addMarketInternal(address(cToken));
@@ -1141,53 +1101,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         require(unitroller._acceptImplementation() == 0, "change not authorized");
     }
 
-    /// @notice Delete this function after proposal 65 is executed
-    function fixBadAccruals(address[] calldata affectedUsers, uint[] calldata amounts) external {
-        require(msg.sender == admin, "Only admin can call this function"); // Only the timelock can call this function
-        require(!proposal65FixExecuted, "Already executed this one-off function"); // Require that this function is only called once
-        require(affectedUsers.length == amounts.length, "Invalid input");
 
-        // Loop variables
-        address user;
-        uint currentAccrual;
-        uint amountToSubtract;
-        uint newAccrual;
-
-        // Iterate through all affected users
-        for (uint i = 0; i < affectedUsers.length; ++i) {
-            user = affectedUsers[i];
-            currentAccrual = compAccrued[user];
-
-            amountToSubtract = amounts[i];
-
-            // The case where the user has claimed and received an incorrect amount of COMP.
-            // The user has less currently accrued than the amount they incorrectly received.
-            if (amountToSubtract > currentAccrual) {
-                // Amount of COMP the user owes the protocol
-                uint accountReceivable = amountToSubtract - currentAccrual; // Underflow safe since amountToSubtract > currentAccrual
-
-                uint oldReceivable = compReceivable[user];
-                uint newReceivable = add_(oldReceivable, accountReceivable);
-
-                // Accounting: record the COMP debt for the user
-                compReceivable[user] = newReceivable;
-
-                emit CompReceivableUpdated(user, oldReceivable, newReceivable);
-
-                amountToSubtract = currentAccrual;
-            }
-
-            if (amountToSubtract > 0) {
-                // Subtract the bad accrual amount from what they have accrued.
-                // Users will keep whatever they have correctly accrued.
-                compAccrued[user] = newAccrual = sub_(currentAccrual, amountToSubtract);
-
-                emit CompAccruedAdjusted(user, currentAccrual, newAccrual);
-            }
-        }
-
-        proposal65FixExecuted = true; // Makes it so that this function cannot be called again
-    }
 
     /**
      * @notice Checks caller is admin, or this contract is becoming the new implementation
@@ -1223,11 +1137,5 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         return block.number;
     }
 
-    /**
-     * @notice Return the address of the COMP token
-     * @return The address of COMP
-     */
-    function getCompAddress() virtual public view returns (address) {
-        return 0xc00e94Cb662C3520282E6f5717214004A7f26888;
-    }
+
 }

@@ -30,41 +30,20 @@ const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
 //const epsilon = ethers.parseEther('0.000000000000000001');
 const epsilon = ethers.parseEther('0.000001');
 const epsilon2 = ethers.parseEther('0.00001');
-const epsilon3 = ethers.parseEther('0.001');
+
 
 
 
 // ********************* Numa lending test using arbitrum fork for chainlink *************************
-// deploy numa, deploy lst
+// TODO:
 
-// deploy vault, oracles
+// - check interest rate in different situations
+//https://docs.onyx.org/getting-started/protocol-math/calculating-the-apy-using-rate-per-block
 
-// deploy lending
+// - test CFs with synthetics 
 
-// test borrow/repay numa/reth reth/numa
-// - with/without interest rate
+// - test borrow amount is up n% after x days
 
-// - borrow from lender check UR
-// - borrow from vault check UR
-// - borrow from vault & lenders check UR
-
-// - repay vault first, etc, formula
-
-// test CFs with synthetics 
-
-// test extract from debt
-
-// test liquidations
-
-// test redeem/exchange rate with and without vault debt
-
-// test interest rates and kink when and when not Vault < CF 
-// check interest rates in different configurations, check that it matches exchange rate
-
-
-
-// test flashloan and leverage
-// standart compound tests? à adapter/modifier
 
 
 describe('NUMA LENDING', function () {
@@ -104,7 +83,7 @@ describe('NUMA LENDING', function () {
 
   let numaPriceOracle;
   let NUMA_PRICEORACLE_ADDRESS;
-  let fakePriceOracle;
+  //let fakePriceOracle;
   let FAKE_PRICEORACLE_ADDRESS;
 
   let rateModel;
@@ -146,9 +125,7 @@ describe('NUMA LENDING', function () {
     await numa.transfer(await userC.getAddress(),ethers.parseEther("1000000"));
 
     console.log("***************** send rEth and Numa ********************")
-    //let balanceUserBInitial = await rEth_contract.balanceOf(await userB.getAddress());
-    // console.log("userb balance "+balanceUserBInitial);
-    // console.log("*******************************************");
+
 
   };
 
@@ -294,13 +271,27 @@ describe('NUMA LENDING', function () {
     await sendrEthAndNuma();
     await Vault1.setMaxBorrow(vaultInitialBalance);
     await Vault1.unpause();
+
     // *********************** Deploy lending **********************************
+    // // deploy fake oracle too
+    // fakePriceOracle = await ethers.deployContract("SimplePriceOracle",
+    // []);
+    // await fakePriceOracle.waitForDeployment();
+    // FAKE_PRICEORACLE_ADDRESS = await fakePriceOracle.getAddress();
+    // console.log('fake price oracle address: ', FAKE_PRICEORACLE_ADDRESS);
+    // // numa price in eth
+    // await fakePriceOracle.setDirectPrice(numa_address,ethers.parseEther("0.001"));
+    // // rETh price in eth
+    // await fakePriceOracle.setDirectPrice(rETH_ADDRESS,ethers.parseEther("1"));
+
+    // COMPTROLLER
     comptroller = await ethers.deployContract("NumaComptroller",
     []);
     await comptroller.waitForDeployment();
     COMPTROLLER_ADDRESS = await comptroller.getAddress();
     console.log('numa comptroller address: ', COMPTROLLER_ADDRESS);
    
+    // PRICE ORACLE 
     numaPriceOracle = await ethers.deployContract("NumaPriceOracleNew",
     []);
     await numaPriceOracle.waitForDeployment();
@@ -309,36 +300,26 @@ describe('NUMA LENDING', function () {
   
     await numaPriceOracle.setVault(VAULT1_ADDRESS);
     console.log('numaPriceOracle.setVault Done');
-
-    // deploy fake oracle too
-    fakePriceOracle = await ethers.deployContract("SimplePriceOracle",
-    []);
-    await fakePriceOracle.waitForDeployment();
-    FAKE_PRICEORACLE_ADDRESS = await fakePriceOracle.getAddress();
-    console.log('fake price oracle address: ', FAKE_PRICEORACLE_ADDRESS);
-
-
-
-    // numa price in eth
-    await fakePriceOracle.setDirectPrice(numa_address,ethers.parseEther("0.001"));
-    // rETh price in eth
-    await fakePriceOracle.setDirectPrice(rETH_ADDRESS,ethers.parseEther("1"));
-
     await comptroller._setPriceOracle(await numaPriceOracle.getAddress());
     console.log('comptroller._setPriceOracle Done');
-  
+
+    // INTEREST RATE MODEL
     let baseRatePerYear = '20000000000000000';
     let multiplierPerYear = '180000000000000000';
     let jumpMultiplierPerYear = '4000000000000000000';
     let kink = '800000000000000000';
 
-    rateModel = await ethers.deployContract("JumpRateModelV2",
-    [baseRatePerYear,multiplierPerYear,jumpMultiplierPerYear,kink,await owner.getAddress()]);
+    //let blocksPerYear = "2628000";// 12/sec to be confirmed
+    const blocksPerYear = "2102400";// eth values for test
+    rateModel = await ethers.deployContract("JumpRateModelV4",
+    [blocksPerYear,baseRatePerYear,multiplierPerYear,jumpMultiplierPerYear,kink,await owner.getAddress(),"numaRateModel"]);
+  
+
     await rateModel.waitForDeployment();
     JUMPRATEMODELV2_ADDRESS = await rateModel.getAddress();
     console.log('rate model address: ', JUMPRATEMODELV2_ADDRESS);
 
-    // crETH is a standart CErc20Immutable
+    // CTOKENS
     cReth = await ethers.deployContract("CNumaLst",
     [rETH_ADDRESS,comptroller,rateModel,'200000000000000000000000000',
     'rEth CToken','crEth',8,await owner.getAddress(),VAULT1_ADDRESS]);
@@ -346,16 +327,13 @@ describe('NUMA LENDING', function () {
     CRETH_ADDRESS = await cReth.getAddress();
     console.log('crEth address: ', CRETH_ADDRESS);
 
-    // authorizing crETh to borrow/repay from/to vault
-    //await Vault1.addToLendingwl(CRETH_ADDRESS);
     cNuma = await ethers.deployContract("CNumaToken",
     [numa_address,comptroller,rateModel,'200000000000000000000000000',
     'numa CToken','cNuma',8,await owner.getAddress(),VAULT1_ADDRESS]);
-
-
     await cNuma.waitForDeployment();
     CNUMA_ADDRESS = await cNuma.getAddress();
     console.log('cNuma address: ', CNUMA_ADDRESS);
+
     
     await Vault1.setCTokens(CNUMA_ADDRESS,CRETH_ADDRESS);
     // add markets (has to be done before _setcollateralFactor)
@@ -414,33 +392,18 @@ describe('NUMA LENDING', function () {
   {
     // how many numas for 1 rEth
     let numaFromREth = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("1"));
-    //console.log("how many numa with 1 rEth "+ ethers.formatEther(numaFromREth));
-    let numaBuyPriceInReth = (ethers.parseEther("1") * ethers.parseEther("1")) / numaFromREth
-    // add 1 because we round up division
+    //console.log("how many numa with 1 rEth (wei)"+ numaFromREth);
+
+    let numaBuyPriceInReth = (ethers.parseEther("1")*ethers.parseEther("1")) / numaFromREth;
+    //console.log("numa buy price in rEth (wei)"+ numaBuyPriceInReth);
+    // add 1 because we round up division 
     numaBuyPriceInReth = numaBuyPriceInReth +BigInt(1);
-    //console.log('numa buy price in rEth '+ numaBuyPriceInReth)
+    //console.log("numa buy price in rEth (wei)"+ numaBuyPriceInReth);
     // max borrow
-    let collateralValueInNumaWei =  (ethers.parseEther(rEthCollateralFactor.toString())*rethsupplyamount) / numaBuyPriceInReth;
-    // console.log("collateral value in numa (wei) "+collateralValueInNumaWei);
-    // console.log("collateral value in numa "+ethers.formatEther(collateralValueInNumaWei));
-    
+    let collateralValueInNumaWei =  (ethers.parseEther(rEthCollateralFactor.toString())*rethsupplyamount) / (numaBuyPriceInReth);
+    // console.log(rethsupplyamount);
+    // console.log(collateralValueInNumaWei);
     return collateralValueInNumaWei;
-
-
-    // let collateralValue2 = (ethers.parseEther(rEthCollateralFactor.toString())*rethsupplyamount)/(ethers.parseEther("1"));
-   
-
-    // //let collateralValueInNumaWei2 =  await Vault1.getBuyNuma(collateralValue2);
-    // let rethPrice = await Vault1.getBuyNuma(ethers.parseEther("1"));
-    // let collateralValueInNumaWei2 =  (collateralValue2*ethers.parseEther("1"))/numaPrice;
-    // let buyPrice =  await Vault1.getBuyNuma(ethers.parseEther("1"));
-    // console.log("TEST");
-    // //console.log(buyPrice);
-    //console.log(collateralValueInNumaWei2);
-    //console.log(collateralValueInNumaWei);
-
-    //return collateralValueInNumaWei2;
-
   }
 
   async function getMaxBorrowReth(numasupplyamount)
@@ -488,50 +451,34 @@ describe('NUMA LENDING', function () {
       // getting prices should revert if vault is empty 
       it('Supply rEth, Borrow numa with vault prices', async () => 
       {  
-        // With fake oracle
-        //await comptroller._setPriceOracle(await fakePriceOracle.getAddress());
-        // 
+
         let rethsupplyamount = ethers.parseEther("2");
         let numasupplyamount = ethers.parseEther("500000");
 
         await supplyReth(userA,rethsupplyamount);
+        await supplyNuma(userB,numasupplyamount);
 
         // check balance, total supply,
         let balcrEth = await cReth.balanceOf(await userA.getAddress());
         let totalSupply = await cReth.totalSupply();
 
         expect(totalSupply).to.equal(balcrEth);
-        //  TODO: other params to validate
-
-
-        // userB supply numa      
-        await supplyNuma(userB,numasupplyamount);
-
-        // TODO: validate supply
-
+        
         // ******************* userA borrow numa ************************
-        // TODO: pas bon car notTooMuchNuma +1 ne revert pas
-        // et formule de tooMuchNuma sans le +1 reverte
-        // --> pas logique
+        let notTooMuchNuma = await getMaxBorrowNuma(rethsupplyamount);        
+        let tooMuchNuma = notTooMuchNuma + epsilon;
 
-        let notTooMuchNuma = await getMaxBorrowNuma(rethsupplyamount);
-
-        //let numaFromREth = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("1"));
-        //let tooMuchNuma = ((numaFromREth *BigInt(2)* ethers.parseEther(rEthCollateralFactor.toString()))/ethers.parseEther("1")) + BigInt(1);
-
-        // TODO: why
-        let tooMuchNuma = notTooMuchNuma + BigInt(100000);
-
-        console.log(notTooMuchNuma);
-        console.log(tooMuchNuma);
 
         // should revert
         await expect(cNuma.connect(userA).borrow(tooMuchNuma)).to.be.reverted;
        
         // should not revert
-        await expect(cNuma.connect(userA).borrow(notTooMuchNuma)).to.not.be.reverted;
+        let numaBal = await numa.balanceOf(await userA.getAddress());
+        await cNuma.connect(userA).borrow(notTooMuchNuma);
+        let numaBalAfter = await numa.balanceOf(await userA.getAddress());
 
-        // TODO: validate UR, interest rates, etc
+        expect(numaBalAfter - numaBal).to.equal(notTooMuchNuma);
+
       });
 
 
@@ -539,6 +486,9 @@ describe('NUMA LENDING', function () {
 
       it('Supply Numa, Borrow rEth from vault only', async () => 
       {
+        
+        let numaPriceBefore = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+
         
         let numasupplyamount = ethers.parseEther("200000");
         // userB supply numa      
@@ -548,30 +498,31 @@ describe('NUMA LENDING', function () {
         // max borrow
         let collateralValueInrEthWei = await getMaxBorrowReth(numasupplyamount);
 
-        // compute how much should be borrowable from vault
-        let maxBorrow = await Vault1.GetMaxBorrow();
-        console.log("max rEth borrow from vault "+ethers.formatEther(maxBorrow));
-
+    
         // verify toomuch/nottoomuch (x2: collat and available from vault)
         let notTooMuchrEth = collateralValueInrEthWei;
         let tooMuchrEth = notTooMuchrEth+BigInt(1);
         
         await expect(cReth.connect(userB).borrow(tooMuchrEth)).to.be.reverted;
-        await expect(cReth.connect(userB).borrow(notTooMuchrEth)).to.not.be.reverted;
+        await cReth.connect(userB).borrow(notTooMuchrEth);
 
-        // TODO: validate UR, interest rates, etc
+      
         let balanceUserB = await rEth_contract.balanceOf(await userB.getAddress());
         expect(balanceUserB).to.equal(usersInitialBalance+notTooMuchrEth);
 
-        // TODO put back
-        // let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
-        // console.log(vaultBalance);
-        // expect(vaultBalance).to.equal(vaultInitialBalance - notTooMuchrEth);
-        // let debt = await Vault1.getDebt();
-        // expect(debt).to.equal(notTooMuchrEth);
+       
+        let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
+       
+        expect(vaultBalance).to.equal(vaultInitialBalance - notTooMuchrEth);
+        let debt = await Vault1.getDebt();
+        expect(debt).to.equal(notTooMuchrEth);
+
+        let numaPriceAfter = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+
+        // price
+        expect(numaPriceAfter).to.equal(numaPriceBefore);
 
 
-        // TODO check that numa prices are the same with debt!
       });
 
       it('Supply Numa, Borrow rEth from lenders', async () => 
@@ -585,30 +536,32 @@ describe('NUMA LENDING', function () {
 
         let collateralValueInrEthWei = await getMaxBorrowReth(numasupplyamount);
 
-        // compute how much should be borrowable from vault
-        let maxBorrow = await Vault1.GetMaxBorrow();
-        console.log("max rEth borrow from vault "+ethers.formatEther(maxBorrow));
+
+        let balLending = await rEth_contract.balanceOf(await cReth.getAddress());
+        expect(balLending).to.equal(rethsupplyamount);
+
 
         // verify toomuch/nottoomuch (x2: collat and available from vault)
         let notTooMuchrEth = collateralValueInrEthWei;
         let tooMuchrEth = notTooMuchrEth+BigInt(1);
         //
         await expect(cReth.connect(userB).borrow(tooMuchrEth)).to.be.reverted;
-        await expect(cReth.connect(userB).borrow(notTooMuchrEth)).to.not.be.reverted;
+        await cReth.connect(userB).borrow(notTooMuchrEth);
 
-        // TODO: validate UR, interest rates, etc
-
-        // TODO: check that we have borrowed from vault
         let balanceUserB = await rEth_contract.balanceOf(await userB.getAddress());
         expect(balanceUserB).to.equal(usersInitialBalance+notTooMuchrEth);
         let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
-        console.log(vaultBalance);
+       
         expect(vaultBalance).to.equal(vaultInitialBalance);
 
         let debt = await Vault1.getDebt();
         expect(debt).to.equal(BigInt(0));
 
-            
+  
+        let balLendingAfter = await rEth_contract.balanceOf(await cReth.getAddress());
+        expect(balLendingAfter).to.equal(balLending - notTooMuchrEth);
+
+          
       });
 
       it('Supply Numa, Borrow rEth from vault and lenders', async () => 
@@ -632,29 +585,28 @@ describe('NUMA LENDING', function () {
         // verify toomuch/nottoomuch (x2: collat and available from vault)
         let notTooMuchrEth = collateralValueInrEthWei;
         let tooMuchrEth = notTooMuchrEth+BigInt(1);
-       
         await expect(cReth.connect(userB).borrow(tooMuchrEth)).to.be.reverted;
-        await expect(cReth.connect(userB).borrow(notTooMuchrEth)).to.not.be.reverted;
 
-        // TODO: validate UR, interest rates, etc
 
-        // TODO: check that we have borrowed from vault
+        // BORROW
+        await cReth.connect(userB).borrow(notTooMuchrEth);
+
         let balanceUserB = await rEth_contract.balanceOf(await userB.getAddress());
+
         
-        console.log(balanceUserB);
-        console.log(usersInitialBalance+notTooMuchrEth);
         expect(balanceUserB).to.equal(usersInitialBalance+notTooMuchrEth);
         let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS);
-        
         expect(vaultBalance).to.equal(vaultInitialBalance - notTooMuchrEth+rethsupplyamount);
-
         let debt = await Vault1.getDebt();
-        expect(debt).to.equal(notTooMuchrEth - rethsupplyamount);        
+        expect(debt).to.equal(notTooMuchrEth - rethsupplyamount); 
+        
+        // we borrowed from vault so lending protocol should be empty
+        let balLendingAfter = await rEth_contract.balanceOf(await cReth.getAddress());
+        expect(balLendingAfter).to.equal(0);
+
+
       });
 
-
-
-   
     });
 
     describe('#Repay', () => 
@@ -1115,10 +1067,73 @@ describe('NUMA LENDING', function () {
 
     describe('#Vault collateral factor', () => 
     {
-      // limite du borrow possible
+      it('Check available amount', async () => 
+      {
+        // compute how much should be borrowable from vault
+        let maxBorrow = await Vault1.GetMaxBorrow();
+        expect(maxBorrow).to.equal(vaultInitialBalance); 
+      });
 
-      // with/without synthetics --> check that borrows are limited (borrow should revert)
-      // autres?      
+      it('Mint synth, change maxCF', async () => 
+      {
+        
+        let nuUSDamount = ethers.parseEther("50000");
+        await nuUSD.connect(owner).mint(defaultAdmin,nuUSDamount);
+
+        let synthValueEth = await nuAM.getTotalSynthValueEth();
+        console.log("synth value eth: "+synthValueEth);
+
+        let vaultvalueEth = await Vault1.getEthBalance();
+
+        console.log("vault value eth: "+vaultvalueEth);
+
+
+        let vaultCF = Number(vaultvalueEth) / Number(synthValueEth);
+
+        console.log("vault CF: "+vaultCF);
+
+        let maxBorrow = await Vault1.GetMaxBorrow();
+        let maxcf = await Vault1.maxCF();
+        expect(maxcf).to.equal(2000); 
+        let estimateMaxBorrowEth = vaultvalueEth - (maxcf * synthValueEth)/BigInt(1000);
+        console.log("estimateMaxBorrowEth: "+estimateMaxBorrowEth);
+
+        let rethPrice = await Vault1.last_lsttokenvalueWei();
+        let estimateMaxBorrowrEth = (estimateMaxBorrowEth * ethers.parseEther("1"))/rethPrice;
+
+        console.log("estimateMaxBorrow rEth: "+estimateMaxBorrowrEth);
+
+        expect(maxBorrow).to.equal(estimateMaxBorrowrEth); 
+
+        await Vault1.setMaxCF(4000);
+        maxBorrow = await Vault1.GetMaxBorrow();
+
+        let maxcfnew = await Vault1.maxCF();
+
+        expect(maxcfnew).to.equal(4000); 
+
+        estimateMaxBorrowEth = vaultvalueEth - (maxcfnew * synthValueEth)/BigInt(1000);
+        if (estimateMaxBorrowEth < 0)
+          estimateMaxBorrowEth = BigInt(0);
+        console.log("estimateMaxBorrowEth: "+estimateMaxBorrowEth);
+
+        rethPrice = await Vault1.last_lsttokenvalueWei();
+        estimateMaxBorrowrEth = (estimateMaxBorrowEth * ethers.parseEther("1"))/rethPrice;
+
+        console.log("estimateMaxBorrow rEth: "+estimateMaxBorrowrEth);
+
+        expect(maxBorrow).to.equal(estimateMaxBorrowrEth); 
+
+
+
+
+      });
+
+      it('Check that borrow from vault is limited', async () => 
+      {
+      });
+
+
 
 
     });
@@ -1127,8 +1142,175 @@ describe('NUMA LENDING', function () {
     
     describe('#Interest rates', () => 
     {
+      it('IR supply&borrow numa borrowers', async () => 
+      {
+      });
 
-      // kink when vault CF is reached
+      it('IR supply&borrow lst borrowers no lenders vault < CF', async () => 
+      {
+
+        let IM_address = await cReth.interestRateModel();
+        let IMV2 = await ethers.getContractAt("JumpRateModelV4", IM_address);
+        // uint baseRatePerYear, uint multiplierPerYear, uint jumpMultiplierPerYear, uint kink_
+
+        let baseRatePerYear = ethers.parseEther('0');
+        let multiplierPerYear = ethers.parseEther('0.02');
+        let jumpMultiplierPerYear = ethers.parseEther('0');
+        let kink = ethers.parseEther('1.0');
+        await IMV2.updateJumpRateModel(baseRatePerYear,multiplierPerYear
+        ,jumpMultiplierPerYear,kink);
+
+
+
+        const ethMantissa = 1e18;
+        const blocksPerDay = (4 * 60 * 24);
+        const daysPerYear = (365);
+
+        let blocksPerYear = daysPerYear*blocksPerDay;
+        
+        let supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+        let borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+        // console.log(borrowRatePerBlock);
+        // console.log(supplyRatePerBlock);
+        let supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        let borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        console.log(`Supply APY for ETH ${supplyApy} %`);
+        console.log(`Borrow APY for ETH ${borrowApy} %`);
+        console.log("*************************");
+        let numaPriceBefore = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+
+        let numasupplyamount = ethers.parseEther("200000");
+        // userB supply numa      
+        await supplyNuma(userB,numasupplyamount);
+
+        // max borrow
+        let collateralValueInrEthWei = await getMaxBorrowReth(numasupplyamount);
+
+        // verify toomuch/nottoomuch (x2: collat and available from vault)
+        let notTooMuchrEth = collateralValueInrEthWei;
+        let tooMuchrEth = notTooMuchrEth+BigInt(1);
+        // 
+        await cReth.connect(userB).borrow(notTooMuchrEth);
+
+        // should be > 0
+        supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+        borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+
+
+        let cashAvailable = await Vault1.GetMaxBorrow();
+        let UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+
+        let borrowRate = Number(baseRatePerYear)/blocksPerYear + UR * Number(multiplierPerYear)/blocksPerYear;
+        let supplyRate = UR * borrowRate;
+       
+        // 
+        // console.log("borrow rate computed");
+        // console.log((borrowRate));
+        // console.log((supplyRate));
+
+
+        // console.log("borrow rate from contracts");
+        // console.log((borrowRatePerBlock));
+        // console.log((supplyRatePerBlock));
+        expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
+        expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
+      
+        supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        console.log(`Supply APY for ETH ${supplyApy} %`);
+        console.log(`Borrow APY for ETH ${borrowApy} %`);
+        console.log(`Utilization rate ${UR*100} %`);
+        console.log("*************************");
+        // change UR
+        await Vault1.setMaxBorrow(vaultInitialBalance/BigInt(2));
+
+        supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+        borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+
+
+        cashAvailable = await Vault1.GetMaxBorrow();
+        UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+
+        borrowRate = Number(baseRatePerYear)/blocksPerYear + UR * Number(multiplierPerYear)/blocksPerYear;
+        supplyRate = UR * borrowRate;
+       
+ 
+        expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
+        expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
+      
+        supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        console.log(`Supply APY for ETH ${supplyApy} %`);
+        console.log(`Borrow APY for ETH ${borrowApy} %`);
+
+        console.log(`Utilization rate ${UR*100} %`);
+
+        console.log("*************************");
+         // change UR
+         await Vault1.setMaxBorrow(0);
+
+         supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+         borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+ 
+ 
+         cashAvailable = await Vault1.GetMaxBorrow();
+         UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+ 
+         borrowRate = Number(baseRatePerYear)/blocksPerYear + UR * Number(multiplierPerYear)/blocksPerYear;
+         supplyRate = UR * borrowRate;
+        
+  
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
+       
+         supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         console.log(`Supply APY for ETH ${supplyApy} %`);
+         console.log(`Borrow APY for ETH ${borrowApy} %`);
+ 
+         console.log(`Utilization rate ${UR*100} %`);
+         console.log("*************************");
+         // change kink & jump
+         jumpMultiplierPerYear = ethers.parseEther('3');
+         kink = ethers.parseEther('0.01');
+         await IMV2.updateJumpRateModel(baseRatePerYear,multiplierPerYear
+         ,jumpMultiplierPerYear,kink);
+
+         // change UR
+         await Vault1.setMaxBorrow(vaultInitialBalance/BigInt(8));
+         supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+         borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+ 
+ 
+         cashAvailable = await Vault1.GetMaxBorrow();
+         UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+ 
+         borrowRate = Number(baseRatePerYear)/blocksPerYear + UR * Number(multiplierPerYear)/blocksPerYear;
+         supplyRate = UR * borrowRate;
+        
+  
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
+       
+         supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         console.log(`Supply APY for ETH ${supplyApy} %`);
+         console.log(`Borrow APY for ETH ${borrowApy} %`);
+ 
+         console.log(`Utilization rate ${UR*100} %`);
+
+
+
+      });
+
+      it('IR supply&borrow lst borrowers no lenders vault > CF', async () => 
+      {
+      });
+
+      it('IR supply&borrow lst borrowers lenders vault > CF', async () => 
+      {
+      });
+
     
 
 
@@ -1297,7 +1479,7 @@ describe('NUMA LENDING', function () {
         // INCENTIVE
         // 10%
         await comptroller._setLiquidationIncentive(ethers.parseEther("1.10"));
-        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10000000"));
+        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10"));
         let repayAmount = notTooMuchNuma/BigInt(2);
         // liquidate
         // await numa.approve(await cNuma.getAddress(),repayAmount);
@@ -1415,7 +1597,7 @@ describe('NUMA LENDING', function () {
         // INCENTIVE
         // 10%
         await comptroller._setLiquidationIncentive(ethers.parseEther("1.10"));
-        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10000000"));
+        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10"));
         let repayAmount = notTooMuchrEth/BigInt(2);
         // await rEth_contract.approve(await cReth.getAddress(),repayAmount);
         // await cReth.liquidateBorrow(await userB.getAddress(), repayAmount,cNuma) ;
@@ -1497,7 +1679,7 @@ describe('NUMA LENDING', function () {
         
         let repayAmount = notTooMuchNuma/BigInt(2);
  
-        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10000000"));
+        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10"));
         await Vault1.liquidateNumaBorrowerFlashloan(await userA.getAddress(), repayAmount);
 
 
@@ -1594,8 +1776,11 @@ describe('NUMA LENDING', function () {
         
         let repayAmount = notTooMuchNuma/BigInt(2);
  
+        // numa
         let maxProfit = ethers.parseEther("2000");
-        await Vault1.setMaxLiquidationsProfit(maxProfit);
+        // lst
+        let maxProfitLst = await VM.numaToToken(maxProfit,await Vault1.last_lsttokenvalueWei(),ethers.parseEther("1"));
+        await Vault1.setMaxLiquidationsProfit(maxProfitLst);
         //await Vault1.setMaxLiquidationsProfit(ethers.parseEther("1000000000000"));
         await Vault1.liquidateNumaBorrowerFlashloan(await userA.getAddress(), repayAmount);
 
@@ -1712,7 +1897,7 @@ describe('NUMA LENDING', function () {
         // INCENTIVE
         // 10%
         await comptroller._setLiquidationIncentive(ethers.parseEther("1.10"));
-        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10000000"));
+        await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10"));
         let repayAmount = notTooMuchrEth/BigInt(2);
         await rEth_contract.approve(await cReth.getAddress(),repayAmount);
 
