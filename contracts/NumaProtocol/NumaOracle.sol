@@ -24,8 +24,7 @@ contract NumaOracle is Ownable2Step {
     uint public tolerance1000;
 
     event IntervalShort(uint32 _intervalShort);
-    event IntervalLong(uint32 _intervalLong);
-    event FlexFeeThreshold(uint256 _flexFeeThreshold);
+    event IntervalLong(uint32 _intervalLong);   
     event NumaPrice(address _numaPrice, uint _tolerance1000);
 
     constructor(

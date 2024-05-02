@@ -1,0 +1,89 @@
+- printer
+
+     ** refacto tests: fixtures: printer, vault, lending
+          FIXTURES
+          ** printer, nuassets
+          ** vault in fixture
+          ** set vault to printer for price checks
+          ** lending in fixture, set lending params to vault 
+
+          FINAL TESTS 
+          final tests todo ARBI:
+               - numa token
+               - printer
+               - oracle
+               - vault
+               - lending
+               - synthetics swaps
+     ** clip to numa VM price
+
+     ** Move all minting to a dedicated minter contract?    
+
+     ** add accrueinterest when minting (nuassetmanager?)
+     ** synth debasing and block mint  (nuassetmanager?)
+
+
+** synth swaps
+     ** do it
+     ** fee x 1
+     ** tests
+
+
+** clean ALL + doc
+
+** divers
+     - passer les nuassets en non upgradable?
+
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ TASKS
+
+- reecrire numaOracle test arbi + clean numaOracle
+- ajouter le test de clipping
+
+- en même temps clean refacto tests & code 
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Q:
+- debasing ?
+ Add Synth_scaling_PID here? When CF<110%, start scaling every synth price down every 24hrs to democratize losses.
+     ** scaling progressif
+
+--> prix de burn = chainlink price x scale
+scale = 1
+
+** globalCF < limite (attention not per vault CF)
+update scaling WHEN (same rules than accrueinterest):
+     - buy/Sell from vault
+     - synth minting
+     - borrow/repay
+
+ - burn
+ - checkCF 
+     - si < lim
+          - si scale = 1, on baisse sans check blocktime (start)
+          - si scale < 1 (started) blocktime > lastblocktime + 24h --> scale = scale - 0.02 *(delta%24h)
+       update blocktime
+
+     - si > lim
+          - scale = 1
+
+
+- block minting?
+- combine address, why?
+- rebase progressive also? risque de frontrun? par exmple on fait une transaction pour remettre le CF à 1, on burn et 
+on inverse la transaction
+- scale factor only for synth burn?
+
+************************
+- Multivault CF? (CF per vault / global CF)
+
+- Debase synthetics pricing feed based on CF. Block minting new sythethics.
+
+
+
+
+- Synthetic-to-synthetic swaps. Eliminate double fee.
+-  Numa LP oracle pricing (for minting synthetics) clipped to vault buy/sell price.
+- Vault 2.0 combine staking reward pools (vault fees + LST yield collected in one address)
+- Staking rewards conversion (e.g. rETH->Numa->nuUSD) exempt from vault fees. Create fee-free whitelist.

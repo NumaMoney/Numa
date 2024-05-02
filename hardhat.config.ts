@@ -21,6 +21,9 @@ import { HardhatUserConfig } from "hardhat/config";
 /** @type import('hardhat/config').HardhatUserConfig */
 //module.exports = {
 const config: HardhatUserConfig = {
+  mocha: {
+    timeout: 100000000,
+  },
   solidity: {
     compilers: [
       {

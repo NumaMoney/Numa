@@ -26,8 +26,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     uint public burnAssetFeeBps;
     mapping(address => bool) public burnFeeWhitelist;
     //
-    event SetOracle(address oracle);
-    event SetFlexFeeThreshold(uint256 _threshold);
+    event SetOracle(address oracle); 
     event SetChainlinkFeed(address _chainlink);
     event SetNumaPool(address _pool);
     event AssetMint(address _asset, uint _amount);
