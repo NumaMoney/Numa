@@ -10,7 +10,6 @@ let numaAddress = "0x7FB7EDe54259Cb3D4E1EaF230C7e2b1FfC951E9A";
 let WETH_ADDRESS = "";
 let INTERVAL_SHORT = ;
 let INTERVAL_LONG = ;
-let FLEXFEETHRESHOLD = ;
 let PRICEFEEDETHUSD = ;
 let NUMA_ETH_POOL_ADDRESS = ;
 
@@ -29,7 +28,7 @@ async function main () {
     const [signer] = await ethers.getSigners();
 
     // Deploy numa oracle
-    const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS,INTERVAL_SHORT,INTERVAL_LONG,FLEXFEETHRESHOLD,signer.getAddress()]);
+    const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS,INTERVAL_SHORT,INTERVAL_LONG,signer.getAddress()]);
     await oracle.waitForDeployment();
     let oracleAddress = await oracle.getAddress();
     console.log('Oracle deployed to:', oracleAddress);
