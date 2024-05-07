@@ -1,50 +1,96 @@
 - printer
 
-     ** refacto tests: fixtures: printer, vault, lending
-          FIXTURES
-          ** printer, nuassets
-          ** vault in fixture
-          ** set vault to printer for price checks
-          ** lending in fixture, set lending params to vault 
 
-          FINAL TESTS 
-          final tests todo ARBI:
+     ** refacto printer
+          ** 1 printer, reference Vaultmanager, nuassetmanager
+          OK todo test
+          ** voir si possible de refacto la partie oracle, en utilisant le nuassetmanager et ne plus utiliser chainlink depuis numaoracle
+          --> TODO à voir 
+          ** call VM.accrueinterest a chaque mint/burn de nuasset
+          OK
+          ** call VM.accrueinterest à chaque chgt de balance du vault
+               TODO si globlCF only, call vaultmanager accrueInterest + add the call in  repay/borrow as we change
+          ** gestion scaling, block minting selon VM CF
+               TODO
+     ** synth swaps
+          ** do it
+          ** fee x 1
+          ** check code & test it, check how fee are used
+          ** see if optim possible (not burning and minting same asset)
+          
+
+     ** check/clean code: printer, oracle, synth swaps
+
+     ** refacto tests: fixtures: printer, vault, lending
+         
+
+         - refaire numaOracle
+
+         - voir si besoin de refaire numaPrinter test, à minima le passer sur arbifork
+
+         - verifier que numaOracle/numaPrinter est exhaustif
+
+         - faire des fonctions d'init séparées: printer, vault, comp
+         
+         - à la fin il faudra ces tests là:
                - numa token
                - printer
                - oracle
                - vault
                - lending
                - synthetics swaps
-     ** clip to numa VM price
 
+     ** clip to numa VM price
+DONE: todo: check code, test code
      ** Move all minting to a dedicated minter contract?    
+DONE: todo: modify tests
+
 
      ** add accrueinterest when minting (nuassetmanager?)
-     ** synth debasing and block mint  (nuassetmanager?)
+
+     ** synth debasing and block mint  (nuassetmanager?) 
+          - call VM.accrueINterest from vault when borrow/repay,buy/sell (attention à l'ordre, attention il sera déjà appelé sur le lst courant lors du borrow repay)
+
+          - call vm.accueinterest from printer (or from nuasset but I think mint/burn should only happen in printer)
+          - scale, blocktime stockés dans printer, printer request VM pour connaitre le globalCF
+
+          --> printer reference le vault et recupere le nuassetmanager du vault
 
 
-** synth swaps
-     ** do it
-     ** fee x 1
-     ** tests
 
+
+
+** Vault 2.0 combine staking reward pools (vault fees + LST yield collected in one address)
+** Staking rewards conversion (e.g. rETH->Numa->nuUSD) exempt from vault fees. Create fee-free whitelist.
 
 ** clean ALL + doc
+     - tout relire, printer, vault, vaultmanager, remettre des interfaces quand possible
+
+** deploy scripts
 
 ** divers
      - passer les nuassets en non upgradable?
 
+	- revoir le call chainlink de numaoracle
+	- check int56(int32( cast
 
 
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ TASKS
 
 - reecrire numaOracle test arbi + clean numaOracle
 - ajouter le test de clipping
-
 - en même temps clean refacto tests & code 
 
+
+
+
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Q:
+Q/note:
+
+- synthetics swaps, potentially we have per printer fee, so if I skip one, it('s arbitrary the one we gets (of course we can set the same fee but keep in mind)
+
+- note: printer fees are burnt not sent anywhere
+
 - debasing ?
  Add Synth_scaling_PID here? When CF<110%, start scaling every synth price down every 24hrs to democratize losses.
      ** scaling progressif

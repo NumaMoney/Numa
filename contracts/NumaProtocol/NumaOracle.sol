@@ -124,7 +124,7 @@ contract NumaOracle is Ownable2Step {
                     (tickCumulatives[1] - tickCumulatives[0]) /
                         int56(int32(_interval))
                 )
-            ); // TODO: added the int56(int32( cast, check it
+            ); 
     }
 
     /**
@@ -476,67 +476,67 @@ contract NumaOracle is Ownable2Step {
         return _output;
     }
 
-    /**
-     * @dev number of numa tokens needed to mint amount
-     * @notice same as getTokensForAmountCeiling but without rounding up
-     * @param {address} _pool the pool to be used
-     * @param {uint32} _intervalShort the short interval
-     * @param {uint32} _intervalLong the long interval
-     * @param {address} _chainlinkFeed chainlink feed
-     * @param {uint256} _amount amount we want to mint
-     * @param {address} _weth9 weth address
-     * @return {uint256} amount needed to be burnt
-     */
-    function getTokensForAmount(
-        address _pool,
-        uint32 _intervalShort,
-        uint32 _intervalLong,
-        address _chainlinkFeed,
-        uint128 _chainlink_heartbeat,
-        uint256 _amount,
-        address _weth9
-    ) public view returns (uint256) {
-        uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
-            _pool,
-            _intervalShort,
-            _intervalLong
-        );
-        uint256 numerator = (
-            IUniswapV3Pool(_pool).token0() == _weth9
-                ? sqrtPriceX96
-                : FixedPoint96.Q96
-        );
-        uint256 denominator = (
-            numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
-        );
-        //numa per ETH, times _amount
-        uint256 numaPerETH = FullMath.mulDiv(
-            FullMath.mulDiv(numerator, numerator, denominator),
-            _amount,
-            denominator
-        );
+    // /**
+    //  * @dev number of numa tokens needed to mint amount
+    //  * @notice same as getTokensForAmountCeiling but without rounding up
+    //  * @param {address} _pool the pool to be used
+    //  * @param {uint32} _intervalShort the short interval
+    //  * @param {uint32} _intervalLong the long interval
+    //  * @param {address} _chainlinkFeed chainlink feed
+    //  * @param {uint256} _amount amount we want to mint
+    //  * @param {address} _weth9 weth address
+    //  * @return {uint256} amount needed to be burnt
+    //  */
+    // function getTokensForAmount(
+    //     address _pool,
+    //     uint32 _intervalShort,
+    //     uint32 _intervalLong,
+    //     address _chainlinkFeed,
+    //     uint128 _chainlink_heartbeat,
+    //     uint256 _amount,
+    //     address _weth9
+    // ) public view returns (uint256) {
+    //     uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
+    //         _pool,
+    //         _intervalShort,
+    //         _intervalLong
+    //     );
+    //     uint256 numerator = (
+    //         IUniswapV3Pool(_pool).token0() == _weth9
+    //             ? sqrtPriceX96
+    //             : FixedPoint96.Q96
+    //     );
+    //     uint256 denominator = (
+    //         numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
+    //     );
+    //     //numa per ETH, times _amount
+    //     uint256 numaPerETH = FullMath.mulDiv(
+    //         FullMath.mulDiv(numerator, numerator, denominator),
+    //         _amount,
+    //         denominator
+    //     );
 
-        if (_chainlinkFeed == address(0)) return numaPerETH;
-        uint256 linkFeed = chainlinkPrice(_chainlinkFeed, _chainlink_heartbeat);
-        uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed)
-            .decimals();
-        uint256 tokensForAmount;
-        //if ETH is on the left side of the fraction in the price feed
-        if (ethLeftSide(_chainlinkFeed)) {
-            tokensForAmount = FullMath.mulDiv(
-                numaPerETH,
-                10 ** decimalPrecision,
-                linkFeed
-            );
-        } else {
-            tokensForAmount = FullMath.mulDiv(
-                numaPerETH,
-                linkFeed,
-                10 ** decimalPrecision
-            );
-        }
-        return tokensForAmount;
-    }
+    //     if (_chainlinkFeed == address(0)) return numaPerETH;
+    //     uint256 linkFeed = chainlinkPrice(_chainlinkFeed, _chainlink_heartbeat);
+    //     uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed)
+    //         .decimals();
+    //     uint256 tokensForAmount;
+    //     //if ETH is on the left side of the fraction in the price feed
+    //     if (ethLeftSide(_chainlinkFeed)) {
+    //         tokensForAmount = FullMath.mulDiv(
+    //             numaPerETH,
+    //             10 ** decimalPrecision,
+    //             linkFeed
+    //         );
+    //     } else {
+    //         tokensForAmount = FullMath.mulDiv(
+    //             numaPerETH,
+    //             linkFeed,
+    //             10 ** decimalPrecision
+    //         );
+    //     }
+    //     return tokensForAmount;
+    // }
 
     // NEW FUNCTIONS FOR SYNTHETIC SWAP
     // TODO: TESTS PRINTER&ORACLE

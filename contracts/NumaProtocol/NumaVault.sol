@@ -453,7 +453,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     }
 
-    function accrueInterestLending() internal
+    function accrueInterestLending() public// public for now, todo globalCF and use vaultmanager accrueInterest
     {
          // accrue interest
         // if (address(cNuma) != address(0))

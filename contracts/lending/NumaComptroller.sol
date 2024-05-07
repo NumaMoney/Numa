@@ -65,14 +65,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
     /// @notice Emitted when borrow cap guardian is changed
     event NewBorrowCapGuardian(address oldBorrowCapGuardian, address newBorrowCapGuardian);
 
-    /// @notice Emitted when COMP is granted by admin
-    event CompGranted(address recipient, uint amount);
-
-    /// @notice Emitted when COMP accrued for a user has been manually adjusted.
-    event CompAccruedAdjusted(address indexed user, uint oldCompAccrued, uint newCompAccrued);
-
-    /// @notice Emitted when COMP receivable for a user has been updated.
-    event CompReceivableUpdated(address indexed user, uint oldCompReceivable, uint newCompReceivable);
 
     /// @notice The initial COMP index for a market
     uint224 public constant compInitialIndex = 1e36;

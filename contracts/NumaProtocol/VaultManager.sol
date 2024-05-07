@@ -32,7 +32,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
    
 
     uint constant max_vault = 50;
-
+    uint16 public constant BASE_1000 = 1000;
+    uint16 public constant MAX_CF = 10000;
 
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
@@ -49,7 +50,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
         nuAssetManager = INuAssetManager(_nuAssetManagerAddress);
     }
 
+    function getNuAssetManager() external view returns (INuAssetManager)
+    {
+        return nuAssetManager;
 
+    }
 
     function startDecay() external onlyOwner
     {
@@ -284,4 +289,47 @@ contract VaultManager is IVaultManager, Ownable2Step {
         }
         return result;
     }
+
+    /**
+     * @dev sum of all vaults balances in Eth excluding debts
+     */
+    function getTotalBalanceEthNoDebt() public view returns (uint256) {
+        uint result;
+        uint256 nbVaults = vaultsList.length();
+        require(nbVaults <= max_vault, "too many vaults in list");
+
+        for (uint256 i = 0; i < nbVaults; i++) {
+            result += INumaVault(vaultsList.at(i)).getEthBalanceNoDebt();
+        }
+        return result;
+    }
+
+    function accrueInterests() external 
+    {
+        uint256 nbVaults = vaultsList.length();
+        require(nbVaults <= max_vault, "too many vaults in list");
+
+        for (uint256 i = 0; i < nbVaults; i++) 
+        {
+            INumaVault(vaultsList.at(i)).accrueInterestLending();
+        }
+    }
+
+    function getGlobalCF() external view returns (uint)
+    {
+        uint EthBalance = getTotalBalanceEthNoDebt();
+        uint synthValue = nuAssetManager.getTotalSynthValueEth();
+
+        if (synthValue > 0)
+        {
+            return (EthBalance*BASE_1000)/synthValue;
+        }
+        else
+        {
+            return MAX_CF;
+        }
+
+    }
+
+
 }

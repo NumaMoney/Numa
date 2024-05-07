@@ -11,15 +11,17 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../libraries/OracleUtils.sol";
 import "../interfaces/INuAssetManager.sol";
 
+// struct representing a nuAsset: index in list (starts at 1), and pricefeed address
+struct nuAssetInfo {
+    address feed;
+    uint128 heartbeat;
+    uint index;
+}
+
+
 /// @title nuAssets manager
 /// @notice used to compute total synthetics value in Eth
 contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
-    // struct representing a nuAsset: index in list (starts at 1), and pricefeed address
-    struct nuAssetInfo {
-        address feed;
-        uint128 heartbeat;
-        uint index;
-    }
 
     // nuAsset to nuAssetInfo mapping
     mapping(address => nuAssetInfo) public nuAssetInfos;
@@ -42,6 +44,12 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
      */
     function getNuAssetList() external view returns (address[] memory) {
         return nuAssetList;
+    }
+
+    function getNuAssetInfo(address _nuAsset) external view returns (nuAssetInfo memory)
+    {
+        return nuAssetInfos[_nuAsset];
+
     }
 
     /**

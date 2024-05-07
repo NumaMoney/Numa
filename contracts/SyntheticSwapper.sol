@@ -12,164 +12,161 @@ import "./interfaces/INuAsset.sol";
 /// @dev
 contract SyntheticSwapper is Pausable, Ownable {
     NUMA public immutable numa;
-    // Mapping from nuAsset to associated printer
-    mapping(address => address) public nuAssetToPrinter;
+    // // Mapping from nuAsset to associated printer
+    // mapping(address => address) public nuAssetToPrinter;
 
-    // TODO: list of supported assets?
+    // // TODO: list of supported assets?
 
-    event SetPrinter(address _nuAsset, address _printer);
-    event SwapExactInput(
-        address _nuAssetFrom,
-        address _nuAssetTo,
-        address _from,
-        address _to,
-        uint256 _amountToSwap,
-        uint256 _amountReceived
-    );
-    event SwapExactOutput(
-        address _nuAssetFrom,
-        address _nuAssetTo,
-        address _from,
-        address _to,
-        uint256 _amountToSwap,
-        uint256 _amountReceived
-    );
+    // event SetPrinter(address _nuAsset, address _printer);
+    // event SwapExactInput(
+    //     address _nuAssetFrom,
+    //     address _nuAssetTo,
+    //     address _from,
+    //     address _to,
+    //     uint256 _amountToSwap,
+    //     uint256 _amountReceived
+    // );
+    // event SwapExactOutput(
+    //     address _nuAssetFrom,
+    //     address _nuAssetTo,
+    //     address _from,
+    //     address _to,
+    //     uint256 _amountToSwap,
+    //     uint256 _amountReceived
+    // );
 
     constructor(address _numaAddress) Ownable(msg.sender) {
         numa = NUMA(_numaAddress);
     }
 
-    function setPrinter(address _nuAsset, address _printer) external onlyOwner {
-        NumaPrinter printer = NumaPrinter(_printer);
-        INuAsset printerAsset = printer.GetNuAsset();
+    // function setPrinter(address _nuAsset, address _printer) external onlyOwner {
+    //     NumaPrinter printer = NumaPrinter(_printer);
+    //     INuAsset printerAsset = printer.GetNuAsset();
 
-        require(_nuAsset == address(printerAsset), "not printer token");
-        nuAssetToPrinter[_nuAsset] = _printer;
-        // approve printer on nuAsset and Numa token for burning
-        // TODO: test that approval is infinite
-        uint256 MAX_INT = 2 ** 256 - 1;
-        IERC20(_nuAsset).approve(_printer, MAX_INT);
-        numa.approve(_printer, MAX_INT);
-        emit SetPrinter(_nuAsset, _printer);
-    }
-    function swapExactInput(
-        address _nuAssetFrom,
-        address _nuAssetTo,
-        address _receiver,
-        uint256 _amountToSwap,
-        uint256 _amountOutMinimum
-    ) external whenNotPaused returns (uint256 amountOut) {
-        require(_nuAssetFrom != address(0), "input asset not set");
-        require(_nuAssetTo != address(0), "output asset not set");
-        require(_receiver != address(0), "receiver not set");
+    //     require(_nuAsset == address(printerAsset), "not printer token");
+    //     nuAssetToPrinter[_nuAsset] = _printer;
+    //     // approve printer on nuAsset and Numa token for burning
+    //     // TODO: test that approval is infinite
+    //     uint256 MAX_INT = 2 ** 256 - 1;
+    //     IERC20(_nuAsset).approve(_printer, MAX_INT);
+    //     numa.approve(_printer, MAX_INT);
+    //     emit SetPrinter(_nuAsset, _printer);
+    // }
+    // function swapExactInput(
+    //     address _nuAssetFrom,
+    //     address _nuAssetTo,
+    //     address _receiver,
+    //     uint256 _amountToSwap,
+    //     uint256 _amountOutMinimum
+    // ) external whenNotPaused returns (uint256 amountOut) {
+    //     require(_nuAssetFrom != address(0), "input asset not set");
+    //     require(_nuAssetTo != address(0), "output asset not set");
+    //     require(_receiver != address(0), "receiver not set");
 
-        address printerFromAddress = nuAssetToPrinter[_nuAssetFrom];
-        address printerToAddress = nuAssetToPrinter[_nuAssetTo];
+    //     address printerFromAddress = nuAssetToPrinter[_nuAssetFrom];
+    //     address printerToAddress = nuAssetToPrinter[_nuAssetTo];
 
-        require(printerFromAddress != address(0), "input asset has no printer");
-        require(printerToAddress != address(0), "output asset has no printer");
+    //     require(printerFromAddress != address(0), "input asset has no printer");
+    //     require(printerToAddress != address(0), "output asset has no printer");
 
-        // NumaPrinter printerFrom = NumaPrinter(printerFromAddress);
-        // NumaPrinter printerTo = NumaPrinter(printerToAddress);
+    //     // estimate output and check that it's ok with slippage
+    //     (uint256 numaEstimatedOutput, ) = NumaPrinter(printerFromAddress)
+    //         .getNbOfNumaFromAssetWithFee(_amountToSwap);
+    //     // estimate amount of nuAssets from this amount of Numa
+    //     (uint256 nuAssetToAmount, uint256 fee) = NumaPrinter(printerToAddress)
+    //         .getNbOfNuAssetFromNuma(numaEstimatedOutput);
 
-        // estimate output and check that it's ok with slippage
-        (uint256 numaEstimatedOutput, ) = NumaPrinter(printerFromAddress)
-            .getNbOfNumaFromAssetWithFee(_amountToSwap);
-        // estimate amount of nuAssets from this amount of Numa
-        (uint256 nuAssetToAmount, uint256 fee) = NumaPrinter(printerToAddress)
-            .getNbOfNuAssetFromNuma(numaEstimatedOutput);
+    //     require(
+    //         (nuAssetToAmount) >= _amountOutMinimum,
+    //         "min output"
+    //     );
 
-        require(
-            (nuAssetToAmount) >= _amountOutMinimum,
-            "minimum output amount not reached"
-        );
+    //     // transfer input tokens
+    //     SafeERC20.safeTransferFrom(
+    //         IERC20(_nuAssetFrom),
+    //         msg.sender,
+    //         address(this),
+    //         _amountToSwap
+    //     );
+    //     // no fee here
+    //     uint256 numaMintedAmount = NumaPrinter(printerFromAddress)
+    //         .burnAssetToNumaWithoutFee(_amountToSwap, address(this));
+    //     // fees here
+    //     uint256 assetAmount = NumaPrinter(printerToAddress)
+    //         .mintAssetOutputFromNuma(numaMintedAmount, _receiver);
+     
+    //     require(
+    //         (assetAmount) >= _amountOutMinimum,
+    //         "min output"
+    //     );
 
-        // transfer input tokens
-        SafeERC20.safeTransferFrom(
-            IERC20(_nuAssetFrom),
-            msg.sender,
-            address(this),
-            _amountToSwap
-        );
-        // no fee here, they will be applied when burning Numas
-        uint256 numaMintedAmount = NumaPrinter(printerFromAddress)
-            .burnAssetToNumaWithoutFee(_amountToSwap, address(this));
-        uint256 assetAmount = NumaPrinter(printerToAddress)
-            .mintAssetOutputFromNuma(numaMintedAmount, _receiver);
-        // TODO: should we check again slippage here?
+    //     emit SwapExactInput(
+    //         _nuAssetFrom,
+    //         _nuAssetTo,
+    //         msg.sender,
+    //         _receiver,
+    //         _amountToSwap,
+    //         assetAmount
+    //     );
 
-        require(
-            (assetAmount) >= _amountOutMinimum,
-            "minimum output amount not reached"
-        );
+    //     return assetAmount;
+    // }
 
-        emit SwapExactInput(
-            _nuAssetFrom,
-            _nuAssetTo,
-            msg.sender,
-            _receiver,
-            _amountToSwap,
-            assetAmount
-        );
+    // function swapExactOutput(
+    //     address _nuAssetFrom,
+    //     address _nuAssetTo,
+    //     address _receiver,
+    //     uint256 _amountToReceive,
+    //     uint256 _amountInMaximum
+    // ) external whenNotPaused returns (uint256 amountOut) {
+    //     require(_nuAssetFrom != address(0), "input asset not set");
+    //     require(_nuAssetTo != address(0), "output asset not set");
+    //     require(_receiver != address(0), "receiver not set");
 
-        return assetAmount;
-    }
+    //     address printerFromAddress = nuAssetToPrinter[_nuAssetFrom];
+    //     address printerToAddress = nuAssetToPrinter[_nuAssetTo];
 
-    function swapExactOutput(
-        address _nuAssetFrom,
-        address _nuAssetTo,
-        address _receiver,
-        uint256 _amountToReceive,
-        uint256 _amountInMaximum
-    ) external whenNotPaused returns (uint256 amountOut) {
-        require(_nuAssetFrom != address(0), "input asset not set");
-        require(_nuAssetTo != address(0), "output asset not set");
-        require(_receiver != address(0), "receiver not set");
+    //     require(printerFromAddress != address(0), "input asset has no printer");
+    //     require(printerToAddress != address(0), "output asset has no printer");
 
-        address printerFromAddress = nuAssetToPrinter[_nuAssetFrom];
-        address printerToAddress = nuAssetToPrinter[_nuAssetTo];
+    //     // number of numa needed
+    //     (uint256 numaAmount, uint256 fee) = NumaPrinter(printerToAddress)
+    //         .getNbOfNumaNeededWithFee(_amountToReceive);
 
-        require(printerFromAddress != address(0), "input asset has no printer");
-        require(printerToAddress != address(0), "output asset has no printer");
+    //     // how much _nuAssetFrom are needed to get this amount of Numa
+    //     (uint256 nuAssetAmount, uint256 fee2) = NumaPrinter(printerToAddress)
+    //         .GetNbOfnuAssetNeededForNuma(numaAmount + fee);
 
-        // number of numa needed
-        (uint256 numaAmount, uint256 fee) = NumaPrinter(printerToAddress)
-            .getNbOfNumaNeededWithFee(_amountToReceive);
+    //     // we don't use fee2 as we apply fee only one time
+    //     require(nuAssetAmount <= _amountInMaximum, "maximum input reached");
 
-        // how much _nuAssetFrom are needed to get this amount of Numa
-        (uint256 nuAssetAmount, uint256 fee2) = NumaPrinter(printerToAddress)
-            .GetNbOfnuAssetNeededForNuma(numaAmount + fee);
+    //     // execute
+    //     // transfer input tokens
+    //     SafeERC20.safeTransferFrom(
+    //         IERC20(_nuAssetFrom),
+    //         msg.sender,
+    //         address(this),
+    //         nuAssetAmount
+    //     );
+    //     // no fee here, they will be applied when burning Numas
+    //     uint256 numaMintedAmount = NumaPrinter(printerFromAddress)
+    //         .burnAssetToNumaWithoutFee(nuAssetAmount, address(this));
 
-        // we don't use fee2 as we apply fee only one time
-        require(nuAssetAmount <= _amountInMaximum, "maximum input reached");
+    //     require(numaMintedAmount == numaAmount + fee, "just to be sure");
 
-        // execute
-        // transfer input tokens
-        SafeERC20.safeTransferFrom(
-            IERC20(_nuAssetFrom),
-            msg.sender,
-            address(this),
-            nuAssetAmount
-        );
-        // no fee here, they will be applied when burning Numas
-        uint256 numaMintedAmount = NumaPrinter(printerFromAddress)
-            .burnAssetToNumaWithoutFee(nuAssetAmount, address(this));
+    //     uint256 assetAmount = NumaPrinter(printerToAddress)
+    //         .mintAssetOutputFromNuma(numaMintedAmount, _receiver);
 
-        require(numaMintedAmount == numaAmount + fee, "just to be sure");
+    //     require(assetAmount == _amountToReceive, "did not work");
+    //     emit SwapExactOutput(
+    //         _nuAssetFrom,
+    //         _nuAssetTo,
+    //         msg.sender,
+    //         _receiver,
+    //         nuAssetAmount,
+    //         assetAmount
+    //     );
 
-        uint256 assetAmount = NumaPrinter(printerToAddress)
-            .mintAssetOutputFromNuma(numaMintedAmount, _receiver);
-
-        require(assetAmount == _amountToReceive, "did not work");
-        emit SwapExactOutput(
-            _nuAssetFrom,
-            _nuAssetTo,
-            msg.sender,
-            _receiver,
-            nuAssetAmount,
-            assetAmount
-        );
-
-        return assetAmount;
-    }
+    //     return assetAmount;
+    // }
 }
