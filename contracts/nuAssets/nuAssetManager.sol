@@ -46,7 +46,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         return nuAssetList;
     }
 
-    function getNuAssetInfo(address _nuAsset) external view returns (nuAssetInfo memory)
+    function getNuAssetInfo(address _nuAsset) public view returns (nuAssetInfo memory)
     {
         return nuAssetInfos[_nuAsset];
 
@@ -124,6 +124,39 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
             result += EthValue;
         }
         return result;
+    }
+
+    function getPriceInEth(address _nuAsset,uint256 _amount) public view checkSequencerActive returns (uint256 EthValue) 
+    {
+        require(contains(_nuAsset),"bad nuAsset");
+        nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
+        (address priceFeed, uint128 heartbeat) = (
+                info.feed,
+                info.heartbeat
+            ); 
+        return getPriceInEth(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
+    }
+
+    function getPriceInEthRoundUp(address _nuAsset,uint256 _amount) public view checkSequencerActive returns (uint256 EthValue) 
+    {
+        require(contains(_nuAsset),"bad nuAsset");
+        nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
+        (address priceFeed, uint128 heartbeat) = (
+                info.feed,
+                info.heartbeat
+            ); 
+        return getPriceInEthRoundUp(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
+    }
+
+    function getPriceInEthInvert(address _nuAsset,uint256 _amount) public view checkSequencerActive returns (uint256 EthValue) 
+    {
+        require(contains(_nuAsset),"bad nuAsset");
+        nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
+        (address priceFeed, uint128 heartbeat) = (
+                info.feed,
+                info.heartbeat
+            ); 
+        return getPriceInEthInvert(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
     }
 
     function changeSequencerUptimeFeedAddress(address _newaddress) external onlyOwner

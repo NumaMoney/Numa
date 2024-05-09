@@ -1,3 +1,22 @@
+
+
+
+
+- TODO renommer les fonctions printer
+
+- TODO renommer les fonctions oracle
+- todo: check les arrondis ceiling etc... voir si tout est correct dans les 2 sens
+- relire/cleaner numaoracle/numaprinter
+
+- tests numa printer/numa oracle
+
+Autre fonctionnalités
+synth swaps + no scaling/noblocking
+
+- only 1 vault can leverage? --> voir si ça simplifie
+
+- do we scale synth for numa price?
+
 - printer
 
 

@@ -56,6 +56,47 @@ contract OracleUtils {
     /**
      * @dev chainlink call to a pricefeed with any amount
      */  
+    function getPriceInEthInvert(uint256 _amount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 EthValue) 
+    {
+
+        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
+
+        // heartbeat check
+        require(
+            timeStamp >= block.timestamp - _chainlink_heartbeat,
+            "Stale pricefeed"
+        );
+
+        // minAnswer/maxAnswer check
+        IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_pricefeed).aggregator());
+        require(
+            ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
+            "min/max reached"
+        );
+
+        require(answeredInRound >= roundID, "Answer given before round");
+
+        //if ETH is on the left side of the fraction in the price feed
+        if (ethLeftSide(_pricefeed)) {
+            EthValue = FullMath.mulDiv(
+                _amount,
+                uint256(price),
+                10 ** AggregatorV3Interface(_pricefeed).decimals()
+            );
+        } else {
+            EthValue = FullMath.mulDiv(
+                _amount,
+                10 ** AggregatorV3Interface(_pricefeed).decimals(),
+                uint256(price)
+            );
+        }
+        // audit fix
+        EthValue = EthValue * 10**(18 - _decimals);
+    }
+
+    /**
+     * @dev chainlink call to a pricefeed with any amount
+     */  
     function getPriceInEth(uint256 _amount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 EthValue) 
     {
 
@@ -85,6 +126,48 @@ contract OracleUtils {
             );
         } else {
             EthValue = FullMath.mulDiv(
+                _amount,
+                uint256(price),
+                10 ** AggregatorV3Interface(_pricefeed).decimals()
+            );
+        }
+        // audit fix
+        EthValue = EthValue * 10**(18 - _decimals);
+    }
+
+
+    /**
+     * @dev chainlink call to a pricefeed with any amount
+     */  
+    function getPriceInEthRoundUp(uint256 _amount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 EthValue) 
+    {
+
+        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
+
+        // heartbeat check
+        require(
+            timeStamp >= block.timestamp - _chainlink_heartbeat,
+            "Stale pricefeed"
+        );
+
+        // minAnswer/maxAnswer check
+        IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_pricefeed).aggregator());
+        require(
+            ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
+            "min/max reached"
+        );
+
+        require(answeredInRound >= roundID, "Answer given before round");
+
+        //if ETH is on the left side of the fraction in the price feed
+        if (ethLeftSide(_pricefeed)) {
+            EthValue = FullMath.mulDivRoundingUp(
+                _amount,
+                10 ** AggregatorV3Interface(_pricefeed).decimals(),
+                uint256(price)
+            );
+        } else {
+            EthValue = FullMath.mulDivRoundingUp(
                 _amount,
                 uint256(price),
                 10 ** AggregatorV3Interface(_pricefeed).decimals()
