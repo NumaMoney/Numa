@@ -119,7 +119,6 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
         // lst rewards
         last_extracttimestamp = block.timestamp;
-        //last_lsttokenvalueWei = oracle.getTokenPrice(address(lstToken),decimals);
         last_lsttokenvalueWei = oracle.getTokenPrice(decimals);
 
         // paused by default because might be empty
@@ -291,7 +290,6 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
      */
     function rewardsValue() public view returns (uint256, uint256,uint256) {
         require(address(oracle) != address(0), "oracle not set");
-        //uint currentvalueWei = oracle.getTokenPrice(address(lstToken),decimals);
         uint currentvalueWei = oracle.getTokenPrice(decimals);
         if (currentvalueWei <= last_lsttokenvalueWei) {
             return (0, currentvalueWei,0);

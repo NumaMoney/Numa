@@ -2,7 +2,12 @@
 pragma solidity 0.8.20;
 
 interface INumaPrice {
-    function GetPriceFromVaultWithoutFees(
+    function GetNumaPrice(
+        uint _amount
+    ) external view returns (uint256);
+
+
+    function GetNumaPerEth(
         uint _amount
     ) external view returns (uint256);
 }

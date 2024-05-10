@@ -126,7 +126,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         return result;
     }
 
-    function getPriceInEth(address _nuAsset,uint256 _amount) public view checkSequencerActive returns (uint256 EthValue) 
+    function getPriceInEth(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
     {
         require(contains(_nuAsset),"bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
@@ -137,7 +137,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         return getPriceInEth(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
     }
 
-    function getPriceInEthRoundUp(address _nuAsset,uint256 _amount) public view checkSequencerActive returns (uint256 EthValue) 
+    function getPriceInEthRoundUp(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
     {
         require(contains(_nuAsset),"bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
@@ -148,7 +148,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         return getPriceInEthRoundUp(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
     }
 
-    function getPriceInEthInvert(address _nuAsset,uint256 _amount) public view checkSequencerActive returns (uint256 EthValue) 
+    function getTokenPerEth(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
     {
         require(contains(_nuAsset),"bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
@@ -156,8 +156,20 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
                 info.feed,
                 info.heartbeat
             ); 
-        return getPriceInEthInvert(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
+        return getTokenPerEth(_amount, priceFeed,heartbeat,18);
     }
+
+    function getTokenPerEthRoundUp(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
+    {
+        require(contains(_nuAsset),"bad nuAsset");
+        nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
+        (address priceFeed, uint128 heartbeat) = (
+                info.feed,
+                info.heartbeat
+            ); 
+        return getTokenPerEthRoundUp(_amount, priceFeed,heartbeat,18);
+    }
+
 
     function changeSequencerUptimeFeedAddress(address _newaddress) external onlyOwner
     {

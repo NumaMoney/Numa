@@ -4,11 +4,12 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../Numa.sol";
+import "./NumaMinter.sol";
 import "../interfaces/INuAsset.sol";
 import "../interfaces/INumaOracle.sol";
+import "../interfaces/IVaultManager.sol";
 
-import "./NumaMinter.sol";
-import "./VaultManager.sol";
+
 
 /// @title NumaPrinter
 /// @notice Responsible for minting/burning Numa for nuAsset
@@ -21,7 +22,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     //
     INumaOracle public oracle;
     //
-    VaultManager public vaultManager;
+    IVaultManager public vaultManager;
     //
     uint public printAssetFeeBps;
     uint public burnAssetFeeBps;
@@ -52,7 +53,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
     event BurnAssetFeeBps(uint _newfee);
     event BurntFee(uint _fee);
     event PrintFee(uint _fee);
-    event WhitelistBurnFee(address _address, bool value);
+    event SetVaultManager(address _vaultManager);
+   
     event SetScalingParameters(
         uint cf_critical,
         uint cf_warning,
@@ -91,9 +93,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         numaPool = _numaPool;
         oracle = _oracle;
-        vaultManager = VaultManager(_vaultManagerAddress);
-        //INuAssetManager AMinterface = vaultManager.getNuAssetManager();
-        //nuAManager = nuAssetManager(address(AMinterface));
+        vaultManager = IVaultManager(_vaultManagerAddress);
+      
     }
 
 
@@ -105,6 +106,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    function setVaultManager(address _vaultManager) external onlyOwner
+    {
+        vaultManager = IVaultManager(_vaultManager);
+        emit SetVaultManager(_vaultManager);
     }
 
     function setScalingParameters(uint _cf_critical,
@@ -173,132 +180,204 @@ contract NumaPrinter is Pausable, Ownable2Step {
         emit BurnAssetFeeBps(_burnAssetFeeBps);
     }
 
+    /**
+     * @dev mints a newAsset
+     * @notice block minting according to vaultCF. Call accrueInterests on lending contracts as it will impact vault max borrowable amount
+     */
     function mintNuAsset(INuAsset _asset,address _recipient,uint _amount) internal
     {
         uint currentCF = vaultManager.getGlobalCF();
         require(currentCF > cf_warning,"minting forbidden");
 
-        _asset.mint(_recipient, _amount);
         // accrue interest on lending because synth supply has changed so utilization rates also
         vaultManager.accrueInterests();
+        // mint
+        _asset.mint(_recipient, _amount);
         emit AssetMint(address(_asset), _amount);
     }
 
+    /**
+     * @dev burns a newAsset
+     * @notice Call accrueInterests on lending contracts as it will impact vault max borrowable amount
+     */
+    function burnNuAssetFrom(INuAsset _asset,address _sender,uint _amount) internal
+    {   
+        // accrue interest on lending because synth supply has changed so utilization rates also
+        vaultManager.accrueInterests();
+        // burn
+        _asset.burnFrom(_sender, _amount);
+        emit AssetBurn(address(_asset), _amount);
+    }
+
+
+    function getSynthScaling() internal view returns (uint,uint,uint)
+    {
+        uint lastScaleMemory = lastScale;
+        // synth scaling
+        uint currentCF = vaultManager.getGlobalCF();
+        uint blockTime = block.timestamp;
+        if (currentCF < cf_critical)
+        {
+            // we need to debase
+            if (lastScaleMemory < BASE_1000)
+            {
+                // we are currently in debase/rebase mode
+
+                if (blockTime > lastBlockTime + deltaDebase)
+                {
+                    // debase again
+                    uint ndebase = blockTime/(lastBlockTime + deltaDebase);
+                    ndebase = ndebase * debaseValue;
+                    if (lastScaleMemory > ndebase)
+                        lastScaleMemory = lastScaleMemory - ndebase;
+                        if (lastScaleMemory < minimumScale)
+                            lastScaleMemory = minimumScale;
+                    else
+                        lastScaleMemory = minimumScale;
+                } 
+
+            }
+            else
+            {
+                // start debase
+                lastScaleMemory = lastScaleMemory - debaseValue;
+            }
+        }
+        else
+        {
+            if (lastScaleMemory < BASE_1000)
+            {
+                // need to rebase
+                if (blockTime > lastBlockTime + deltaRebase)
+                {
+                    // rebase
+                    uint nrebase = blockTime/(lastBlockTime + deltaRebase);
+                    nrebase = nrebase * rebaseValue;
+
+                    lastScaleMemory = lastScaleMemory + nrebase;
+                    if (lastScaleMemory > BASE_1000)
+                        lastScaleMemory = BASE_1000;
+                } 
+               
+
+            }
+        }
+
+        // apply scale to synth burn price
+        uint scale1000 = lastScaleMemory;
+
+        // SECURITY
+        if (currentCF < BASE_1000)
+        {
+            // TODO: do we use vaults balance with debt here?
+            uint scaleSecure = currentCF;
+            if (scaleSecure < scale1000)
+                scale1000 = scaleSecure;
+        }
+        return (scale1000,lastScaleMemory,blockTime);
+
+    }
+
+    // NUMA --> NUASSET
+    function getNbOfNuAssetFromNuma(address _nuAsset,uint256 _numaAmount
+    ) public view returns (uint256, uint256) {
+
+        // print fee
+        uint256 amountToBurn = (_numaAmount * printAssetFeeBps) / 10000;
+
+        uint256 output = oracle.getNbOfNuAsset(
+            _numaAmount - amountToBurn,
+            _nuAsset,
+            numaPool
+        );
+        return (output, amountToBurn);
+    }
 
 
     /**
      * @dev returns amount of Numa needed and fee to mint an amount of nuAsset
-     * @param {uint256} _amount amount we want to mint
+     * @param {uint256} _nuAssetAmount amount we want to mint
      * @return {uint256,uint256} amount of Numa that will be needed and fee to be burnt
      */
     function getNbOfNumaNeededAndFee(address _nuAsset,
-        uint256 _amount
+        uint256 _nuAssetAmount
     ) public view returns (uint256, uint256) 
     {
-        // require(nuAManager.contains(_nuAsset),"bad nuAsset");
-        // nuAssetInfo memory info = nuAManager.getNuAssetInfo(_nuAsset);
 
         uint256 cost = oracle.getNbOfNumaNeeded(
-            _amount,
+            _nuAssetAmount,
             _nuAsset,
             numaPool
         );
         // print fee
         uint256 amountToBurn = (cost * printAssetFeeBps) / 10000;
+        // will need to pay (burn): cost + amountToBurn 
         return (cost, amountToBurn);
     }
 
+
+    // NUASSET --> NUMA
     /**
-     * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
-     * @param {uint256} _amount amount we want to burn
-     * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
+     * @dev returns amount of nuAsset needed mint an amount of numa
+     * @notice if fees needs to be applied they should be in input amount
+     * @param {uint256} _numaAmount amount we want to mint
+     * @return {uint256} amount of nuAsset that will be needed
      */
-    function getNbOfNumaFromAssetWithFee(address _nuAsset,
-        uint256 _amount,bool _applyScaling
-    ) public returns (uint256, uint256) 
+    function GetNbOfnuAssetNeededForNuma(address _nuAsset,
+        uint _numaAmountIncludingFee,bool _applyScaling
+    ) internal returns (uint256) 
     {
-
-        // require(nuAManager.contains(_nuAsset),"bad nuAsset");
-        // nuAssetInfo memory info = nuAManager.getNuAssetInfo(_nuAsset);
-
-        uint256 _output = oracle.getNbOfNumaFromAsset(
-            _amount,
+        uint256 nuAssetIn = oracle.getNbOfAssetneeded(
+            _numaAmountIncludingFee,
             _nuAsset,
             numaPool
         );
 
         if (_applyScaling)
         {
-            // synth scaling
-            uint currentCF = vaultManager.getGlobalCF();
-            uint blockTime = block.timestamp;
-            if (currentCF < cf_critical)
-            {
-                // we need to debase
-                if (lastScale < BASE_1000)
-                {
-                    // we are currently in debase/rebase mode
-
-                    if (blockTime > lastBlockTime + deltaDebase)// TODO modulus
-                    {
-                        // debase again
-                        uint ndebase = blockTime/(lastBlockTime + deltaDebase);
-                        ndebase = ndebase * debaseValue;
-                        if (lastScale > ndebase)
-                            lastScale = lastScale - ndebase;
-                            if (lastScale < minimumScale)
-                                lastScale = minimumScale;
-                        else
-                            lastScale = minimumScale;
-                    } 
-
-                }
-                else
-                {
-                    // start debase
-                    lastScale = lastScale - debaseValue;
-                }
-                lastBlockTime = blockTime;
-
-            }
-            else
-            {
-                if (lastScale < BASE_1000)
-                {
-                    // need to rebase
-                    if (blockTime > lastBlockTime + deltaRebase)
-                    {
-                        // rebase
-                        uint nrebase = blockTime/(lastBlockTime + deltaRebase);
-                        nrebase = nrebase * rebaseValue;
-
-                        lastScale = lastScale + nrebase;
-                        if (lastScale > BASE_1000)
-                            lastScale = BASE_1000;
-                    } 
-                    lastBlockTime = blockTime;
-
-                }
-            }
-
-            // apply scale to synth burn price
-            uint scale1000 = lastScale;
-
-            // SECURITY
-            if (currentCF < BASE_1000)
-            {
-                // TODO: do we use vaults balance with debt here?
-                uint scaleSecure = currentCF;
-                if (scaleSecure < scale1000)
-                    scale1000 = scaleSecure;
-            }
-
-            // scale
-            _output = (_output*scale1000)/BASE_1000;
-
+            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+            // apply scale
+            nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
+            // save 
+            lastScale = scaleMemory;
+            lastBlockTime = blockTime;
 
         }
 
+        return nuAssetIn;
+    }
+
+  
+
+
+
+
+    /**
+     * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
+     * @param {uint256} _nuAssetAmount amount of nuAsset we want to burn
+     * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
+     */
+    function getNbOfNumaFromAssetWithFee(address _nuAsset,
+        uint256 _nuAssetAmount,bool _applyScaling
+    ) public returns (uint256, uint256) 
+    {
+
+        uint256 _output = oracle.getNbOfNumaFromAsset(
+            _nuAssetAmount,
+            _nuAsset,
+            numaPool
+        );
+
+        if (_applyScaling)
+        {
+            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+            // apply scale
+            _output = (_output*scaleOverride)/BASE_1000;
+            // save 
+            lastScale = scaleMemory;
+            lastBlockTime = blockTime;
+
+        }
 
         // burn fee
         uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
@@ -308,147 +387,44 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
      /**
      * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
-     * @param {uint256} _amount amount we want to burn
+     * @param {uint256} _nuAssetAmount amount of nuAsset we want to burn
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
     function getNbOfNumaFromAssetWithFeeView(address _nuAsset,
-        uint256 _amount,bool _applyScaling
+        uint256 _nuAssetAmount,bool _applyScaling
     ) external view returns (uint256, uint256) 
     {
 
-        // require(nuAManager.contains(_nuAsset),"bad nuAsset");
-        // nuAssetInfo memory info = nuAManager.getNuAssetInfo(_nuAsset);
-
         uint256 _output = oracle.getNbOfNumaFromAsset(
-            _amount,
+            _nuAssetAmount,
             _nuAsset,
             numaPool
         );
 
         if (_applyScaling)
         {
-            uint lastScaleMemory = lastScale;
-            // synth scaling
-            uint currentCF = vaultManager.getGlobalCF();
-            uint blockTime = block.timestamp;
-            if (currentCF < cf_critical)
-            {
-                // we need to debase
-                if (lastScaleMemory < BASE_1000)
-                {
-                    // we are currently in debase/rebase mode
-
-                    if (blockTime > lastBlockTime + deltaDebase)// TODO modulus
-                    {
-                        // debase again
-                        uint ndebase = blockTime/(lastBlockTime + deltaDebase);
-                        ndebase = ndebase * debaseValue;
-                        if (lastScaleMemory > ndebase)
-                            lastScaleMemory = lastScaleMemory - ndebase;
-                            if (lastScaleMemory < minimumScale)
-                                lastScaleMemory = minimumScale;
-                        else
-                            lastScaleMemory = minimumScale;
-                    } 
-
-                }
-                else
-                {
-                    // start debase
-                    lastScaleMemory = lastScaleMemory - debaseValue;
-                }
-               
-
-            }
-            else
-            {
-                if (lastScaleMemory < BASE_1000)
-                {
-                    // need to rebase
-                    if (blockTime > lastBlockTime + deltaRebase)
-                    {
-                        // rebase
-                        uint nrebase = blockTime/(lastBlockTime + deltaRebase);
-                        nrebase = nrebase * rebaseValue;
-
-                        lastScaleMemory = lastScaleMemory + nrebase;
-                        if (lastScaleMemory > BASE_1000)
-                            lastScaleMemory = BASE_1000;
-                    } 
-                   
-
-                }
-            }
-
-            // apply scale to synth burn price
-            uint scale1000 = lastScaleMemory;
-
-            // SECURITY
-            if (currentCF < BASE_1000)
-            {
-                // TODO: do we use vaults balance with debt here?
-                uint scaleSecure = currentCF;
-                if (scaleSecure < scale1000)
-                    scale1000 = scaleSecure;
-            }
-
-            // scale
-            _output = (_output*scale1000)/BASE_1000;
-
+            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+            // apply scale
+            _output = (_output*scaleOverride)/BASE_1000;         
 
         }
-
-	
-	
-
 
         // burn fee
         uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
         return (_output, amountToBurn);
     }
 
-    function getNbOfNuAssetFromNuma(address _nuAsset,uint256 _amount
-    ) public view returns (uint256, uint256) {
 
-        // require(nuAManager.contains(_nuAsset),"bad nuAsset");
-        // nuAssetInfo memory info = nuAManager.getNuAssetInfo(_nuAsset);
 
-        // print fee
-        uint256 amountToBurn = (_amount * printAssetFeeBps) / 10000;
-
-        uint256 output = oracle.getNbOfNuAsset(
-            _amount - amountToBurn,
-            _nuAsset,
-            numaPool
-        );
-        return (output, amountToBurn);
-    }
-
-    function GetNbOfnuAssetNeededForNuma(address _nuAsset,
-        uint _amount
-    ) internal view returns (uint256, uint256) {
-        // require(nuAManager.contains(_nuAsset),"bad nuAsset");
-        // nuAssetInfo memory info = nuAManager.getNuAssetInfo(_nuAsset);
-
-        uint256 input = oracle.getNbOfAssetneeded(
-            _amount,
-            _nuAsset,
-            numaPool
-        );
-
-        uint256 amountToBurn = (_amount * burnAssetFeeBps) / 10000;
-
-        return (input, amountToBurn);
-    }
 
     /**
      * dev burn Numa to mint nuAsset
      * notice contract should be nuAsset minter, and should have allowance from sender to burn Numa
-     * param {uint256} _amount amount of nuAsset to mint
+     * param {uint256} _nuAssetamount amount of nuAsset to mint
      * param {address} _recipient recipient of minted nuAsset tokens
      */
     function mintAssetOutputFromNuma(address _nuAsset,
-        uint _amount,
+        uint _nuAssetamount,
         address _recipient
     ) external whenNotPaused {
         require(address(oracle) != address(0), "oracle not set");
@@ -459,18 +435,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // how much numa should we burn to get this nuAsset amount
         uint256 numaCost;
         uint256 numaFee;
-        (numaCost, numaFee) = getNbOfNumaNeededAndFee(_nuAsset,_amount);
+        (numaCost, numaFee) = getNbOfNumaNeededAndFee(_nuAsset,_nuAssetamount);
 
         uint256 depositCost = numaCost + numaFee;
 
-        require(
-            numa.balanceOf(msg.sender) >= depositCost,
-            "Insufficient Balance"
-        );
-        // burn
+        // burn numa
         numa.burnFrom(msg.sender, depositCost);
         // mint token
-        mintNuAsset(nuAsset,_recipient,_amount);
+        mintNuAsset(nuAsset,_recipient,_nuAssetamount);
        
         emit PrintFee(numaFee); // NUMA burnt
     }
@@ -478,65 +450,52 @@ contract NumaPrinter is Pausable, Ownable2Step {
     /**
      * dev burn nuAsset to mint Numa
      * notice contract should be Numa minter, and should have allowance from sender to burn nuAsset
-     * param {uint256} _amount amount of nuAsset that we want to burn
+     * param {uint256} _nuAssetAmount amount of nuAsset that we want to burn
      * param {address} _recipient recipient of minted Numa tokens
      */
     function burnAssetInputToNuma(address _nuAsset,
-        uint256 _amount,
+        uint256 _nuAssetAmount,
         address _recipient
     ) external whenNotPaused returns (uint) {
-        //require (tokenPool != address(0),"No nuAsset pool");
+      
         INuAsset nuAsset = INuAsset(_nuAsset);
       
-
         uint256 _output;
         uint256 amountToBurn;
 
-        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_amount,true);
+        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount,true);
 
-        // burn amount
-        nuAsset.burnFrom(msg.sender, _amount);
+        // burn amount       
+        burnNuAssetFrom(nuAsset,msg.sender,_nuAssetAmount);
 
         // burn fee
         _output -= amountToBurn;
-
-        //numa.mint(_recipient, _output);
         minterContract.mint(_recipient,_output);
-        // accrue interest on lending because synth supply has changed so utilization rates also
-        vaultManager.accrueInterests();
-        emit AssetBurn(address(nuAsset), _amount);
         emit BurntFee(amountToBurn); // NUMA burnt (not minted)
         return (_output);
     }
 
    
     function burnAssetToNumaOutput(address _nuAsset,
-        uint256 _amount,
+        uint256 _numaAmount,
         address _recipient
     ) external whenNotPaused returns (uint) {
         //require (tokenPool != address(0),"No nuAsset pool");
         INuAsset nuAsset = INuAsset(_nuAsset);
       
         // burn fee
-        uint256 amountWithFee = (_amount*10000) / (10000 - burnAssetFeeBps);
+        uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
         // how much _nuAssetFrom are needed to get this amount of Numa
-        (uint256 nuAssetAmount, uint256 fee) = GetNbOfnuAssetNeededForNuma(_nuAsset,_amount);
-
+        uint256 nuAssetAmount = GetNbOfnuAssetNeededForNuma(_nuAsset,amountWithFee,true);
 
         // burn amount
-        nuAsset.burnFrom(msg.sender, nuAssetAmount);
-
-        // // burn fee
-        // _output -= amountToBurn;
-
-        // //numa.mint(_recipient, _output);
-        // minterContract.mint(_recipient,_output);
-        // // accrue interest on lending because synth supply has changed so utilization rates also
-        // vaultManager.accrueInterests();
-        // emit AssetBurn(address(nuAsset), _amount);
-        // emit BurntFee(amountToBurn); // NUMA burnt (not minted)
-        // return (_output);
+        burnNuAssetFrom(nuAsset,msg.sender,nuAssetAmount);
+             
+        minterContract.mint(_recipient,_numaAmount);
+      
+        emit BurntFee(amountWithFee - _numaAmount); // NUMA burnt (not minted)
+        return (_numaAmount);
     }
 
    
@@ -549,7 +508,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * param {address} _recipient
      */
     function mintAssetFromNumaInput(address _nuAsset,
-        uint _amount,
+        uint _numaAmount,
         address _recipient
     ) public whenNotPaused returns (uint256) {
         require(address(oracle) != address(0), "oracle not set");
@@ -558,20 +517,15 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         uint256 assetAmount;
         uint256 numaFee;
-        (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset,_amount);
+        // this function applies fees (amount = amount - fee)
+        (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset,_numaAmount);
 
         // burn
-        numa.burnFrom(msg.sender, _amount);
+        numa.burnFrom(msg.sender, _numaAmount);
         // mint token
         INuAsset nuAsset = INuAsset(_nuAsset);
-        // nuAsset.mint(_recipient, assetAmount);
-        // // accrue interest on lending because synth supply has changed so utilization rates also
-        // vaultManager.accrueInterests();
-        // emit AssetMint(address(nuAsset), assetAmount);
-
         // mint token
         mintNuAsset(nuAsset,_recipient,assetAmount);
-
 
         emit PrintFee(numaFee);
         return assetAmount;
@@ -593,7 +547,10 @@ contract NumaPrinter is Pausable, Ownable2Step {
         INuAsset nuAssetTo = INuAsset(_nuAssetTo);
         // estimate output and check that it's ok with slippage
         // don't apply synth scaling here
-        (uint256 numaEstimatedOutput,uint amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAssetFrom,_amountToSwap,false);
+        // fee is applied only 1 time when swapping
+        // --> not applied here
+        (uint256 numaEstimatedOutput,uint amountToBurnNotUsed) = getNbOfNumaFromAssetWithFee(_nuAssetFrom,_amountToSwap,false);
+        // --> applied here
 	    (uint assetAmount, uint numaFee) = getNbOfNuAssetFromNuma(_nuAssetTo,numaEstimatedOutput);
 
        require(
@@ -644,9 +601,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
 
         // how much _nuAssetFrom are needed to get this amount of Numa
-        (uint256 nuAssetAmount, uint256 fee2) = GetNbOfnuAssetNeededForNuma(_nuAssetTo,numaAmount + fee);
+        uint256 nuAssetAmount = GetNbOfnuAssetNeededForNuma(_nuAssetTo,numaAmount + fee,false);
 
-        // we don't use fee2 as we apply fee only one time
         require(nuAssetAmount <= _amountInMaximum, "maximum input reached");
 
         // burn asset from

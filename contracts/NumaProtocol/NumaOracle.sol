@@ -52,6 +52,7 @@ contract NumaOracle is Ownable2Step {
         tolerance1000 = _tolerance1000;
         emit NumaPrice(_numaPriceAddress, _tolerance1000);
     }
+
     function setIntervalShort(uint32 _interval) external onlyOwner {
         require(_interval > 0, "Interval must be nonzero");
         intervalShort = _interval;
@@ -66,58 +67,6 @@ contract NumaOracle is Ownable2Step {
         intervalLong = _interval;
         emit IntervalLong(intervalLong);
     }
-
-    // /**
-    //  * @dev check if _chainlinkFeed.description() starts with "ETH"
-    //  * @param {address} _chainlinkFeed chainlink feed address
-    //  * @return {bool} true if chainlinkFeed.description() starts with "ETH"
-    //  */
-    // function ethLeftSide(address _chainlinkFeed) internal view returns (bool) {
-    //     if (_chainlinkFeed == address(0)) return true;
-    //     string memory description = AggregatorV3Interface(_chainlinkFeed)
-    //         .description();
-    //     bytes memory descriptionBytes = bytes(description);
-    //     bytes memory ethBytes = bytes("ETH");
-    //     for (uint i = 0; i < 3; i++)
-    //         if (descriptionBytes[i] != ethBytes[i]) return false;
-    //     return true;
-    // }
-
-    // /**
-    //  * @dev Get chainlink price from price feed address
-    //  * @notice filter invalid Chainlink feeds ie 0 timestamp, invalid round IDs
-    //  * @param {address} _chainlinkFeed chainlink feed address
-    //  * @return {uint256} the chainlink price
-    //  */
-    // function chainlinkPrice(
-    //     address _chainlinkFeed,
-    //     uint128 _chainlink_heartbeat
-    // ) public view returns (uint256) {
-    //     (
-    //         uint80 roundID,
-    //         int256 price,
-    //         ,
-    //         uint256 timeStamp,
-    //         uint80 answeredInRound
-    //     ) = AggregatorV3Interface(_chainlinkFeed).latestRoundData();
-    //     require(
-    //         timeStamp >= block.timestamp - _chainlink_heartbeat,
-    //         "Stale pricefeed"
-    //     );
-
-    //      // minAnswer/maxAnswer check
-    //     IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_chainlinkFeed).aggregator());
-    //     require(
-    //         ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
-    //         "min/max reached"
-    //     );
-
-
-    //     require(answeredInRound >= roundID, "Answer given before round");
-        
-
-    //     return uint256(price);
-    // }
 
     /**
      * @dev Fetch uniswap V3 pool average price over an interval
@@ -275,13 +224,13 @@ contract NumaOracle is Ownable2Step {
 
     /**
      * @dev number of numa tokens needed to mint this amount of nuAsset
-     * @param {uint256} _amount amount we want to mint
-     * @param {address} _chainlinkFeed chainlink feed
+     * @param {uint256} _nuAssetAmount amount we want to mint
+     * @param {address} _nuAsset the nuAsset address
      * @param {address} _numaPool Numa pool address
      * @return {uint256} amount of Numa needed to be burnt
      */
     function getNbOfNumaNeeded(
-        uint256 _amount,
+        uint256 _nuAssetAmount,
         address _nuAsset,
         address _numaPool
     ) external view returns (uint256) {
@@ -298,67 +247,42 @@ contract NumaOracle is Ownable2Step {
         uint256 denominator = (
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
-        //numa per ETH, times _amount
-        uint256 numaPerETH = FullMath.mulDivRoundingUp(
+        //numa per ETH, times _nuAssetAmount
+        uint256 numaPerETHmulAmount = FullMath.mulDivRoundingUp(
             FullMath.mulDivRoundingUp(numerator, numerator, denominator),
-            _amount,
+            _nuAssetAmount,
             denominator
         );
 
         // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {
             // do it only if we specified a contract that can give us numa price
-            uint256 numaPerEthVault = numaPrice.GetPriceFromVaultWithoutFees(
-                _amount
+            uint256 numaPerEthVault = numaPrice.GetNumaPerEth(
+                _nuAssetAmount
             );
-            // TODO: check this way of using percent, could I get rounding issues?
+            
             numaPerEthVault =
                 numaPerEthVault -
                 (numaPerEthVault * tolerance1000) /
                 1000;
-            if (numaPerETH < numaPerEthVault) {
+            if (numaPerETHmulAmount < numaPerEthVault) {
                 revert("numa price out of vault's bounds");
             }
         }
 
-        uint256 tokensForAmount = nuAManager.getPriceInEthRoundUp(_nuAsset,numaPerETH);
-
-        // if (_chainlinkFeed == address(0)) {
-        //     revert("oracle should be set");
-        // }
-        // uint256 linkFeed = chainlinkPrice(_chainlinkFeed, _chainlink_heartbeat);
-        // uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed)
-        //     .decimals();
-
-        
-        // //if ETH is on the left side of the fraction in the price feed
-        // if (ethLeftSide(_chainlinkFeed)) {
-        //     tokensForAmount = FullMath.mulDivRoundingUp(
-        //         numaPerETH,
-        //         10 ** decimalPrecision,
-        //         linkFeed
-        //     );
-        // } else {
-        //     tokensForAmount = FullMath.mulDivRoundingUp(
-        //         numaPerETH,
-        //         linkFeed,
-        //         10 ** decimalPrecision
-        //     );
-        // }
-
+        uint256 tokensForAmount = nuAManager.getPriceInEthRoundUp(_nuAsset,numaPerETHmulAmount);
         return tokensForAmount;
     }
 
     /**
      * @dev number of Numa that will be minted by burning this amount of nuAsset
-     * @param {uint256} _amount amount we want to burn
-     * @param {address} _chainlinkFeed chainlink feed
+     * @param {uint256} _nuAssetAmount amount we want to mint
+     * @param {address} _nuAsset the nuAsset address
      * @param {address} _numaPool Numa pool address
-     * @param {address} _tokenPool nuAsset pool address
      * @return {uint256} amount of Numa that will be minted
      */
     function getNbOfNumaFromAsset(
-        uint256 _amount,
+        uint256 _nuAssetAmount,
         address _nuAsset,
         address _numaPool
     ) external view returns (uint256) {
@@ -377,61 +301,35 @@ contract NumaOracle is Ownable2Step {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
         //numa per ETH, times _amount
-        uint256 numaPerETH = FullMath.mulDiv(
+        uint256 numaPerETHmulAmount = FullMath.mulDiv(
             FullMath.mulDiv(numerator, numerator, denominator),
-            _amount,
+            _nuAssetAmount,
             denominator
         );
 
         // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {
             // do it only if we specified a contract that can give us numa price
-            uint256 numaPerEthVault = numaPrice.GetPriceFromVaultWithoutFees(
-                _amount
+            uint256 numaPerEthVault = numaPrice.GetNumaPerEth(
+                _nuAssetAmount
             );
             numaPerEthVault =
                 numaPerEthVault +
                 (numaPerEthVault * tolerance1000) /
                 1000;
-            if (numaPerETH > numaPerEthVault) {
+            if (numaPerETHmulAmount > numaPerEthVault) {
                 revert("numa price out of vault's bounds");
             }
         }
 
-        uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAsset,numaPerETH);
+        uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAsset,numaPerETHmulAmount);
 
- 
-        // if (_chainlinkFeed == address(0)) {
-        //     revert("oracle should be set");
-        // }
-
-        // uint256 linkFeed = chainlinkPrice(_chainlinkFeed, _chainlink_heartbeat);
-        // uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed)
-        //     .decimals();
-        // uint256 tokensForAmount;
-        // //if ETH is on the left side of the fraction in the price feed
-        // if (ethLeftSide(_chainlinkFeed)) {
-        //     tokensForAmount = FullMath.mulDiv(
-        //         numaPerETH,
-        //         10 ** decimalPrecision,
-        //         linkFeed
-        //     );
-        // } else {
-        //     tokensForAmount = FullMath.mulDiv(
-        //         numaPerETH,
-        //         linkFeed,
-        //         10 ** decimalPrecision
-        //     );
-        // }
         return tokensForAmount;
     }
 
-  
 
-    // NEW FUNCTIONS FOR SYNTHETIC SWAP
-    // TODO: TESTS PRINTER&ORACLE
     function getNbOfNuAsset(
-        uint256 _amount,
+        uint256 _numaAmount,
         address _nuAsset,
         address _numaPool
     ) external view returns (uint256) 
@@ -450,45 +348,30 @@ contract NumaOracle is Ownable2Step {
         uint256 denominator = (
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
-        //numa per ETH, times _amount
-        //uint256 numaPerETH = FullMath.mulDiv(FullMath.mulDiv(numerator, numerator, denominator), _amount, denominator);
+        //Eth per numa times amount
         uint256 EthPerNuma = FullMath.mulDiv(
             FullMath.mulDiv(denominator, denominator, numerator),
-            _amount,
+            _numaAmount,
             numerator
         );
 
-        uint256 tokensForAmount = nuAManager.getPriceInEthInvert(_nuAsset,EthPerNuma);
-        //uint256 tokensForAmount = getPriceInEthInvert(EthPerNuma, _chainlinkFeed,_chainlink_heartbeat,IERC20Metadata(nuAssetList[i]).decimals());
+          // check that numa price is within vault's price bounds to prevent price manipulation
+        if (address(numaPrice) != address(0)) {
+            // do it only if we specified a contract that can give us numa price
+            uint256 EthPerNumaVault = numaPrice.GetNumaPrice(
+                _numaAmount
+            );
+            EthPerNumaVault =
+                EthPerNumaVault +
+                (EthPerNumaVault * tolerance1000) /
+                1000;
+            if (EthPerNuma > EthPerNumaVault) {
+                revert("numa price out of vault's bounds");
+            }
+        }
 
 
-        // uint256 tokensForAmount;
-
-        // if (_chainlinkFeed == address(0)) return EthPerNuma;
-        // uint256 linkFeed = chainlinkPrice(_chainlinkFeed, _chainlink_heartbeat);
-        // uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed)
-        //     .decimals();
-
-        // //if ETH is on the left side of the fraction in the price feed
-        // // if (ethLeftSide(_chainlinkFeed)) {
-        // //     tokensForAmount = FullMath.mulDiv(numaPerETH, 10**decimalPrecision, linkFeed);
-        // // } else {
-        // //     tokensForAmount = FullMath.mulDiv(numaPerETH, linkFeed, 10**decimalPrecision);
-        // // }
-
-        // if (ethLeftSide(_chainlinkFeed)) {
-        //     tokensForAmount = FullMath.mulDiv(
-        //         EthPerNuma,
-        //         linkFeed,
-        //         10 ** decimalPrecision
-        //     );
-        // } else {
-        //     tokensForAmount = FullMath.mulDiv(
-        //         EthPerNuma,
-        //         10 ** decimalPrecision,
-        //         linkFeed
-        //     );
-        // }
+        uint256 tokensForAmount = nuAManager.getTokenPerEth(_nuAsset,EthPerNuma);
 
         return tokensForAmount;
     }
@@ -516,35 +399,27 @@ contract NumaOracle is Ownable2Step {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
         //numa per ETH, times _amount
-        uint256 EthPerNuma = FullMath.mulDiv(
-            FullMath.mulDiv(denominator, denominator, numerator),
+        uint256 EthPerNuma = FullMath.mulDivRoundingUp(
+            FullMath.mulDivRoundingUp(denominator, denominator, numerator),
             _amountNumaOut,
             numerator
         );
 
-       uint256 tokensForAmount = nuAManager.getPriceInEthInvert(_nuAsset,EthPerNuma);
-
-        // uint256 tokensForAmount;
-
-        // if (_chainlinkFeed == address(0)) return EthPerNuma;
-        // uint256 linkFeed = chainlinkPrice(_chainlinkFeed, _chainlink_heartbeat);
-        // uint256 decimalPrecision = AggregatorV3Interface(_chainlinkFeed)
-        //     .decimals();
-
-        // //if ETH is on the left side of the fraction in the price feed
-        // if (ethLeftSide(_chainlinkFeed)) {
-        //     tokensForAmount = FullMath.mulDiv(
-        //         EthPerNuma,
-        //         linkFeed,
-        //         10 ** decimalPrecision
-        //     );
-        // } else {
-        //     tokensForAmount = FullMath.mulDiv(
-        //         EthPerNuma,
-        //         10 ** decimalPrecision,
-        //         linkFeed
-        //     );
-        // }
+        // check that numa price is within vault's price bounds to prevent price manipulation
+        if (address(numaPrice) != address(0)) {
+            // do it only if we specified a contract that can give us numa price
+            uint256 EthPerNumaVault = numaPrice.GetNumaPrice(
+                _amountNumaOut
+            );
+            EthPerNumaVault =
+                EthPerNumaVault -
+                (EthPerNumaVault * tolerance1000) /
+                1000;
+            if (EthPerNuma < EthPerNumaVault) {
+                revert("numa price out of vault's bounds");
+            }
+        }
+        uint256 tokensForAmount = nuAManager.getTokenPerEthRoundUp(_nuAsset,EthPerNuma);
         return tokensForAmount;
     }
 

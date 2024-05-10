@@ -1,12 +1,21 @@
+pour les fonctions invert de oraclutils
+- renommer ethvalue car je ne crois pas que ce soit de l'eth
+- check ceci, doit-on le faire, les decimales sont elles bien employées
+
+  // audit fix
+        EthValue = EthValue * 10**(18 - _decimals);
 
 
 
 
-- TODO renommer les fonctions printer
+
+
 
 - TODO renommer les fonctions oracle
 - todo: check les arrondis ceiling etc... voir si tout est correct dans les 2 sens
 - relire/cleaner numaoracle/numaprinter
+
+     ** numaprinter: onpourrait reecrire la façon dont sont gérer les fees, pas très clair
 
 - tests numa printer/numa oracle
 
