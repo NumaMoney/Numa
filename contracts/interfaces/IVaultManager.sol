@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 interface IVaultManager {
     function getTotalBalanceEth() external view returns (uint256);
-
+    function getTotalBalanceEthNoDebt() external view returns (uint256);
     function tokenToNuma(
         uint _inputAmount,
         uint _refValueWei,

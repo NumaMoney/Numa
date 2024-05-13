@@ -358,7 +358,7 @@ contract NumaOracle is Ownable2Step {
           // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {
             // do it only if we specified a contract that can give us numa price
-            uint256 EthPerNumaVault = numaPrice.GetNumaPrice(
+            uint256 EthPerNumaVault = numaPrice.GetNumaPriceEth(
                 _numaAmount
             );
             EthPerNumaVault =
@@ -408,7 +408,7 @@ contract NumaOracle is Ownable2Step {
         // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {
             // do it only if we specified a contract that can give us numa price
-            uint256 EthPerNumaVault = numaPrice.GetNumaPrice(
+            uint256 EthPerNumaVault = numaPrice.GetNumaPriceEth(
                 _amountNumaOut
             );
             EthPerNumaVault =

@@ -16,6 +16,8 @@ import "../interfaces/IRewardFeeReceiver.sol";
 import "./NumaMinter.sol";
 import "../lending/CNumaToken.sol";
 
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -36,6 +38,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     uint16 public fees = 10; //1%
 
 
+    mapping(address => bool) feeWhitelisted;
 
     uint16 public max_percent = 100; //10%
 
@@ -61,6 +64,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     // decimals of lst token
     uint256 immutable decimals;
+
 
     bool isWithdrawRevoked = false;
 
@@ -103,6 +107,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     event RepaidVault(uint _amount);
     event SetMaxProfit(uint _maxProfit);
     event SetMaxCF(uint _maxCF);
+    event Whitelisted(address _addy,bool _wl);
 
     constructor(
         address _numaAddress,
@@ -141,21 +146,28 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
 
     /**
+     * @dev adds an address as fee whitelisted
+     */
+    function setFeeWhitelist(address _addy,bool _whitelisted) external onlyOwner {
+        feeWhitelisted[_addy] = _whitelisted;
+        emit Whitelisted(_addy,_whitelisted);
+    }
+
+
+    /**
      * @dev set the IVaultOracle address (used to compute token price in Eth)
      */
     function setCTokens(address _cNuma, address _clstToken) external onlyOwner {
-
         cNuma = CNumaToken(_cNuma);
         cLstToken = CNumaToken(_clstToken);
         emit SetCTokens(_cNuma,_clstToken);
-        
     }
 
 
     function setMaxCF(uint _maxCF) external onlyOwner 
     {
         // CF will change so we need to update interest rates
-        accrueInterestLending();
+        accrueInterestLending();// TODO: call from vault?
 
         maxCF = _maxCF;
         emit SetMaxCF(_maxCF);   
@@ -268,7 +280,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         else
         {
             uint balance = lstToken.balanceOf(address(this));
-            balance += (debt - rewardsFromDebt);// debt is owned by us but rewards will be sent
+            balance += (debt - rewardsFromDebt);// debt is owned by us but rewards will be sent so not ours anymore
             return balance;
         }
     }
@@ -306,6 +318,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalueWei = currentvalueWei;
 
+        // rewards from debt are not sent, they are accumulated to be sent when there's a repay
         rewardsFromDebt += rwdDebt;
         if (rwd_address != address(0))
         {
@@ -354,16 +367,15 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     }
 
     /**
-     * @dev vaults' balance in Eth
+     * @dev vaults' balance in Eth including debt
      */
     function getEthBalance() external view returns (uint256) {
         require(address(oracle) != address(0), "oracle not set");
-        uint balance = getVaultBalance();
-        
-        //balance += (debt - rewardsFromDebt);// debt is owned by us but rewards will be sent
+        uint balanceLst = getVaultBalance();
+
         // we use last reference value for balance computation
-        uint result = FullMath.mulDiv(last_lsttokenvalueWei, balance, decimals);
-        return result;
+        uint resultEth = FullMath.mulDiv(last_lsttokenvalueWei, balanceLst, decimals);
+        return resultEth;
     }
 
     /**
@@ -371,11 +383,11 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
      */
     function getEthBalanceNoDebt() public view returns (uint256) {
         require(address(oracle) != address(0), "oracle not set");
-        uint balance = getVaultBalanceNoDebt();
+        uint balanceLst = getVaultBalanceNoDebt();
         
         // we use last reference value for balance computation
-        uint result = FullMath.mulDiv(last_lsttokenvalueWei, balance, decimals);
-        return result;
+        uint resultEth = FullMath.mulDiv(last_lsttokenvalueWei, balanceLst, decimals);
+        return resultEth;
     }
 
     /**
@@ -389,7 +401,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         require(_inputAmount > MIN, "must trade over min");
     
         // CF will change so we need to update interest rates
-        accrueInterestLending();
+        accrueInterestLending();// TODO: call from vault?
 
 
         // extract rewards if any
@@ -420,12 +432,18 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             );
         }
 
-        _numaOut =  (numaAmount * buy_fee) / BASE_1000;
+        uint fee = buy_fee;
+        if (feeWhitelisted[msg.sender])
+        {
+            fee = BASE_1000;
+        }
+
+        _numaOut =  (numaAmount * fee) / BASE_1000;
         require(_numaOut >= _minNumaAmount, "Min NUMA");
 
         // mint numa
         minterContract.mint(_receiver, _numaOut);
-        //numa.mint(_receiver, _numaOut);
+
         emit Buy(
             _numaOut,
             _inputAmount,
@@ -451,11 +469,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     }
 
-    function accrueInterestLending() public// public for now, todo globalCF and use vaultmanager accrueInterest
+    function accrueInterestLending() public
     {
-         // accrue interest
-        // if (address(cNuma) != address(0))
-        //     cNuma.accrueInterest();
+        // accrue interest
         if (address(cLstToken) != address(0))
             cLstToken.accrueInterest();
     }
@@ -469,7 +485,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     {
         require(_numaAmount > MIN, "must trade over min");
         // CF will change so we need to update interest rates
-        accrueInterestLending();
+        accrueInterestLending();// TODO: call from vault? + todo call from borrow/repay
 
         // extract rewards if any
         extractRewardsNoRequire();
@@ -486,7 +502,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             "not enough liquidity in vault"
         );
 
-        _tokenOut = (tokenAmount * sell_fee) / BASE_1000;
+        uint fee = sell_fee;
+        if (feeWhitelisted[msg.sender])
+        {
+            fee = BASE_1000;
+        }
+        _tokenOut = (tokenAmount * fee) / BASE_1000;
         require(_tokenOut >= _minTokenAmount, "Min Token");
 
         // burning numa tokens
@@ -534,6 +555,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     }
 
+    /**
+     * @dev called from CNumaToken leverage fonction
+     */
     function buyFromCToken( uint _inputAmount,uint _minAmount) external returns (uint256) 
     {
         if (msg.sender == address(cLstToken))
@@ -677,7 +701,11 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function GetMaxBorrow() public view returns (uint256)
     { 
         uint synthValueInEth = vaultManager.getTotalSynthValueEth();
-        uint EthBalance = getEthBalanceNoDebt();
+        
+        // single vault balance
+        //uint EthBalance = getEthBalanceNoDebt();
+        // sum of all vaults balance
+        uint EthBalance = vaultManager.getTotalBalanceEthNoDebt();
 
         require(
             EthBalance > synthValueInEth,

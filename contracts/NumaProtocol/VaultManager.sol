@@ -13,6 +13,7 @@ import "../interfaces/INuAssetManager.sol";
 
 
 contract VaultManager is IVaultManager, Ownable2Step {
+
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
 
@@ -67,7 +68,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         constantRemovedSupply = _constantRemovedSupply;
     }
 
-
+    /**
+     * @notice lock numa supply in case of a flashloan so that numa price does not change
+     */
     function lockSupplyFlashloan(bool _lock) external 
      {
         require(isVault(msg.sender),"only vault");      
@@ -93,12 +96,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     function isVault(address _addy) public view returns (bool)
     {
         return (vaultsList.contains(_addy));
-
     }
-
-
-
-
 
     /**
      * @dev set the INuAssetManager address (used to compute synth value in Eth)
@@ -180,7 +178,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
    
 
 
-    function GetNumaPrice(uint _inputAmount) external view returns (uint256)
+    function GetNumaPriceEth(uint _inputAmount) external view returns (uint256)
     {
         uint synthValueInEth = getTotalSynthValueEth();
         uint circulatingNuma = getNumaSupply();
@@ -193,7 +191,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
        
-        // using snaphot price
+       
         result = FullMath.mulDiv(
                 _inputAmount,
                 EthBalance - synthValueInEth,
@@ -331,7 +329,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         require(nbVaults <= max_vault, "too many vaults in list");
 
         for (uint256 i = 0; i < nbVaults; i++) 
-        {
+        {            
             INumaVault(vaultsList.at(i)).accrueInterestLending();
         }
     }
@@ -349,8 +347,5 @@ contract VaultManager is IVaultManager, Ownable2Step {
         {
             return MAX_CF;
         }
-
     }
-
-
 }

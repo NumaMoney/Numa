@@ -16,7 +16,8 @@ interface INuma {
 
 
 
-/// @title Numa minter
+/// @title Numa minter 
+/// @notice maintains a list of addresses allowed to mint numa
 contract NumaMinter is Ownable2Step
 {
     //

@@ -1,55 +1,79 @@
-pour les fonctions invert de oraclutils
-- renommer ethvalue car je ne crois pas que ce soit de l'eth
-- check ceci, doit-on le faire, les decimales sont elles bien employées
-
-  // audit fix
-        EthValue = EthValue * 10**(18 - _decimals);
 
 
 
 
+1) 
+
+- tâches coding  --> TODO finir selon les réponses de stiive
+
+- relire vault/vaultmanager et la partie maxborrow + accrueinterests
+
+     - notes: getVaultBalance/getVaultBalanceNoDebt renvoient la même valeur quand la liquidité est locked
+     --> confirmer qu'il n'y a pas de cas ou ça pose probleme (lock ou pas lock la valeur devrait être différente)
+
+     - vault à partir de buyCtoken --> documenter/cleaner le code dans vault et dans lending contracts!!
+
+2) tests
+
+commencer mardi
+
+3) revoir mes questions non répondues à Stiive
+
+****************************** TASKS ************************************************
+
+** coding
 
 
-
-- TODO renommer les fonctions oracle
-- todo: check les arrondis ceiling etc... voir si tout est correct dans les 2 sens
-- relire/cleaner numaoracle/numaprinter
-
-     ** numaprinter: onpourrait reecrire la façon dont sont gérer les fees, pas très clair
-
-- tests numa printer/numa oracle
-
-Autre fonctionnalités
-synth swaps + no scaling/noblocking
-
-- only 1 vault can leverage? --> voir si ça simplifie
-
-- do we scale synth for numa price?
-
-- printer
-
-
-     ** refacto printer
-          ** 1 printer, reference Vaultmanager, nuassetmanager
-          OK todo test
-          ** voir si possible de refacto la partie oracle, en utilisant le nuassetmanager et ne plus utiliser chainlink depuis numaoracle
-          --> TODO à voir 
           ** call VM.accrueinterest a chaque mint/burn de nuasset
           OK
           ** call VM.accrueinterest à chaque chgt de balance du vault
                TODO si globlCF only, call vaultmanager accrueInterest + add the call in  repay/borrow as we change
-          ** gestion scaling, block minting selon VM CF
-               TODO
-     ** synth swaps
-          ** do it
-          ** fee x 1
-          ** check code & test it, check how fee are used
-          ** see if optim possible (not burning and minting same asset)
-          
 
-     ** check/clean code: printer, oracle, synth swaps
+--> mettre à jour le code quand stiive m'aura repondu sur le multi vault
 
-     ** refacto tests: fixtures: printer, vault, lending
+--> are we sure it's enough (we should do it also when nuasset price changes)
+
+--> todo si globalCF, maxCF global aussi?
+
+
+- revoir le maxborrow, il n'utilise que lea balance du vault
+
+- tout relire, printer, vault, vaultmanager, remettre des interfaces quand possible
+
+     - passer les nuassets en non upgradable?
+
+
+	- check int56(int32( cast
+
+
+- virer les fichiers unused
+
+** divers
+
+
+- numaoracle les arrondis ceiling etc... voir si tout est correct dans les 2 sens
+
+
+- numaprinter: onpourrait reecrire la façon dont sont gérer les fees, pas très clair
+
+- DOC --> si pas de doc et nouveaux features ajoutés 1 jour avant, sans test, c'est uen perte de temps de faire l'audit
+
+     ** lister les trucs à documenter
+           ** leverage comment ça marche avec le flashloan
+           ** liquidations
+           ** les differents CF et ce qui se passe selon
+
+** tests numa printer/numa oracle
+
+- arbi fork
+
+- retester vault
+- retester lending
+
+- Autre fonctionnalités
+- synth swaps + no scaling/noblocking
+
+- refacto tests: fixtures: printer, vault, lending
          
 
          - refaire numaOracle
@@ -67,97 +91,39 @@ synth swaps + no scaling/noblocking
                - vault
                - lending
                - synthetics swaps
-
-     ** clip to numa VM price
-DONE: todo: check code, test code
-     ** Move all minting to a dedicated minter contract?    
-DONE: todo: modify tests
+          -  clip to numa VM price
+     DONE: todo: check code, test code
 
 
-     ** add accrueinterest when minting (nuassetmanager?)
+- tester la wl de fees
 
-     ** synth debasing and block mint  (nuassetmanager?) 
-          - call VM.accrueINterest from vault when borrow/repay,buy/sell (attention à l'ordre, attention il sera déjà appelé sur le lst courant lors du borrow repay)
+** questions
+- only 1 vault can leverage? + voir si ça simplifie
 
-          - call vm.accueinterest from printer (or from nuasset but I think mint/burn should only happen in printer)
-          - scale, blocktime stockés dans printer, printer request VM pour connaitre le globalCF
+- Vault 2.0 combine staking reward pools (vault fees + LST yield collected in one address)               
+--> what do you mean and why
 
-          --> printer reference le vault et recupere le nuassetmanager du vault
-
-
+- global CF ok?
 
 
+-  Numa LP oracle pricing (for minting synthetics) clipped to vault buy/sell price.
 
-** Vault 2.0 combine staking reward pools (vault fees + LST yield collected in one address)
-** Staking rewards conversion (e.g. rETH->Numa->nuUSD) exempt from vault fees. Create fee-free whitelist.
+--> right now this is reverting (cf telegram msg) and i use vault price no fees + tolerance
 
-** clean ALL + doc
-     - tout relire, printer, vault, vaultmanager, remettre des interfaces quand possible
+- CF for max borrowable amount (excludes borrowed rEth) & CF to block minting& scale nuAsset are the same?
+
+--> (total Eth balance on all vaults - borrowed Eth from all vaults) / total synth value?
+
+or shpuld we have 2 different CF 
+
+** Notes Stiive
+
+
+
+
 
 ** deploy scripts
 
-** divers
-     - passer les nuassets en non upgradable?
-
-	- revoir le call chainlink de numaoracle
-	- check int56(int32( cast
-
-
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ TASKS
-
-- reecrire numaOracle test arbi + clean numaOracle
-- ajouter le test de clipping
-- en même temps clean refacto tests & code 
 
 
 
-
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Q/note:
-
-- synthetics swaps, potentially we have per printer fee, so if I skip one, it('s arbitrary the one we gets (of course we can set the same fee but keep in mind)
-
-- note: printer fees are burnt not sent anywhere
-
-- debasing ?
- Add Synth_scaling_PID here? When CF<110%, start scaling every synth price down every 24hrs to democratize losses.
-     ** scaling progressif
-
---> prix de burn = chainlink price x scale
-scale = 1
-
-** globalCF < limite (attention not per vault CF)
-update scaling WHEN (same rules than accrueinterest):
-     - buy/Sell from vault
-     - synth minting
-     - borrow/repay
-
- - burn
- - checkCF 
-     - si < lim
-          - si scale = 1, on baisse sans check blocktime (start)
-          - si scale < 1 (started) blocktime > lastblocktime + 24h --> scale = scale - 0.02 *(delta%24h)
-       update blocktime
-
-     - si > lim
-          - scale = 1
-
-
-- block minting?
-- combine address, why?
-- rebase progressive also? risque de frontrun? par exmple on fait une transaction pour remettre le CF à 1, on burn et 
-on inverse la transaction
-- scale factor only for synth burn?
-
-************************
-- Multivault CF? (CF per vault / global CF)
-
-- Debase synthetics pricing feed based on CF. Block minting new sythethics.
-
-
-
-
-- Synthetic-to-synthetic swaps. Eliminate double fee.
--  Numa LP oracle pricing (for minting synthetics) clipped to vault buy/sell price.
-- Vault 2.0 combine staking reward pools (vault fees + LST yield collected in one address)
-- Staking rewards conversion (e.g. rETH->Numa->nuUSD) exempt from vault fees. Create fee-free whitelist.
