@@ -6,18 +6,61 @@
 
 - tâches coding  --> TODO finir selon les réponses de stiive
 
-- relire vault/vaultmanager et la partie maxborrow + accrueinterests
-
-     - notes: getVaultBalance/getVaultBalanceNoDebt renvoient la même valeur quand la liquidité est locked
-     --> confirmer qu'il n'y a pas de cas ou ça pose probleme (lock ou pas lock la valeur devrait être différente)
-
-     - vault à partir de buyCtoken --> documenter/cleaner le code dans vault et dans lending contracts!!
+- relire --> TODO relire toute la partie lending et mes modifs/voir ce que je peux virer
 
 2) tests
 
-commencer mardi
+ajouter vault etc dans la nouvelle fixture, virer ce que je n'utilise pas
+modulariser si necessaire
+
+- numaoracle
+     ** highest/lowest/getV3SqrtPriceAvg
+	** getNbOfNumaNeeded lowest
+     ** getNbOfNumaFromAsset highest
+     ** getNbOfNuAsset lowest
+     ** getNbOfAssetneeded highest
+     ** + vault price bounds 
+
+
+- printer
+     ** les set
+     ** getNbOfNuAssetFromNuma + check that we use lower numa price
+     ** getNbOfNumaNeededAndFee  + check that we use higher numa price
+
+     
+     ** getNbOfnuAssetNeededForNuma + check that we use higher numa price + check scaling
+     ** getNbOfNumaFromAssetWithFee/getNbOfNumaFromAssetWithFeeView + check that we use higher numa price + check scaling
+
+     ** mintAssetOutputFromNuma: check blocking, check numa lowest
+
+     ** burnAssetInputToNuma: check scaling, check numa price high
+
+     ** burnAssetToNumaOutput: check scaling, check numa price high
+
+     ** mintAssetFromNumaInput: check blocking, check numa lowest
+
+     ** swapExactInput: check fees x 1
+
+     ** swapExactOutput: check fees x 1
+
+
+pool numa/eth, faire bouger le prix et le temps
+vault global CF, synth supply
+
+
+
+
+- vault/vaultmanager
+- lending
+
 
 3) revoir mes questions non répondues à Stiive
+
+
+
+
+
+
 
 ****************************** TASKS ************************************************
 
@@ -47,6 +90,9 @@ commencer mardi
 
 
 - virer les fichiers unused
+
+
+- passer les nuassets en OFT
 
 ** divers
 
@@ -98,23 +144,11 @@ commencer mardi
 - tester la wl de fees
 
 ** questions
-- only 1 vault can leverage? + voir si ça simplifie
+- sended in telegram
 
-- Vault 2.0 combine staking reward pools (vault fees + LST yield collected in one address)               
---> what do you mean and why
+- about security currentCF --> confirm what we do
 
-- global CF ok?
-
-
--  Numa LP oracle pricing (for minting synthetics) clipped to vault buy/sell price.
-
---> right now this is reverting (cf telegram msg) and i use vault price no fees + tolerance
-
-- CF for max borrowable amount (excludes borrowed rEth) & CF to block minting& scale nuAsset are the same?
-
---> (total Eth balance on all vaults - borrowed Eth from all vaults) / total synth value?
-
-or shpuld we have 2 different CF 
+- synthetics swaps --> use highest/lowest so when price changes during in the last 30 min --> swapper get rekt
 
 ** Notes Stiive
 

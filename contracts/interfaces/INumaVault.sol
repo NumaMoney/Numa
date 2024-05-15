@@ -5,7 +5,6 @@ interface INumaVault {
 
     function buyFromCToken(uint _inputAmount,uint _minNumaAmount) external returns (uint);
     function getDebt() external view returns (uint);
-    //function setDebt(uint newDebt) external;
     function repay(uint amount) external;
     function borrow(uint amount) external;
     function getEthBalance() external view returns (uint256);
@@ -16,6 +15,5 @@ interface INumaVault {
     function repayLeverage() external;
     function borrowLeverage(uint _amount) external;
     function getAmountIn(uint256 _amount) external view returns (uint256);
-    function accrueInterestLending() external;
-    //function getBuyNuma(uint256 _amount) external view returns (uint256);
+    function accrueInterestLending() external;  
 }

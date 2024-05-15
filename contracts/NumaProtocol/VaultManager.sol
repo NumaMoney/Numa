@@ -36,9 +36,12 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint16 public constant BASE_1000 = 1000;
     uint16 public constant MAX_CF = 10000;
 
+    uint minNumaPriceEth = 0.000001 ether;
+    // 
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
     event AddedVault(address);
+    event SetMinimumNumaPriceEth(uint _minimumPriceEth);
 
 
 
@@ -61,6 +64,12 @@ contract VaultManager is IVaultManager, Ownable2Step {
     {
         startTime = block.timestamp;
         isDecaying = true;
+    }
+
+    function setMinimumNumaPriceEth(uint _minimumPriceEth) external onlyOwner
+    {
+        minNumaPriceEth = _minimumPriceEth;
+        emit SetMinimumNumaPriceEth(_minimumPriceEth);
     }
 
     function setConstantRemovedSupply(uint _constantRemovedSupply) external onlyOwner
@@ -124,18 +133,43 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint circulatingNuma = getNumaSupply();
 
         uint EthBalance = getTotalBalanceEth();
-        require(
-            EthBalance > synthValueInEth,
-            "vault is empty or synth value is too big"
-        );
 
-       
-        uint result = FullMath.mulDiv(
-            EthValue,
-             circulatingNuma,
-            (EthBalance - synthValueInEth)
-        );
+        uint result;
+        if (EthBalance <= synthValueInEth)
+        {
+            // extreme case use minim numa price in Eth
+            result = FullMath.mulDiv(
+                EthValue,
+                 1 ether,// 1 ether because numa has 18 decimals
+                 minNumaPriceEth
+            );
 
+        }
+        else
+        {
+            uint numaPrice = FullMath.mulDiv(
+            1 ether,
+            EthBalance - synthValueInEth,
+            circulatingNuma
+            );
+
+            if (numaPrice < minNumaPriceEth)
+            {
+                // extreme case use minim numa price in Eth
+                result = FullMath.mulDiv(
+                    EthValue,
+                     1 ether,// 1 ether because numa has 18 decimals
+                     minNumaPriceEth
+                );
+            }
+            else {
+                result = FullMath.mulDiv(
+                    EthValue,
+                    circulatingNuma,
+                    (EthBalance - synthValueInEth)
+                );
+            }
+        }
         return result;
     }
 
@@ -151,25 +185,59 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
 
-        require(
-            EthBalance > synthValueInEth,
-            "vault is empty or synth value is too big"
-        );
+ 
         require(circulatingNuma > 0, "no numa in circulation");
-        uint result;
-       
-        // using snaphot price
-        result = FullMath.mulDiv(
-            FullMath.mulDiv(
-                _inputAmount,
-                EthBalance - synthValueInEth,
-                circulatingNuma
-            ),
-            _decimals,
-            _refValueWei
-        );
 
-        
+        uint result;
+        if (EthBalance <= synthValueInEth)
+        {
+            result = FullMath.mulDiv(
+                FullMath.mulDiv(
+                    _inputAmount,
+                    minNumaPriceEth,
+                    1 ether// 1 ether because numa has 18 decimals
+                ),
+                _decimals,
+                _refValueWei
+            );
+            
+        }
+        else
+        {
+            uint numaPrice = FullMath.mulDiv(
+            1 ether,
+            EthBalance - synthValueInEth,
+            circulatingNuma
+            );
+
+            if (numaPrice < minNumaPriceEth)
+            {
+                result = FullMath.mulDiv(
+                   FullMath.mulDiv(
+                        _inputAmount,
+                        minNumaPriceEth,
+                        1 ether// 1 ether because numa has 18 decimals
+                    ),
+                    _decimals,
+                    _refValueWei
+                );
+            }
+            else {
+                
+            
+                // using snaphot price
+                result = FullMath.mulDiv(
+                    FullMath.mulDiv(
+                        _inputAmount,
+                        EthBalance - synthValueInEth,
+                        circulatingNuma
+                    ),
+                    _decimals,
+                    _refValueWei
+                );
+            }
+            
+        }
         return result;
     }
 
@@ -184,19 +252,42 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
 
-        require(
-            EthBalance > synthValueInEth,
-            "vault is empty or synth value is too big"
-        );
+
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
        
-       
-        result = FullMath.mulDiv(
-                _inputAmount,
+        if (EthBalance <= synthValueInEth)
+        {
+            result = FullMath.mulDiv(
+                        _inputAmount,
+                        minNumaPriceEth,
+                        1 ether// 1 ether because numa has 18 decimals
+                    );
+        }
+        else
+        {
+            uint numaPrice = FullMath.mulDiv(
+                1 ether,
                 EthBalance - synthValueInEth,
                 circulatingNuma
-            );
+                );
+
+            if (numaPrice < minNumaPriceEth)
+            {
+                result = FullMath.mulDiv(
+                        _inputAmount,
+                        minNumaPriceEth,
+                        1 ether// 1 ether because numa has 18 decimals
+                    );
+            }
+            else {                
+                result = FullMath.mulDiv(
+                    _inputAmount,
+                    EthBalance - synthValueInEth,
+                    circulatingNuma
+                );
+            }
+        }
         return result;
 
     }
@@ -209,17 +300,45 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
 
-        require(
-            EthBalance > synthValueInEth,
-            "vault is empty or synth value is too big"
-        );
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
-       
-        // using snaphot price
-        result = FullMath.mulDiv(_inputAmount,circulatingNuma,
-            EthBalance - synthValueInEth                
-        );
+        
+        if (EthBalance <= synthValueInEth)
+        {
+            // extreme case use minim numa price in Eth
+            result = FullMath.mulDiv(
+                _inputAmount,
+                 1 ether,// 1 ether because numa has 18 decimals
+                 minNumaPriceEth
+            );
+
+            
+        }
+        else
+        {
+            uint numaPrice = FullMath.mulDiv(
+                1 ether,
+                EthBalance - synthValueInEth,
+                circulatingNuma
+                );
+
+            if (numaPrice < minNumaPriceEth)
+            {
+                result = FullMath.mulDiv(
+                    _inputAmount,
+                     1 ether,// 1 ether because numa has 18 decimals
+                     minNumaPriceEth
+                     );
+            }
+            else 
+            {
+                    
+                // using snaphot price
+                result = FullMath.mulDiv(_inputAmount,circulatingNuma,
+                    EthBalance - synthValueInEth                
+                );
+            }
+        }
         return result;
 
     }
@@ -335,6 +454,21 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     function getGlobalCF() external view returns (uint)
+    {
+        uint EthBalance = getTotalBalanceEth();
+        uint synthValue = nuAssetManager.getTotalSynthValueEth();
+
+        if (synthValue > 0)
+        {
+            return (EthBalance*BASE_1000)/synthValue;
+        }
+        else
+        {
+            return MAX_CF;
+        }
+    }
+
+    function getGlobalCFWithoutDebt() external view returns (uint)
     {
         uint EthBalance = getTotalBalanceEthNoDebt();
         uint synthValue = nuAssetManager.getTotalSynthValueEth();

@@ -22,4 +22,10 @@ interface INumaOracle {
         address _nuAsset,
         address _numaPool
     ) external view returns (uint256);
+
+    function getNbOfNuAssetFromNuAsset( uint256 _nuAssetAmountIn,
+        address _nuAssetIn,
+        address _nuAssetOut
+    ) external view returns (uint256);
+
 }

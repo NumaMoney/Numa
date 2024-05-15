@@ -167,7 +167,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function setMaxCF(uint _maxCF) external onlyOwner 
     {
         // CF will change so we need to update interest rates
-        accrueInterestLending();// TODO: call from vault?
+        accrueInterestLending();
 
         maxCF = _maxCF;
         emit SetMaxCF(_maxCF);   
@@ -401,7 +401,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         require(_inputAmount > MIN, "must trade over min");
     
         // CF will change so we need to update interest rates
-        accrueInterestLending();// TODO: call from vault?
+        accrueInterestLending();
 
 
         // extract rewards if any
@@ -485,7 +485,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     {
         require(_numaAmount > MIN, "must trade over min");
         // CF will change so we need to update interest rates
-        accrueInterestLending();// TODO: call from vault? + todo call from borrow/repay
+        accrueInterestLending();
 
         // extract rewards if any
         extractRewardsNoRequire();
@@ -560,12 +560,15 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
      */
     function buyFromCToken( uint _inputAmount,uint _minAmount) external returns (uint256) 
     {
+        // caller is the token we will borrow against leveraged collateral
+        // to repay vault borrowed collateral. So we need to convert it.
+        // Example:
+        // caller is cLstToken --> we leveraged numa, buy depositing numa borrowed from vault that we need to repay 
+        // so we borrow lstToken from lending protocol (suing our leveraged collateral) and buy numa with that lst to repay the vault
         if (msg.sender == address(cLstToken))
         {
             uint result = buy(_inputAmount,_minAmount,msg.sender);
             return result;
-        
-
         }
         else if (msg.sender == address(cNuma))
         {
@@ -578,26 +581,32 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         }
     }
 
-
-
-    /**
-     * @dev Estimate number of Numas from an amount of token
-     */
-    function getBuyNuma(uint256 _amount) public view returns (uint256) {
-        uint256 numaAmount = vaultManager.tokenToNuma(
-            _amount,
-            last_lsttokenvalueWei,
-            decimals
-        );
-        return (numaAmount * buy_fee) / BASE_1000;
-    }
-
-
-
-
+    // /**
+    //  * @dev Estimate number of Numas from an amount of token
+    //  */
+    // function getBuyNuma(uint256 _amount) public view returns (uint256) {
+    //     uint256 numaAmount = vaultManager.tokenToNuma(
+    //         _amount,
+    //         last_lsttokenvalueWei,
+    //         decimals
+    //     );
+    //     return (numaAmount * buy_fee) / BASE_1000;
+    // }
+    // /**
+    //  * @dev Estimate number of tokens from an amount of numa
+    //  */
+    // function getSellNuma(uint256 _amount) public view returns (uint256) {
+    //     uint256 tokenAmount = vaultManager.numaToToken(
+    //         _amount,
+    //         last_lsttokenvalueWei,
+    //         decimals
+    //     );
+    //     return (tokenAmount * sell_fee) / BASE_1000;
+    // }
 
     /**
      * @dev Estimate number of tokens needed to get an amount of numa
+     * no need to simulate rwd extraction as extractrewards is called when borrowing from vault
      */
     function getBuyNumaAmountIn(uint256 _amount) public view returns (uint256) 
     {
@@ -608,38 +617,33 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             decimals
         );
         numaAmount = (numaAmount * buy_fee) / BASE_1000;
+        // using 1 ether here because numa token has 18 decimals
         uint result = FullMath.mulDiv(_amount, 1 ether, numaAmount);
         return result;
     }
 
-
+    /**
+     * @dev Estimate number of numas needed to get an amount of token
+     * no need to simulate rwd extraction as extractrewards is called when borrowing from vault
+     */
     function getSellNumaAmountIn(uint256 _amount) public view returns (uint256) 
     {
         // how many tokens for 1 numa
+        // using 1 ether here because numa token has 18 decimals
         uint256 tokenAmount = vaultManager.numaToToken(
             1 ether,
             last_lsttokenvalueWei,
             decimals
         );
         tokenAmount =  (tokenAmount * sell_fee) / BASE_1000;
-
         uint result = FullMath.mulDiv(_amount, decimals, tokenAmount);
-
         return result;
     }
 
-    /**
-     * @dev Estimate number of tokens from an amount of numa
-     */
-    function getSellNuma(uint256 _amount) public view returns (uint256) {
-        uint256 tokenAmount = vaultManager.numaToToken(
-            _amount,
-            last_lsttokenvalueWei,
-            decimals
-        );
-        return (tokenAmount * sell_fee) / BASE_1000;
-    }
 
+    /**
+     * @dev called from CNumaToken leverage fonction
+     */
     function getAmountIn(uint256 _amount) external view returns (uint256) 
     {
          if (msg.sender == address(cLstToken))
@@ -697,20 +701,16 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         return (tokenAmount * sell_fee) / BASE_1000;
     }
 
-    
+    /**
+     * @dev max borrowable amount from vault, will also impact utilization rate of lending protocol
+     */
     function GetMaxBorrow() public view returns (uint256)
     { 
         uint synthValueInEth = vaultManager.getTotalSynthValueEth();
         
         // single vault balance
-        //uint EthBalance = getEthBalanceNoDebt();
-        // sum of all vaults balance
-        uint EthBalance = vaultManager.getTotalBalanceEthNoDebt();
-
-        require(
-            EthBalance > synthValueInEth,
-            "vault is empty or synth value is too big"
-        );
+        uint EthBalance = getEthBalanceNoDebt();
+       
         uint synthValueWithCF = FullMath.mulDiv(synthValueInEth,maxCF,BASE_1000);
         if (EthBalance < synthValueWithCF)
             return 0;
@@ -718,29 +718,36 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         {
             uint resultEth = EthBalance - synthValueWithCF;  
             uint resultToken = FullMath.mulDiv(resultEth, decimals, last_lsttokenvalueWei);
+            // clamp it with our parameter
             if (resultToken > maxBorrow)
                 resultToken = maxBorrow;
             return resultToken;
         }
     }
 
+    /**
+     * @dev lending protocol debt
+     */
     function getDebt() external view returns (uint)
     {
         return debt;
     }
 
+    /**
+     * @dev repay from lending protocol
+     */
     function repay(uint _amount) external 
     {
         require(msg.sender == address(cLstToken));
+        require(_amount > 0,"amount <= 0");
+        require(_amount<= debt,"repay more than debt");
+
         // extract rewards if any
         extractRewardsNoRequire();
-
-      
-        require(_amount > 0,"can not repay 0");
-        require(_amount <= debt,"repay more than debt");
+ 
         // repay
         SafeERC20.safeTransferFrom(lstToken,msg.sender, address(this), _amount);
-        // extract from repaid debt
+        // we will use some repaid amount as rewards from our accumulated virtual rewards from debt
         uint extractedRwdFromDebt = FullMath.mulDiv(rewardsFromDebt, _amount, debt);
 
         if ((extractedRwdFromDebt > 0) && (rwd_address != address(0)))
@@ -757,12 +764,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             emit RewardsDebtExtracted(extractedRwdFromDebt);
         }
       
-        debt = debt - _amount;
-       
+        debt = debt - _amount;       
         emit RepaidVault(_amount);
-
     }
 
+    /**
+     * @dev borrow from lending protocol
+     */
     function borrow(uint _amount) external 
     {
         require(msg.sender == address(cLstToken));
@@ -795,17 +803,20 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     }
 
 
+    /**
+     * @dev liquidate a numa borrower using minted numa (flashloan)
+     */
     function liquidateNumaBorrowerFlashloan(address _borrower,uint _numaAmount) external whenNotPaused
     {
         // extract rewards if any
         extractRewardsNoRequire();
            
-        
         // lock numa supply
         lockNumaSupply(true);
         
         // lock lst balance for pricing
         lockLstBalance(true);
+
         // mint 
         minterContract.mint(address(this),_numaAmount);
 
@@ -826,29 +837,32 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         // sell rEth to numa
         uint numaReceived = NumaVault(address(this)).buy(receivedlst, _numaAmount,address(this));
 
+        // liquidation profit
         uint numaLiquidatorProfit = numaReceived - _numaAmount;
 
+        // compute max profit in numa
         uint maxNumaProfitForLiquidations = vaultManager.tokenToNuma(maxLstProfitForLiquidations,
             last_lsttokenvalueWei,
             decimals);
         // cap profit
         if (numaLiquidatorProfit > maxNumaProfitForLiquidations)
             numaLiquidatorProfit = maxNumaProfitForLiquidations;
-
-
-
-        uint numaBurn = numaReceived - numaLiquidatorProfit;
+        // send to liquidator
         SafeERC20.safeTransfer(IERC20(address(numa)), msg.sender, numaLiquidatorProfit);
        
         // burn the rest
+        uint numaBurn = numaReceived - numaLiquidatorProfit;
         numa.burn(numaBurn);
+
         // unlock numa supply
         lockNumaSupply(false);        
         // unlock use real balance for price
         lockLstBalance(false);
 
     }
-
+    /**
+     * @dev liquidate a numa borrower using liquidity from msg.sender
+     */
     function liquidateNumaBorrower(address _borrower,uint _numaAmount) external whenNotPaused
     {
         // extract rewards if any
@@ -892,12 +906,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         if (numaLiquidatorProfit > maxNumaProfitForLiquidations)
             numaLiquidatorProfit = maxNumaProfitForLiquidations;
 
+        // send liquidator his profit + his provided amount
         uint numaToSend = numaLiquidatorProfit + _numaAmount;
-        uint numaToBurn = numaReceived - numaToSend;
         SafeERC20.safeTransfer(IERC20(address(numa)), msg.sender, numaToSend);
 
-
         // burn the rest
+        uint numaToBurn = numaReceived - numaToSend;
         numa.burn(numaToBurn);
 
         // unlock numa supply
@@ -908,19 +922,20 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     }
 
+
+    /**
+     * @dev liquidate a lst borrower using vaults liquidity (flashloan)
+     */
     function liquidateLstBorrowerFlashloan(address _borrower,uint _lstAmount) external whenNotPaused
     {
         // extract rewards if any
         extractRewardsNoRequire();
        
-    
         // lock numa supply
         lockNumaSupply(true);
         // lock price from liquidity
         lockLstBalance(true);
-        // lstLockedBalance = bal;
-        // isLiquidityLocked = true;
-
+       
         // liquidate
         IERC20(lstToken).approve(address(cLstToken),_lstAmount);
         cLstToken.liquidateBorrow(_borrower, _lstAmount,CTokenInterface(address(cNuma))) ;
@@ -937,6 +952,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint lstReceived = NumaVault(address(this)).sell(receivedNuma, _lstAmount,address(this));
         uint lstLiquidatorProfit = lstReceived - _lstAmount;
        
+        // cap profit
         if (lstLiquidatorProfit > maxLstProfitForLiquidations)
             lstLiquidatorProfit = maxLstProfitForLiquidations;
 
@@ -948,7 +964,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 lstToSend
                 
         );
-        // keep the rest
+        // and keep the rest in the vault (lst from flashloaned + rest of profit)
 
         // unlock use real balance for price
         lockLstBalance(false);
@@ -956,7 +972,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         lockNumaSupply(false);
     }
 
-
+    /**
+     * @dev liquidate a lst borrower using msg.sender liquidity
+     */
     function liquidateLstBorrower(address _borrower,uint _lstAmount) external whenNotPaused
     {
         // extract rewards if any
@@ -966,17 +984,15 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         lockNumaSupply(true);
 
         // lock price from liquidity
-       lockLstBalance(true);
-
+        lockLstBalance(true);
 
         // user supplied funds
-         SafeERC20.safeTransferFrom(
+        SafeERC20.safeTransferFrom(
                 IERC20(address(lstToken)),
                 msg.sender,
                 address(this),
                 _lstAmount
             ); 
-
 
         // liquidate
         IERC20(lstToken).approve(address(cLstToken),_lstAmount);
@@ -1015,24 +1031,29 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         lockNumaSupply(false);
     }
 
+
+    /**
+     * @dev called from CNumaToken leverage function
+     * borrow from vault to deposit as collateral
+     */
     function borrowLeverage(uint _amount) external whenNotPaused
     {
         // extract rewards if any
         extractRewardsNoRequire();
         if (msg.sender == address(cLstToken))
         {
-            // send numa token   
+            // lock numa supply
             lockNumaSupply(true);
-            //numa.mint(msg.sender,_amount);
+            // borrow numa
             minterContract.mint(msg.sender,_amount);
             leverageDebt = _amount; 
-
 
         }
         else if (msg.sender == address(cNuma))
         {
-            // send lst
+            // lock lst balance
             lockLstBalance(true);
+            // borrow lst
             SafeERC20.safeTransfer(
                 IERC20(lstToken),
                 msg.sender,
@@ -1049,29 +1070,23 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     }
 
-
+    /**
+     * @dev called from CNumaToken leverage function
+     * repay to vault using borrowed amount from CNumaToken (converted to collateral token)
+     */
     function repayLeverage() external whenNotPaused
     {
         if (msg.sender == address(cLstToken))
         {
-            // we borrowed numa
-            // SafeERC20.safeTransferFrom(
-            //     IERC20(address(numa)),
-            //     msg.sender,
-            //     address(this),
-            //     leverageDebt
-            // );
-            
-            // numa.burn(leverageDebt);
+            // repay numa
             numa.burnFrom(msg.sender,leverageDebt);
             leverageDebt = 0;
+            // unlock numa supply
             lockNumaSupply(false);
-        
-
         }
         else if (msg.sender == address(cNuma))
         {
-            // send lst
+            // repay lst
             SafeERC20.safeTransferFrom(
                 IERC20(lstToken),
                 msg.sender,
@@ -1079,6 +1094,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 leverageDebt
             );
             leverageDebt = 0;
+            // unlock lst balance
             lockLstBalance(false);
         }
         else
