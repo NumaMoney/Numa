@@ -753,8 +753,32 @@ describe('NUMA ORACLE', function () {
 
     })
     it('should be clipped by vault price', async () => {
-      await oracle.setNumaPrice(await VaultManager.getAddress(),50);
+
       let inputAmount = BigInt(100);
+      // numa price
+      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let uniPrice = BigInt(getV3SqrtPrice.toString()) * BigInt(getV3SqrtPrice.toString()) * BigInt(1e18) / BigInt(2 ** 192);
+      
+      if (numa_address > configArbi.WETH_ADDRESS) {
+        // change numerator/denominator
+        uniPrice = BigInt(Math.pow(10, 36)) / (uniPrice);
+       
+      }
+      else {
+        // do nothing
+        //uniPrice = Number(uniPrice);
+      }
+     
+      console.log(uniPrice);
+      let numaPriceUsd = uniPrice * BigInt(price);
+      console.log(numaPriceUsd);
+
+      
+      let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
+      console.log(amountEstimate);
+      // 1. vault price same as pool price
+      await oracle.setNumaPrice(await VaultManager.getAddress(),50);
+      
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
       let amountFromOracle = await oracle.getNbOfNuAsset(
@@ -763,6 +787,14 @@ describe('NUMA ORACLE', function () {
         NUMA_ETH_POOL_ADDRESS
       );
       console.log(amountFromOracle);
+      let vaultPrice = await VaultManager.GetNumaPriceEth(ethers.parseEther(inputAmount.toString()));
+      console.log(vaultPrice);
+
+      // 2. validate
+
+      // 3. make vault price + tolerance lower than pool price 
+
+      // 4. validate
       
     })
 
