@@ -64,18 +64,24 @@ contract CNumaToken is CErc20Immutable
         // borrowFresh emits borrow-specific logs on errors, so we don't need to
         borrowFreshNoTransfer(payable(borrower), borrowAmount);
     }
-
-    // LTV will be _borrowAmount/(_borrowAmount+_suppliedAmount)
+    /**
+     * @notice leverage by depositing and borrowing
+     * LTV will be _borrowAmount/(_borrowAmount+_suppliedAmount)
+     * 1) borrow _collateral.underlying from vault (will be repaid at the end of the function)
+     * 2) deposit as collateral (mint input CNumaToken), send minted Ctoken to sender
+     * 3) borrow other token using collateral
+     * 4) convert to other token using vault
+     * 5) repay vault
+     * 
+     */
     function leverage(uint _suppliedAmount,uint _borrowAmount,CNumaToken _collateral) external 
     {
         address underlyingCollateral = _collateral.underlying();
-
 
         // borrow from vault
         vault.borrowLeverage(_borrowAmount);
         // get user tokens
         SafeERC20.safeTransferFrom(IERC20(underlyingCollateral),msg.sender,address(this),_suppliedAmount);
-
         uint totalAmount = _suppliedAmount + _borrowAmount;
 
         // supply (mint collateral)
@@ -86,12 +92,11 @@ contract CNumaToken is CErc20Immutable
 
         // send collateral to sender
         uint receivedtokens  = balCtokenAfter - balCtokenBefore;
-
         require(receivedtokens > 0, "no collateral");
+
         // transfer collateral to sender
         SafeERC20.safeTransfer(IERC20(address(_collateral)), msg.sender, receivedtokens);
        
-
        // how much to we need to borrow to repay vault
        uint borrowAmount = vault.getAmountIn(_borrowAmount);
        // overestimate a little to be sure to be able to repay
@@ -101,16 +106,19 @@ contract CNumaToken is CErc20Immutable
        borrowInternalNoTransfer(borrowAmount,msg.sender);
        uint accountBorrowAfter = accountBorrows[msg.sender].principal;
        require((accountBorrowAfter - accountBorrowBefore) == borrowAmount,"borrow ko");
+
        // buy/sell from the vault
        EIP20Interface(underlying).approve(address(vault),borrowAmount);
        uint collateralReceived = vault.buyFromCToken(borrowAmount,_borrowAmount);
+
        // repay vault
        EIP20Interface(underlyingCollateral).approve(address(vault),_borrowAmount);
        vault.repayLeverage();
+
        // refund if needed
        if (collateralReceived > _borrowAmount)
        {
-            // send back the surplus
+           // send back the surplus
            SafeERC20.safeTransfer(IERC20(underlyingCollateral), msg.sender, collateralReceived - _borrowAmount);
        }
     }

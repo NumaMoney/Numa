@@ -265,12 +265,27 @@ contract NumaOracle is Ownable2Step {
                 numaPerEthVault -
                 (numaPerEthVault * tolerance1000) /
                 1000;
+
             if (numaPerETHmulAmount < numaPerEthVault) {
-                revert("numa price out of vault's bounds");
+                // clip price
+                //revert("numa price out of vault's bounds");
+                numaPerETHmulAmount = numaPerEthVault;
             }
         }
 
         uint256 tokensForAmount = nuAManager.getPriceInEthRoundUp(_nuAsset,numaPerETHmulAmount);
+        return tokensForAmount;
+    }
+
+
+    function getNbOfNuAssetFromNuAsset( uint256 _nuAssetAmountIn,
+        address _nuAssetIn,
+        address _nuAssetOut
+    ) external view returns (uint256) 
+    {
+ 
+        uint256 nuAssetOutPerETHmulAmount = nuAManager.getTokenPerEth(_nuAssetOut,_nuAssetAmountIn);
+        uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAssetIn,nuAssetOutPerETHmulAmount);
         return tokensForAmount;
     }
 
@@ -317,8 +332,12 @@ contract NumaOracle is Ownable2Step {
                 numaPerEthVault +
                 (numaPerEthVault * tolerance1000) /
                 1000;
-            if (numaPerETHmulAmount > numaPerEthVault) {
-                revert("numa price out of vault's bounds");
+
+            if (numaPerETHmulAmount > numaPerEthVault) 
+            {
+                // clip price
+                numaPerETHmulAmount = numaPerEthVault;
+                //revert("numa price out of vault's bounds");
             }
         }
 
@@ -365,8 +384,12 @@ contract NumaOracle is Ownable2Step {
                 EthPerNumaVault +
                 (EthPerNumaVault * tolerance1000) /
                 1000;
-            if (EthPerNuma > EthPerNumaVault) {
-                revert("numa price out of vault's bounds");
+
+            if (EthPerNuma > EthPerNumaVault) 
+            {
+                // clip price
+                EthPerNuma = EthPerNumaVault;
+                //revert("numa price out of vault's bounds");
             }
         }
 
@@ -415,8 +438,12 @@ console.logUint(tokensForAmount);
                 EthPerNumaVault -
                 (EthPerNumaVault * tolerance1000) /
                 1000;
-            if (EthPerNuma < EthPerNumaVault) {
-                revert("numa price out of vault's bounds");
+
+            if (EthPerNuma < EthPerNumaVault) 
+            {
+                 // clip price
+                EthPerNuma = EthPerNumaVault;
+                //revert("numa price out of vault's bounds");
             }
         }
         uint256 tokensForAmount = nuAManager.getTokenPerEthRoundUp(_nuAsset,EthPerNuma);
