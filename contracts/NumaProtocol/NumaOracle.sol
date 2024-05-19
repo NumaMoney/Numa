@@ -13,7 +13,7 @@ import {IChainlinkPriceFeed} from "../interfaces/IChainlinkPriceFeed.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../interfaces/INumaPrice.sol";
 import "../nuAssets/nuAssetManager.sol";
-
+import "hardhat/console.sol";
 
 /// @title NumaOracle
 /// @notice Responsible for getting prices from chainlink and uniswap V3 pools
@@ -370,9 +370,9 @@ contract NumaOracle is Ownable2Step {
             }
         }
 
-
+        console.logUint(EthPerNuma);
         uint256 tokensForAmount = nuAManager.getTokenPerEth(_nuAsset,EthPerNuma);
-
+console.logUint(tokensForAmount);
         return tokensForAmount;
     }
 

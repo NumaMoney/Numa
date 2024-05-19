@@ -15,7 +15,10 @@
 
 2) tests
 
-commencer mardi
+- oracle
+- printer
+- retester vault
+- retester lending
 
 3) revoir mes questions non répondues à Stiive
 

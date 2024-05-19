@@ -87,6 +87,7 @@ const config: HardhatUserConfig = {
       forking: {
         //url: process.env.URL4,// sepolia
         url: process.env.URL5,// arbitrum
+        blockNumber: 212810911,
       },
       // accounts: [ {
       //   privateKey:  process.env.PKEY2,
@@ -95,6 +96,7 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: true
     },
   },
+
 };
 
 export default config;

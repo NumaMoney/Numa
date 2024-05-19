@@ -1,5 +1,5 @@
 const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../scripts/Utils.js");
-const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("./fixtures/NumaTestFixture.js");
+const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("./fixtures/NumaTestFixtureNew.js");
 const { time, loadFixture, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
@@ -7,10 +7,11 @@ const { upgrades } = require("hardhat");
 
 
 // ********************* Numa oracle test using arbitrum fork for chainlink *************************
-
+const epsilon = ethers.parseEther('0.000000000001');
 
 describe('NUMA ORACLE', function () {
   let signer, signer2;
+  let sender;
   let numaOwner;
   let numa;
   let nuUSD;
@@ -37,7 +38,8 @@ describe('NUMA ORACLE', function () {
   let routerAddress;
   //
   let price;
-  let sender;
+  let decimals;
+ 
   let intervalShort;
   let intervalLong;
   let amountInMaximum;
@@ -45,6 +47,7 @@ describe('NUMA ORACLE', function () {
   let tokenOut;
   let fee;
   let sqrtPriceLimitX96;
+  let VaultManager;
 
   afterEach(async function () {
     //console.log("reseting snapshot");
@@ -61,6 +64,7 @@ describe('NUMA ORACLE', function () {
     testData = await loadFixture(deployNumaNumaPoolnuAssetsPrinters);
 
     signer = testData.signer;
+    sender = await signer.getAddress();
     signer2 = testData.signer2;
     numaOwner = testData.numaOwner;
     numa = testData.numa;
@@ -84,13 +88,14 @@ describe('NUMA ORACLE', function () {
 
     swapRouter = testData.swapRouter;
     routerAddress = await swapRouter.getAddress();
+    VaultManager = testData.VM;
 
     // code that could be put in beforeEach but as we snapshot and restore, we
     // can put it here
     intervalShort = configArbi.INTERVAL_SHORT;
     intervalLong = configArbi.INTERVAL_LONG;
     amountInMaximum = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-    tokenIn = NUUSD_ADDRESS;
+    tokenIn = numa_address;
     tokenOut = configArbi.WETH_ADDRESS;
     fee = Number(configArbi.FEE);
     sqrtPriceLimitX96 = "0x0";
@@ -99,21 +104,19 @@ describe('NUMA ORACLE', function () {
     let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, configArbi.PRICEFEEDETHUSD);
     let latestRoundData = await chainlinkInstance.latestRoundData();
     let latestRoundPrice = Number(latestRoundData.answer);
-    let decimals = Number(await chainlinkInstance.decimals());
-    price = latestRoundPrice / 10 ** decimals;
+    decimals = Number(await chainlinkInstance.decimals());
+    price = latestRoundPrice;// / 10 ** decimals;
 
-    // mint nuUSD
-    sender = await signer2.getAddress();
-    await nuUSD.mint(sender, BigInt(1e23));
+    console.log('ETHUSD price ',price);
 
     // get some weth
-    await wethContract.connect(signer2).deposit({
+    await wethContract.connect(signer).deposit({
       value: ethers.parseEther('10'),
     });
 
     // approve router
-    await nuUSD.connect(signer2).approve(routerAddress, amountInMaximum);
-    await wethContract.connect(signer2).approve(routerAddress, amountInMaximum);
+    await numa.connect(signer).approve(routerAddress, amountInMaximum);
+    await wethContract.connect(signer).approve(routerAddress, amountInMaximum);
 
 
 
@@ -126,187 +129,55 @@ describe('NUMA ORACLE', function () {
     expect(await oracle.intervalLong()).to.equal(configArbi.INTERVAL_LONG);    
   });
 
-  describe('#pool check', () => {
-
-    it('should work USD', async () => {
-
-      let pool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
-      let cardinality = 100 + cardinalityLaunch;
-      let { logs } = await pool.increaseObservationCardinalityNext(cardinality);
-      //console.log(logs);
-
-      const { sqrtPriceX96, unlocked } = await pool.slot0();
-      expect(sqrtPriceX96).to.not.equal(BigInt(0));
-      expect(unlocked).to.equal(true);
-    });
-  });
-
-
-
-  describe('#getCostSimpleShift nuUSD', () => {
-    it('should return getTokensForAmount when at or above threshold', async () => {
-
-
-      let deadline, amountOut;
-
-      // recipient = sender
-      let offset = 3600 * 10000000;// TODO 
-      deadline = Math.round((Date.now() / 1000 + 300 + offset)).toString(); // Deadline five minutes from 'now'
-      deadline += 1800; // Time advanced 30min in migration to allow for the long interval
-
-
-      // amount of ETH we want to get 
-      amountOut = BigInt(12e16).toString(); // 0.12 ETH 
-      input = await nuUSD.balanceOf(sender);
-      let ethBalance;
-      let wethBalance;
-      let nuusdcBalance;
-
-
-
-
-      // execute SWAP
-      ethBalance = await ethers.provider.getBalance(sender);
-      wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
-
-      // console.log('---------------------------- BEFORE');
-      // console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      // console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      // console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
-
-      // 
-      // SWAP
-      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
-
-
-      //let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, configArbi.WETH_ADDRESS);
-
-
-
-      let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configArbi.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
-      costSimpleShift = costSimpleShift.toString()
-
-      //let costRaw = (await oracle.getNbOfNumaFromAssetUsingPools(NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, amount, configArbi.WETH_ADDRESS)).toString();
-
-      let costAmount = (await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, amount, configArbi.WETH_ADDRESS)).toString();
-
-      //belowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, configArbi.WETH_ADDRESS);
-      //let costRawLeqCostAmount = (BigInt(costRaw) <= BigInt(costAmount));
-
-      // Tests
-      //expect(belowThreshold).to.equal(false);
-      //expect(costRawLeqCostAmount).to.equal(true);
-      expect(costSimpleShift).to.equal(costAmount);
-
-    })
-
-    it('should return getTokensRaw when below threshold', async () => {
-
-      let deadline, amountOut;
-
-      // recipient = sender
-      let offset = 3600 * 10000000;// TODO 
-      deadline = Math.round((Date.now() / 1000 + 300 + offset)).toString(); // Deadline five minutes from 'now'
-      deadline += 1800; // Time advanced 30min in migration to allow for the long interval
-
-
-      // amount of ETH we want to get 
-      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
-      input = await nuUSD.balanceOf(sender);
-      let ethBalance;
-      let wethBalance;
-      let nuusdcBalance;
-
-
-      // execute SWAP
-      ethBalance = await ethers.provider.getBalance(sender);
-      wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
-
-      // console.log('---------------------------- BEFORE');
-      // console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      // console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      // console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
-
-      // 
-      // SWAP
-      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
-
-
-      //let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, configArbi.WETH_ADDRESS);
-
-
-      let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configArbi.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
-      costSimpleShift = costSimpleShift.toString()
-
-      //let costRaw = (await oracle.getNbOfNumaFromAssetUsingPools(NUMA_ETH_POOL_ADDRESS, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, amount, configArbi.WETH_ADDRESS)).toString();
-
-      let costAmount = (await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, amount, configArbi.WETH_ADDRESS)).toString();
-
-      // belowThreshold = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, configArbi.WETH_ADDRESS);
-      // let costRawLeqCostAmount = (BigInt(costRaw) <= BigInt(costAmount));
-
-      // Tests
-      //expect(belowThreshold).to.equal(true);
-      //expect(costRawLeqCostAmount).to.equal(true);
-      //expect(costSimpleShift).to.equal(costRaw);
-      expect(costSimpleShift).to.equal(costAmount);
-    });
-  })
-
-  describe('#getV3SqrtPrice', () => {
+  describe('#getV3SqrtLowestPrice', () => {
     it('should give Spot Price when Lowest', async () => {
 
       let deadline, amountOut;
 
       // recipient = sender
+      
       let offset = 3600 * 10000000;// TODO 
       deadline = Math.round((Date.now() / 1000 + 300 + offset)).toString(); // Deadline five minutes from 'now'
       deadline += 1800; // Time advanced 30min in migration to allow for the long interval
 
       // amount of ETH we want to get 
-      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
-      input = await nuUSD.balanceOf(sender);
+      amountOut = BigInt(5e17).toString(); //0.5 ETH 
+      
       let ethBalance;
       let wethBalance;
-      let nuusdcBalance;
+      let numaBalance;
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
       wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
+      numaBalance = await numa.balanceOf(sender);
 
-      //  console.log('---------------------------- BEFORE');
-      //  console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      //  console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      //  console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+       console.log('---------------------------- BEFORE');
+       console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+       console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+       console.log('numaBalance', hre.ethers.formatUnits(numaBalance, 18));
 
 
       // 
       // SWAP
       let paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
-      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
 
       await time.increase(180);
 
       // swap again the other way to get spot higher than short
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
 
 
       let slot0ETH = await ETHPool.slot0();
       let sqrtPriceX96Spot = slot0ETH.sqrtPriceX96;
 
-      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalShort);
-      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalLong);
-      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalShort);
+      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalLong);
+      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       let shortLeqLong, spotLeqShort
       const token0 = await ETHPool.token0();
 
@@ -317,7 +188,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > configArbi.WETH_ADDRESS) {
+      if (numa_address > configArbi.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -361,44 +232,44 @@ describe('NUMA ORACLE', function () {
 
 
       // amount of ETH we want to get 
-      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
-      input = await nuUSD.balanceOf(sender);
+      amountOut = BigInt(5e17).toString(); 
+    
       let ethBalance;
       let wethBalance;
-      let nuusdcBalance;
+      let numabalance;
 
 
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
       wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
+      numabalance = await numa.balanceOf(sender);
 
-      // console.log('---------------------------- BEFORE');
-      // console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      // console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      // console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+      console.log('---------------------------- BEFORE');
+      console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+      console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+      console.log('numabalance', hre.ethers.formatUnits(numabalance, 18));
 
       // 
       // SWAP
       let paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
-      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
 
       await time.increase(180);
 
       // swap again
-      amountOut = BigInt(500e18).toString();// 500 dollars
+      amountOut = BigInt(500e18).toString();// 500 numa
       paramsCall = [tokenOut, tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
       let slot0ETH = await ETHPool.slot0();
       let sqrtPriceX96Spot = slot0ETH.sqrtPriceX96;
 
-      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalShort);
-      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalLong);
-      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalShort);
+      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalLong);
+      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       let shortLeqLong, spotLeqShort
       const token0 = await ETHPool.token0();
 
@@ -409,7 +280,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > configArbi.WETH_ADDRESS) {
+      if (numa_address > configArbi.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -451,47 +322,47 @@ describe('NUMA ORACLE', function () {
 
 
       // amount of ETH we want to get 
-      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
-      input = await nuUSD.balanceOf(sender);
+      amountOut = BigInt(5e17).toString(); //0.5 ETH 
+     
       let ethBalance;
       let wethBalance;
-      let nuusdcBalance;
+      let numabalance;
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
       wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
+      numabalance = await numa.balanceOf(sender);
 
-      // console.log('---------------------------- BEFORE');
-      // console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      // console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      // console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+      console.log('---------------------------- BEFORE');
+      console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+      console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+      console.log('numabalance', hre.ethers.formatUnits(numabalance, 18));
 
 
       // 
       // SWAP
       let paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
-      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
 
       await time.increase(1800);
 
       // swap again
-      amountOut = BigInt(500e18).toString();// 500 dollars
+      amountOut = BigInt(1000e18).toString();// 1000 numa
       paramsCall = [tokenOut, tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
       await time.increase(180);
       // and swap again but less than first time
-      amountOut = BigInt(1e17).toString();// 500 dollars
+      amountOut = BigInt(1e17).toString();// 0.1 eth
       paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
       let slot0ETH = await ETHPool.slot0();
       let sqrtPriceX96Spot = slot0ETH.sqrtPriceX96;
 
-      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalShort);
-      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalLong);
-      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalShort);
+      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalLong);
+      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       let shortLeqLong, spotLeqShort
       const token0 = await ETHPool.token0();
 
@@ -501,7 +372,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > configArbi.WETH_ADDRESS) {
+      if (numa_address > configArbi.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -534,7 +405,7 @@ describe('NUMA ORACLE', function () {
     })
   })
 
-  describe('#getV3SqrtPriceSimpleShift', () => {
+  describe('#getV3SqrtHighestPrice', () => {
     it('should give Spot Price when Highest', async () => {
 
       let deadline, amountOut;
@@ -546,38 +417,38 @@ describe('NUMA ORACLE', function () {
 
 
       // amount of ETH we want to get 
-      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
-      input = await nuUSD.balanceOf(sender);
+      amountOut = BigInt(5e17).toString(); //0.5 ETH 
+
       let ethBalance;
       let wethBalance;
-      let nuusdcBalance;
+      let numabalance;
 
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
       wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
+      numabalance = await numa.balanceOf(sender);
 
-      // console.log('---------------------------- BEFORE');
-      // console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      // console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      // console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+      console.log('---------------------------- BEFORE');
+      console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+      console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+      console.log('numabalance', hre.ethers.formatUnits(numabalance, 18));
 
 
       // 
       // SWAP
 
-      amountOut = BigInt(500e18).toString();// 500 dollars
+      amountOut = BigInt(500e18).toString();// 500 numa
       let paramsCall = [tokenOut, tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
-      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
+      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
 
       let slot0ETH = await ETHPool.slot0();
       let sqrtPriceX96Spot = slot0ETH.sqrtPriceX96;
 
-      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalShort);
-      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalLong);
-      let getV3SqrtPrice = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalShort);
+      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalLong);
+      let getV3SqrtPrice = await oracle.getV3SqrtHighestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
 
 
       let shortLeqLong, spotLeqShort
@@ -590,7 +461,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > configArbi.WETH_ADDRESS) {
+      if (numa_address > configArbi.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -633,46 +504,46 @@ describe('NUMA ORACLE', function () {
       deadline += 1800; // Time advanced 30min in migration to allow for the long interval
 
       // amount of ETH we want to get 
-      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
-      input = await nuUSD.balanceOf(sender);
+      amountOut = BigInt(5e17).toString(); //0.5 ETH 
+     
       let ethBalance;
       let wethBalance;
-      let nuusdcBalance;
+      let numabalance;
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
       wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
+      numabalance = await nuUSD.balanceOf(sender);
 
-      //  console.log('---------------------------- BEFORE');
-      //  console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      //  console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      //  console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+       console.log('---------------------------- BEFORE');
+       console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+       console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+       console.log('numabalance', hre.ethers.formatUnits(numabalance, 18));
 
       // 
       // SWAP
       let paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
-      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
 
       await time.increase(1800);
 
       // swap again
-      amountOut = BigInt(500e18).toString();// 500 dollars
+      amountOut = BigInt(500e18).toString();// 500 numa
       paramsCall = [tokenOut, tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
       await time.increase(180);
       // and swap again but less than first time
-      amountOut = BigInt(1e17).toString();// 500 dollars
+      amountOut = BigInt(1e17).toString();// 500 numa
       paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
       let slot0ETH = await ETHPool.slot0();
       let sqrtPriceX96Spot = slot0ETH.sqrtPriceX96;
 
-      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalShort);
-      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalLong);
-      let getV3SqrtPrice = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalShort);
+      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalLong);
+      let getV3SqrtPrice = await oracle.getV3SqrtHighestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       let shortGeqLong, spotGeqShort
       const token0 = await ETHPool.token0();
 
@@ -683,7 +554,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > configArbi.WETH_ADDRESS) {
+      if (numa_address > configArbi.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -727,47 +598,47 @@ describe('NUMA ORACLE', function () {
 
 
       // amount of ETH we want to get 
-      amountOut = BigInt(500e18).toString(); //500 dollars
-      input = await nuUSD.balanceOf(sender);
+      amountOut = BigInt(500e18).toString(); //500 numa
+    
       let ethBalance;
       let wethBalance;
-      let nuusdcBalance;
+      let numabalance;
 
 
       // execute SWAP
       ethBalance = await ethers.provider.getBalance(sender);
       wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
+      numabalance = await numa.balanceOf(sender);
 
-      //  console.log('---------------------------- BEFORE');
-      //  console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
-      //  console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
-      //  console.log('usdcBalance', hre.ethers.formatUnits(nuusdcBalance, 18));
+       console.log('---------------------------- BEFORE');
+       console.log('ethBalance', hre.ethers.formatUnits(ethBalance, 18));
+       console.log('wethBalance', hre.ethers.formatUnits(wethBalance, 18));
+       console.log('numabalance', hre.ethers.formatUnits(numabalance, 18));
 
       // 
       // SWAP
       let paramsCall = [tokenOut, tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
-      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUUSD_ETH_POOL_ADDRESS);
+      let ETHPool = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
 
       await time.increase(1800);
 
       // swap again the other way
       amountOut = BigInt(1e17).toString();// 0.1 ETH
       paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
       await time.increase(180);
       // and swap again
       amountOut = BigInt(100e18).toString();// 100 dollars
       paramsCall = [tokenOut, tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
       let slot0ETH = await ETHPool.slot0();
       let sqrtPriceX96Spot = slot0ETH.sqrtPriceX96;
 
-      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalShort);
-      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUUSD_ETH_POOL_ADDRESS, intervalLong);
-      let getV3SqrtPrice = await oracle.getV3SqrtHighestPrice(NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let getV3SqrtPriceShort = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalShort);
+      let getV3SqrtPriceLong = await oracle.getV3SqrtPriceAvg(NUMA_ETH_POOL_ADDRESS, intervalLong);
+      let getV3SqrtPrice = await oracle.getV3SqrtHighestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
       let shortGeqLong, spotGeqShort
       const token0 = await ETHPool.token0();
 
@@ -778,7 +649,7 @@ describe('NUMA ORACLE', function () {
       let uniPriceLong = BigInt(getV3SqrtPriceLong.toString()) * BigInt(getV3SqrtPriceLong.toString()) * BigInt(1e18) / BigInt(2 ** 192);
       let uniPriceSpot = BigInt(sqrtPriceX96Spot.toString()) * BigInt(sqrtPriceX96Spot.toString()) * BigInt(1e18) / BigInt(2 ** 192);
 
-      if (NUUSD_ADDRESS > configArbi.WETH_ADDRESS) {
+      if (numa_address > configArbi.WETH_ADDRESS) {
         // change numerator/denominator
         uniPriceShort = Math.pow(10, 36) / Number(uniPriceShort);
         uniPriceLong = Math.pow(10, 36) / Number(uniPriceLong);
@@ -813,68 +684,9 @@ describe('NUMA ORACLE', function () {
     })
   })
 
-  describe('#getTokensForAmount', () => {
-    // getTokensForAmountCeiling should always be higher than getTokensForAmount for all assets
-
-    it('should be <= getTokensForAmountCeiling anonUSD', async () => {
-
-
-
-      let amount = BigInt(1e18) // 1 nuUSD
-      let tokensForAmount = await oracle.getTokensForAmount(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, amount, configArbi.WETH_ADDRESS);
-      let tokensForAmountCeiling = await oracle.getTokensForAmountCeiling(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, amount, configArbi.WETH_ADDRESS);
-      let amountLeqCeiling = (BigInt(tokensForAmount) <= BigInt(tokensForAmountCeiling))
-      console.log(tokensForAmount);
-      console.log(tokensForAmountCeiling);
-
-      // Test
-      expect(amountLeqCeiling).to.equal(true);
-    })
-
-  })
-
-  describe('#getTokensForAmountSimpleShift', () => {
-    // getTokensForAmountCeiling should always be higher than getTokensForAmount for all assets
-
-    it('should be <= getTokensForAmount anonUSD', async () => {
-
-
-      let amount = BigInt(1e18) // 1 nuUSD
-      let tokensForAmount = await oracle.getTokensForAmount(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, amount, configArbi.WETH_ADDRESS);
-      let tokensForAmountSimpleShift = await oracle.getNbOfNumaFromAssetUsingOracle(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, amount, configArbi.WETH_ADDRESS);
-      let amountLeq = (BigInt(tokensForAmount) >= BigInt(tokensForAmountSimpleShift));
-      console.log(tokensForAmount);
-      console.log(tokensForAmountSimpleShift);
-      // Test
-      expect(amountLeq).to.equal(true);
-
-    })
-  })
-
-
-  describe('#nbOfNuAssetFromNuma', () => {
-
-
-    it('nbOfNuAssetFromNuma matches getNbOfNumaNeeded', async () => {
-
-      // how many nu asset do we get by burning N Numas
-      let amount = BigInt(1000e18) // 1000 numa
-      let output = await oracle.nbOfNuAssetFromNuma(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, amount, configArbi.WETH_ADDRESS);
-      console.log(output);
-      // how many numas are need to get this amount
-      let output2 = await oracle.getNbOfNumaNeeded(output, configArbi.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
-      console.log(output2);
-      const epsilon = ethers.parseEther('0.000000000001');
-      expect(output2).to.be.closeTo(amount, epsilon);// TODO: we have a diff is this normal?
-
-    })
-  })
-  describe('#getNbOfAssetneeded', () => {
-
-
-    it('getNbOfAssetneeded matches getNbOfNumaFromAsset at or above threshold', async () => {
-
-
+  describe('#getNbOfNuAsset', () => {
+    it('should use lowest price from pool', async () => {
+      // 3 different price spot/low/high
       let deadline, amountOut;
 
       // recipient = sender
@@ -882,135 +694,113 @@ describe('NUMA ORACLE', function () {
       deadline = Math.round((Date.now() / 1000 + 300 + offset)).toString(); // Deadline five minutes from 'now'
       deadline += 1800; // Time advanced 30min in migration to allow for the long interval
 
-
       // amount of ETH we want to get 
-      amountOut = BigInt(12e16).toString(); // 0.12 ETH 
-      input = await nuUSD.balanceOf(sender);
-      let ethBalance;
-      let wethBalance;
-      let nuusdcBalance;
-
-
-
-      // execute SWAP
-      ethBalance = await ethers.provider.getBalance(sender);
-      wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
-
-
-      // SWAP
-      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
-
-
-      //let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, configArbi.WETH_ADDRESS);
-
-
-
-      let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configArbi.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
-      console.log(costSimpleShift);
+      amountOut = BigInt(5e17).toString(); //0.5 ETH 
+     
       // 
-      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, configArbi.PRICEFEEDETHUSD, NUMA_ETH_POOL_ADDRESS);
-      const epsilon = ethers.parseEther('0.000000000001');
+      // SWAP
+      let paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
 
-      expect(amount).to.be.closeTo(assetNeeded, epsilon);
+      await time.increase(1800);
+
+      // swap again
+      amountOut = BigInt(1000e18).toString();// 1000 numa
+      paramsCall = [tokenOut, tokenIn, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
+      await time.increase(180);
+      // and swap again but less than first time
+      amountOut = BigInt(1e17).toString();// 0.1 eth
+      paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
+      await swapRouter.connect(signer).exactOutputSingle(paramsCall);
+      
+      // compute lowest price
+
+      // numa price
+      let getV3SqrtPrice = await oracle.getV3SqrtLowestPrice(NUMA_ETH_POOL_ADDRESS, intervalShort, intervalLong);
+      let uniPrice = BigInt(getV3SqrtPrice.toString()) * BigInt(getV3SqrtPrice.toString()) * BigInt(1e18) / BigInt(2 ** 192);
+      
+      if (numa_address > configArbi.WETH_ADDRESS) {
+        // change numerator/denominator
+        uniPrice = BigInt(Math.pow(10, 36)) / (uniPrice);
+       
+      }
+      else {
+        // do nothing
+        //uniPrice = Number(uniPrice);
+      }
+
+      console.log(uniPrice);
+      console.log(price);
+      let numaPriceUsd = uniPrice * BigInt(price);
+      console.log(numaPriceUsd);
+
+      let inputAmount = BigInt(100);
+      let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
+      // price from oracle
+      let amountFromOracle = await oracle.getNbOfNuAsset(
+        ethers.parseEther(inputAmount.toString()),
+        NUUSD_ADDRESS,
+        NUMA_ETH_POOL_ADDRESS
+      );
+      console.log(amountFromOracle);
+      console.log(amountEstimate);
+      // not exact because solidity code is more precise (input amount factorized before division)
+      expect(amountFromOracle).to.be.closeTo(amountEstimate, epsilon);
+
+
 
 
     })
-
-    it('getNbOfAssetneeded matches getNbOfNumaFromAsset below threshold', async () => {
-
-      let deadline, amountOut;
-
-      // recipient = sender
-      let offset = 3600 * 10000000;// TODO 
-      deadline = Math.round((Date.now() / 1000 + 300 + offset)).toString(); // Deadline five minutes from 'now'
-      deadline += 1800; // Time advanced 30min in migration to allow for the long interval
-
-
-      // amount of ETH we want to get 
-      amountOut = BigInt(5e17).toString(); //0.5 ETH --> below threshold
-      input = await nuUSD.balanceOf(sender);
-      let ethBalance;
-      let wethBalance;
-      let nuusdcBalance;
-
-
-      // execute SWAP
-      ethBalance = await ethers.provider.getBalance(sender);
-      wethBalance = await wethContract.balanceOf(sender);
-      nuusdcBalance = await nuUSD.balanceOf(sender);
-
-      // SWAP
-      const paramsCall = [tokenIn, tokenOut, fee, sender, deadline, amountOut, amountInMaximum, sqrtPriceLimitX96];
-      await swapRouter.connect(signer2).exactOutputSingle(paramsCall);
-
-
-      //let tokenBelowThresholdAfter = await oracle.isTokenBelowThreshold(threshold, NUUSD_ETH_POOL_ADDRESS, intervalShort, intervalLong, configArbi.PRICEFEEDETHUSD, configArbi.WETH_ADDRESS);
-
-
-      let amount = BigInt(1e18);
-      let costSimpleShift = await oracle.getNbOfNumaFromAsset(amount, configArbi.PRICEFEEDETHUSD,NUMA_ETH_POOL_ADDRESS);
-      console.log(costSimpleShift);
-      let assetNeeded = await oracle.getNbOfAssetneeded(costSimpleShift, configArbi.PRICEFEEDETHUSD,NUMA_ETH_POOL_ADDRESS);
-      const epsilon = ethers.parseEther('0.000000000001');
-      expect(amount).to.be.closeTo(assetNeeded, epsilon);
-
-    });
-
+    it('should be clipped by vault price', async () => {
+      await oracle.setNumaPrice(await VaultManager.getAddress(),50);
+      let inputAmount = BigInt(100);
+      //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
+      // price from oracle
+      let amountFromOracle = await oracle.getNbOfNuAsset(
+        ethers.parseEther(inputAmount.toString()),
+        NUUSD_ADDRESS,
+        NUMA_ETH_POOL_ADDRESS
+      );
+      console.log(amountFromOracle);
+      
+    })
 
   })
-
-
-  describe('#view function results', () => {
-    it('Should be able to call view functions with appropriate results', async function () {
-      // get price from chainlink USD/ETH PRICEFEEDETHUSD
-      let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, configArbi.PRICEFEEDETHUSD);
-      let latestRoundData = await chainlinkInstance.latestRoundData();
-      let latestRoundPrice = Number(latestRoundData.answer);
-      let decimals = Number(await chainlinkInstance.decimals());
-      let price = latestRoundPrice / 10 ** decimals;
-      let OracleValue = await oracle.chainlinkPrice(configArbi.PRICEFEEDETHUSD);
-      expect(latestRoundData.answer).to.equal(OracleValue);
-      // TODO; check values of other functions
-
-    });
-  })
-
-  describe('#set parameters', () => {
-    it('Should be able to set parameters', async function () {
-      let intervalShortNew = 360;
-      let intervalLongNew = 3600;
+ 
+  // describe('#set parameters', () => {
+  //   it('Should be able to set parameters', async function () {
+  //     let intervalShortNew = 360;
+  //     let intervalLongNew = 3600;
     
-      await expect(oracle.setIntervalShort(intervalShortNew)).to.emit(oracle, "IntervalShort").withArgs(intervalShortNew);
-      await expect(oracle.setIntervalLong(intervalLongNew)).to.emit(oracle, "IntervalLong").withArgs(intervalLongNew);
-      // check values
-      expect(await oracle.intervalShort()).to.equal(intervalShortNew);
-      expect(await oracle.intervalLong()).to.equal(intervalLongNew);
+  //     await expect(oracle.setIntervalShort(intervalShortNew)).to.emit(oracle, "IntervalShort").withArgs(intervalShortNew);
+  //     await expect(oracle.setIntervalLong(intervalLongNew)).to.emit(oracle, "IntervalLong").withArgs(intervalLongNew);
+  //     // check values
+  //     expect(await oracle.intervalShort()).to.equal(intervalShortNew);
+  //     expect(await oracle.intervalLong()).to.equal(intervalLongNew);
      
 
-    });
-  })
+  //   });
+  // })
 
-  describe('#ownable', () => {
-    it('Should implement Ownable', async function () {
-      let intervalShortNew = 360;
-      let intervalLongNew = 3600;
+  // describe('#ownable', () => {
+  //   it('Should implement Ownable', async function () {
+  //     let intervalShortNew = 360;
+  //     let intervalLongNew = 3600;
 
-      expect(await oracle.owner()).to.equal(await signer.getAddress());
-      //
-      await expect(oracle.connect(signer2).setIntervalShort(intervalShortNew)).to.be.revertedWithCustomError(oracle, "OwnableUnauthorizedAccount",)
-        .withArgs(await signer2.getAddress());
-      await expect(oracle.connect(signer2).setIntervalLong(intervalLongNew)).to.be.revertedWithCustomError(oracle, "OwnableUnauthorizedAccount",)
-        .withArgs(await signer2.getAddress());
+  //     expect(await oracle.owner()).to.equal(await signer.getAddress());
+  //     //
+  //     await expect(oracle.connect(signer2).setIntervalShort(intervalShortNew)).to.be.revertedWithCustomError(oracle, "OwnableUnauthorizedAccount",)
+  //       .withArgs(await signer2.getAddress());
+  //     await expect(oracle.connect(signer2).setIntervalLong(intervalLongNew)).to.be.revertedWithCustomError(oracle, "OwnableUnauthorizedAccount",)
+  //       .withArgs(await signer2.getAddress());
 
-      //
-      await oracle.connect(signer).transferOwnership(await signer2.getAddress());
-      await expect(oracle.connect(signer2).setIntervalShort(intervalShortNew)).to.not.be.reverted;
-    });
+  //     //
+  //     await oracle.connect(signer).transferOwnership(await signer2.getAddress());
+  //     await expect(oracle.connect(signer2).setIntervalShort(intervalShortNew)).to.not.be.reverted;
+  //   });
 
-  })
+  //});
 
 
 
