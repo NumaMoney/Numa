@@ -312,6 +312,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
     function getNbOfNuAssetNeededForNuAsset(address _nuAssetIn,address _nuAssetOut,uint256 _amountOut
     ) public view returns (uint256, uint256)
     {
+        // TODO
+       
+        // le /1-x% devrait être appliqué avant le call oracle?
         uint256 nuAssetIn = oracle.getNbOfNuAssetFromNuAsset(
             _amountOut,
             _nuAssetOut,
@@ -351,17 +354,17 @@ contract NumaPrinter is Pausable, Ownable2Step {
     ) public view returns (uint256, uint256) 
     {
 
-        uint256 cost = oracle.getNbOfNumaNeeded(
+        uint256 costWithoutFee = oracle.getNbOfNumaNeeded(
             _nuAssetAmount,
             _nuAsset,
             numaPool
         );
-        uint256 costWithFee = (cost*10000) / (10000 - printAssetFeeBps);
+        uint256 costWithFee = (costWithoutFee*10000) / (10000 - printAssetFeeBps);
 
         // print fee
         //uint256 amountToBurn = (cost * printAssetFeeBps) / 10000;
         // will need to pay (burn): cost + amountToBurn 
-        return (costWithFee, costWithFee - cost);
+        return (costWithFee, costWithFee - costWithoutFee);
     }
 
 
@@ -473,6 +476,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
      */
     function mintAssetFromNumaInput(address _nuAsset,
         uint _numaAmount,
+        uint _minNuAssetAmount,
         address _recipient
     ) public whenNotPaused returns (uint256) {
         require(address(oracle) != address(0), "oracle not set");
@@ -484,6 +488,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // this function applies fees (amount = amount - fee)
         (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset,_numaAmount);
 
+        require(assetAmount >= _minNuAssetAmount,"min amount");
         // burn
         numa.burnFrom(msg.sender, _numaAmount);
         // mint token
@@ -636,8 +641,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         return assetAmount;
     }
-
-   
 
 
     function swapExactOutput(

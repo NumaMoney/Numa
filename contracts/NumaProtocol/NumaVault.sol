@@ -78,6 +78,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
    
     bool isLiquidityLocked;
     uint lstLockedBalance;
+    uint lstLockedBalanceRaw;
 
     CNumaToken cLstToken;
     CNumaToken cNuma;
@@ -286,9 +287,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     }
     function getVaultBalanceNoDebt() internal view returns (uint)
     {
+        
         if (isLiquidityLocked)
         {
-            return lstLockedBalance;
+            return lstLockedBalanceRaw;
         }
         else
         {
@@ -796,8 +798,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     {
         if (_lock)
         {
-            uint bal = getVaultBalance();
-            lstLockedBalance = bal;
+            lstLockedBalance = getVaultBalance();
+            lstLockedBalanceRaw = getVaultBalanceNoDebt();
         }
         isLiquidityLocked = _lock;        
     }

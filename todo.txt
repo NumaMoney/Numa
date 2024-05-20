@@ -7,6 +7,23 @@
 - tâches coding  --> TODO finir selon les réponses de stiive
 
 - relire --> TODO relire toute la partie lending et mes modifs/voir ce que je peux virer
+     - notes: getVaultBalance/getVaultBalanceNoDebt renvoient la même valeur quand la liquidité est locked
+     --> confirmer qu'il n'y a pas de cas ou ça pose probleme (lock ou pas lock la valeur devrait être différente)
+
+     --> j'ai ajouté RAWlocked, ça n'impacte que le maxborrow à voir s'il est sensé varier au couras d'un flashloan
+          - liquidate, peut faire un repay, mais après le repay, pas de nouveau borrow --> OK
+          - leverage, on va faire un borrow, mais pas de raison que le maxborrow ai changé avant ce borrow
+
+          --> todo: confirmer
+     - vault à partir de buyCtoken --> documenter/cleaner le code dans vault et dans lending contracts!!
+
+     - TODO REVOIR TOUTES LES FEES DU PRINTER
+--> ca a l'air ok mais tricky surtout pour la partie nuAsset--> numa car la fee est prise sur le numa
+     - spot price remove?
+
+
+
+     - absorb?
 
 2) tests
 
@@ -102,7 +119,7 @@ vault global CF, synth supply
 
 - numaprinter: onpourrait reecrire la façon dont sont gérer les fees, pas très clair
 
-- DOC --> si pas de doc et nouveaux features ajoutés 1 jour avant, sans test, c'est uen perte de temps de faire l'audit
+- DOC 
 
      ** lister les trucs à documenter
            ** leverage comment ça marche avec le flashloan
