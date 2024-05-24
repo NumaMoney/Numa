@@ -31,7 +31,10 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
     // max number of nuAssets this contract can handle
     uint constant max_nuasset = 200;
 
+    bool public renounceAddingRemovingAssets = false;
+
     event AddedAsset(address _assetAddress, address _pricefeed);
+    event UpdatedAsset(address _assetAddress, address _pricefeed);
     event RemovedAsset(address _assetAddress);
     constructor(address _uptimeFeedAddress) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress)
     {
@@ -52,6 +55,13 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
 
     }
 
+
+
+    function renounceAddingRemoving() external onlyOwner
+    {
+        renounceAddingRemovingAssets = true;
+    }
+
     /**
      * @dev does a nuAsset belong to our list
      */
@@ -67,6 +77,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         address _pricefeed,
         uint128 _heartbeat
     ) external onlyOwner {
+        require(!renounceAddingRemovingAssets,"adding nuAsset renounced");
         require(_assetAddress != address(0), "invalid nuasset address");
         require(_pricefeed != address(0), "invalid price feed address");
         require(!contains(_assetAddress), "already added");
@@ -87,6 +98,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
      * @dev removes a newAsset from the list
      */
     function removeNuAsset(address _assetAddress) external onlyOwner {
+        require(!renounceAddingRemovingAssets,"adding nuAsset renounced");
         require(contains(_assetAddress), "not in list");
         // find out the index
         uint256 index = nuAssetInfos[_assetAddress].index;
@@ -102,6 +114,26 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         // deletes last element and reduces array size
         nuAssetList.pop();
         emit RemovedAsset(_assetAddress);
+    }
+
+
+    /**
+     * @dev updates a newAsset from the list
+     */
+    function updateNuAsset(address _assetAddress,address _pricefeed,uint128 _heartbeat) external onlyOwner {
+
+        require(_assetAddress != address(0), "invalid nuasset address");
+        require(_pricefeed != address(0), "invalid price feed address");
+        require(contains(_assetAddress), "not in list");
+        // find out the index
+        uint256 index = nuAssetInfos[_assetAddress].index;
+        nuAssetInfos[_assetAddress] = nuAssetInfo(
+            _pricefeed,
+            _heartbeat,
+            index
+        );
+
+        emit UpdatedAsset(_assetAddress,_pricefeed);
     }
 
     /**

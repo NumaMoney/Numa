@@ -1,6 +1,7 @@
 const { getPoolData, initPoolETH, initPool, addLiquidity, weth9, artifacts, linkLibraries } = require("../../scripts/Utils.js");
-const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+//const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const helpers = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { time, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const fs = require('fs');
 
 const configRelativePathArbi = '../../configTestArbitrum.json';
@@ -32,17 +33,8 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   let nuusd_address;
 
   //
-  let moneyprinterUSD;
-  let moneyprinterUSD_address;
-
-  //
   let nuBTC;
   let nubtc_address;
-
-  //
-  let moneyprinterbtc;
-  let moneyprinterbtc_address;
-  
 
   // uniswap
   let nonfungiblePositionManager;
@@ -50,6 +42,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   // oracle
   let oracleAddress;
   let factory;
+  let snapshotGlobal = await takeSnapshot();;
 
   //
   [signer, signer2, signer3,signer4] = await ethers.getSigners();
@@ -224,7 +217,8 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
    // minter contract
    let theMinter = await ethers.deployContract("NumaMinter", []);
    await theMinter.waitForDeployment();
-   await numa.grantRole(roleMinter, await theMinter.getAddress());
+   let MINTER_ADDRESS = await theMinter.getAddress();
+   await numa.grantRole(roleMinter, MINTER_ADDRESS);
    await theMinter.setTokenAddress(numa_address);
 
    // *********************** vaultManager **********************************
@@ -252,7 +246,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
 
    // *********************** NumaVault rEth **********************************
    let Vault1 = await ethers.deployContract("NumaVault",
-   [numa_address,rETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESScustomHeartbeat,await theMinter.getAddress()]);
+   [numa_address,rETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESScustomHeartbeat,MINTER_ADDRESS]);
    await Vault1.waitForDeployment();
    let VAULT1_ADDRESS = await Vault1.getAddress();
    console.log('vault rETH address: ', VAULT1_ADDRESS);
@@ -272,7 +266,23 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
    // transfer to signer so that it can buy numa
    await rEth_contract.connect(impersonatedSigner).transfer(await signer.getAddress(), ethers.parseEther("5"));
    // transfer to vault to initialize price
-   await rEth_contract.connect(impersonatedSigner).transfer(VAULT1_ADDRESS, ethers.parseEther("100"));
+   // for now 
+   let chainlinkInstancerEth = await hre.ethers.getContractAt(artifacts.AggregatorV3, RETH_FEED);
+   let latestRoundDatarEth = await chainlinkInstancerEth.latestRoundData();
+   let latestRoundPricerEth = Number(latestRoundDatarEth.answer);
+   let decimalsrEth = Number(await chainlinkInstancerEth.decimals());
+   let pricerEth = latestRoundPricerEth / 10 ** decimalsrEth;
+   if (LOG)
+     console.log(`Chainlink Price RETH/ETH: ${pricerEth}`);
+   // price_pool = EthAmountNumaPool/NumaAmountNumaPool
+   // price_ vault = EthVault/numasupply
+   let amountEthTosend = (ethers.parseEther("10000000")*EthAmountNumaPool)/NumaAmountNumaPool;
+   
+   console.log(amountEthTosend);
+   amountEthTosend = (amountEthTosend/latestRoundDatarEth.answer)* BigInt(10 ** decimalsrEth) ;
+   console.log(amountEthTosend);
+
+   await rEth_contract.connect(impersonatedSigner).transfer(VAULT1_ADDRESS,amountEthTosend);
 
 
 
@@ -317,19 +327,19 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   // address _vaultManagerAddress
 
   moneyPrinter = await ethers.deployContract("NumaPrinter",
-    [numa_address, await theMinter.getAddress(), NUMA_ETH_POOL_ADDRESS, oracleAddress, VM_ADDRESS]);
+    [numa_address, MINTER_ADDRESS, NUMA_ETH_POOL_ADDRESS, oracleAddress, VM_ADDRESS]);
   await moneyPrinter.waitForDeployment();
   moneyPrinter_address = await moneyPrinter.getAddress();
   if (LOG)
     console.log(`printer deployed to: ${moneyPrinter_address}`);
 
 
+  // add moneyPrinter as a minter
+  theMinter.addToMinters(moneyPrinter_address);
+
   // set printer as a NuUSD minter
 
   await nuUSD.connect(signer).grantRole(roleMinter, moneyPrinter_address);// owner is NuUSD deployer
-  // set printer as a NUMA minter
-  await numa.connect(numaOwner).grantRole(roleMinter, moneyPrinter_address);// signer is Numa deployer
-
 
 
 
@@ -387,15 +397,19 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
 
   console.log(`nuBTC deployed to: ${nubtc_address}`);
 
+  await nuAM.addNuAsset(nubtc_address,configArbi.PRICEFEEDBTCETH,86400);
+  
+  await nuBTC.connect(signer).grantRole(roleMinter, moneyPrinter_address);// owner is NuUSD deployer
+
 
 
  
-  let chainlinkInstanceBTC = await hre.ethers.getContractAt(artifacts.AggregatorV3, PRICEFEEDBTCETH);
-  let latestRoundDataBTC = await chainlinkInstanceBTC.latestRoundData();
-  let latestRoundPriceBTC = Number(latestRoundDataBTC.answer);
-  let decimalsBTC = Number(await chainlinkInstanceBTC.decimals());
-  let priceBTC = latestRoundPriceBTC / 10 ** decimalsBTC;
-  console.log(`Chainlink Price ETH/BTC: ${priceBTC}`);
+  // let chainlinkInstanceBTC = await hre.ethers.getContractAt(artifacts.AggregatorV3, PRICEFEEDBTCETH);
+  // let latestRoundDataBTC = await chainlinkInstanceBTC.latestRoundData();
+  // let latestRoundPriceBTC = Number(latestRoundDataBTC.answer);
+  // let decimalsBTC = Number(await chainlinkInstanceBTC.decimals());
+  // let priceBTC = latestRoundPriceBTC / 10 ** decimalsBTC;
+  // console.log(`Chainlink Price ETH/BTC: ${priceBTC}`);
 
 
   // // do it again
@@ -409,8 +423,8 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   swapRouter = await hre.ethers.getContractAt(artifacts.SwapRouter.abi, "0xE592427A0AEce92De3Edee1F18E0157C05861564");
 
   return {
-    signer, signer2, signer3,signer4, numaOwner, numa, NUMA_ETH_POOL_ADDRESS, nuUSD, NUUSD_ADDRESS: nuusd_address, moneyPrinter: moneyPrinter, MONEY_PRINTER_ADDRESS: moneyPrinter_address, nonfungiblePositionManager,
-    wethContract, oracleAddress, numaAmount, cardinality, factory,swapRouter,VM
+    signer, signer2, signer3,signer4, numaOwner, numa, NUMA_ETH_POOL_ADDRESS, nuUSD, NUUSD_ADDRESS: nuusd_address,NUBTC:nuBTC,NUBTC_ADDRESS: nubtc_address, moneyPrinter: moneyPrinter, MONEY_PRINTER_ADDRESS: moneyPrinter_address, nonfungiblePositionManager,
+    wethContract, oracleAddress, numaAmount, cardinality, factory,swapRouter,VM,snapshotGlobal,MINTER_ADDRESS
   };
 }
 

@@ -36,13 +36,20 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint16 public constant BASE_1000 = 1000;
     uint16 public constant MAX_CF = 10000;
 
+    // sell fee
+    uint16 public sell_fee = 950; // 5%
+    // buy fee
+    uint16 public buy_fee = 950; // 5%
+
+
     uint minNumaPriceEth = 0.000001 ether;
     // 
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
     event AddedVault(address);
     event SetMinimumNumaPriceEth(uint _minimumPriceEth);
-
+    event SellFeeUpdated(uint16 sellFee);
+    event BuyFeeUpdated(uint16 buyFee);
 
 
 
@@ -76,6 +83,36 @@ contract VaultManager is IVaultManager, Ownable2Step {
     {
         constantRemovedSupply = _constantRemovedSupply;
     }
+
+
+    /**
+     * @dev Set Sell fee percentage (exemple: 5% fee --> fee = 950)
+     */
+    function setSellFee(uint16 _fee) external onlyOwner {
+        require(_fee <= BASE_1000, "fee above 1000");
+        sell_fee = _fee;
+        emit SellFeeUpdated(_fee);
+    }
+
+    /**
+     * @dev Set Buy fee percentage (exemple: 5% fee --> fee = 950)
+     */
+    function setBuyFee(uint16 _fee) external onlyOwner {
+        require(_fee <= BASE_1000, "fee above 1000");
+        buy_fee = _fee;
+        emit BuyFeeUpdated(_fee);
+    }
+
+    function getBuyFee() external view returns (uint16)
+    {
+        return buy_fee;
+    }
+
+    function getSellFee() external view returns (uint16)
+    {
+        return sell_fee;
+    }
+
 
     /**
      * @notice lock numa supply in case of a flashloan so that numa price does not change

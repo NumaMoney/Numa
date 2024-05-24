@@ -2,6 +2,9 @@
 pragma solidity 0.8.20;
 
 interface IVaultManager {
+
+    function getBuyFee() external view returns (uint16);
+    function getSellFee() external view returns (uint16);
     function getTotalBalanceEth() external view returns (uint256);
     function getTotalBalanceEthNoDebt() external view returns (uint256);
     function tokenToNuma(

@@ -1,5 +1,103 @@
+*** à documenter
+
+     - lending, maxborrow, UR, prix utilisés, liquidations, leverage
+     - printer: prix utilisés, scaling, blocking, security, les cf_warning, cf_critical
+     - les différents CF, par exemple CFwithoutdebt pour blocking?
 
 
+*** Questions en cours:
+
+- numa min price
+
+- POL formula
+
+- check debasing/rebasing and security last check
+
+
+- liquidateborrow with too much
+
+REVERT 
+ if (isDeprecated(CToken(cTokenBorrowed))) {
+            require(borrowBalance >= repayAmount, "Can not repay more than the total borrow");
+
+
+
++
+            uint maxClose = mul_ScalarTruncate(Exp({mantissa: closeFactorMantissa}), borrowBalance);
+            if (repayAmount > maxClose) 
+            {
+
+--> à l'air OK
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ réponses Stiive
+
+a) nouvelle formula maxBorrow ???
+
+
+CF_liquid = (rETH_liquid / (synthetic_rETHdebt)
+CF_theoretical = (rETH_liquid + rETH_borrowed) / (synthetic_rETHdebt)
+
+
+
+
+
+The intended outcome is that we ideally want maintain ~20% liquidity in the vault at all times so it doesn't all get borrowed. 
+
+
+
+rEthLiquid > 20% x synthValue
+
+maxBorrow at one time is rEth - borrow > 20% x synthValue
+
+borrow <  rEth - 20%x synthValue
+
+maxBorrow = rEth - 20%*SynthValue
+
+--> agreed but
+
+     - not with rEThBorrowed
+     - maxBorrow means, if we reach it we are at 100% UR, so if we want to increase interest rate we would need to use the kink at 80% maybe
+
+
+
+
+That is, CF_liquid should be >20%. This means there will always be some liquid rETH in the vault to account for vault sells and liquidation flashloan requirements.
+
+Borrowing rETH is free until above 80% utilization where we start to increase the interest rate to encourage repayments... if 100% is borrowed, interest rate should be very high (like 100%+) to incentivise repayment.... 
+
+but even at 100% utilization, we ideally still don't want to be left in a situation with NO liquid rETH in the vault...
+
+So if we set that there is 20% left in the vault when utilization is at 100%, this means maxBorrow should occur when CF_liquid is at 20%.
+So the formula could be:
+maxBorrow = (rETH_liquid + rETH_borrowed) - 20% * synthetic_rETHdebt
+
+
+
+Q:
+
+- synthetic_rETHdebt is what I call "synth total value"?
+
+
+
+
+b) changer l'usage des min avec vault_price
+pb buy/sell fees are relative to a vault
+c) minimum numa price --> Stiive doit reflechir encore
+d) absorb and bad debt?
+e) new numa pricing formula --> POL?
 
 
 1) 
@@ -25,6 +123,10 @@
 
      - absorb?
 
+     - checker les tolerance du numaPrice, je les appliques au prix x amount --> c'est ok? DE PLUS, je les applique sur l'inverse du prix (numaPerETH)
+
+     - TODO
+
 2) tests
 
 ajouter vault etc dans la nouvelle fixture, virer ce que je n'utilise pas
@@ -37,7 +139,8 @@ modulariser si necessaire
      ** getNbOfNuAsset lowest
      ** getNbOfAssetneeded highest
      ** + vault price bounds 
-
+OK 
+TODO manque les set + ownership
 
 - printer
      ** les set

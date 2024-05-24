@@ -32,7 +32,7 @@ contract NumaMinter is Ownable2Step
 
 
     modifier onlyMinters() {
-        require(isMinter(msg.sender));
+        require(isMinter(msg.sender),"not allowed");
         _;
     }
 

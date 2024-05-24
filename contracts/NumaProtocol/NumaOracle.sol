@@ -24,12 +24,12 @@ contract NumaOracle is Ownable2Step {
     uint32 public intervalLong;
 
     INumaPrice public numaPrice;
-    uint public tolerance1000;
+    
     nuAssetManager public nuAManager;
 
     event IntervalShort(uint32 _intervalShort);
     event IntervalLong(uint32 _intervalLong);   
-    event NumaPrice(address _numaPrice, uint _tolerance1000);
+    event NumaPrice(address _numaPrice);
 
     constructor(
         address _weth9,
@@ -45,12 +45,10 @@ contract NumaOracle is Ownable2Step {
     }
 
     function setNumaPrice(
-        address _numaPriceAddress,
-        uint _tolerance1000
+        address _numaPriceAddress     
     ) external onlyOwner {
-        numaPrice = INumaPrice(_numaPriceAddress);
-        tolerance1000 = _tolerance1000;
-        emit NumaPrice(_numaPriceAddress, _tolerance1000);
+        numaPrice = INumaPrice(_numaPriceAddress);   
+        emit NumaPrice(_numaPriceAddress);
     }
 
     function setIntervalShort(uint32 _interval) external onlyOwner {
@@ -261,10 +259,7 @@ contract NumaOracle is Ownable2Step {
                 _nuAssetAmount
             );
             
-            numaPerEthVault =
-                numaPerEthVault -
-                (numaPerEthVault * tolerance1000) /
-                1000;
+            numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-numaPrice.getBuyFee()));
 
             if (numaPerETHmulAmount < numaPerEthVault) {
                 // clip price
@@ -328,10 +323,7 @@ contract NumaOracle is Ownable2Step {
             uint256 numaPerEthVault = numaPrice.GetNumaPerEth(
                 _nuAssetAmount
             );
-            numaPerEthVault =
-                numaPerEthVault +
-                (numaPerEthVault * tolerance1000) /
-                1000;
+            numaPerEthVault = (numaPerEthVault * 1000) / (numaPrice.getSellFee());
 
             if (numaPerETHmulAmount > numaPerEthVault) 
             {
@@ -382,7 +374,7 @@ contract NumaOracle is Ownable2Step {
             );
             EthPerNumaVault =
                 EthPerNumaVault +
-                (EthPerNumaVault * tolerance1000) /
+                (EthPerNumaVault * (1000-numaPrice.getBuyFee())) /
                 1000;
 
             if (EthPerNuma > EthPerNumaVault) 
@@ -434,10 +426,12 @@ console.logUint(tokensForAmount);
             uint256 EthPerNumaVault = numaPrice.GetNumaPriceEth(
                 _amountNumaOut
             );
-            EthPerNumaVault =
-                EthPerNumaVault -
-                (EthPerNumaVault * tolerance1000) /
-                1000;
+            // EthPerNumaVault =
+            //     EthPerNumaVault -
+            //     (EthPerNumaVault * numaPrice.getSellFee()) /
+            //     1000;
+
+            EthPerNumaVault = (EthPerNumaVault * numaPrice.getSellFee()) /1000;
 
             if (EthPerNuma < EthPerNumaVault) 
             {
