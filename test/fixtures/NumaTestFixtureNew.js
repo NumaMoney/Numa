@@ -334,6 +334,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
     console.log(`printer deployed to: ${moneyPrinter_address}`);
 
 
+  await Vault1.setPrinter(moneyPrinter_address);
   // add moneyPrinter as a minter
   theMinter.addToMinters(moneyPrinter_address);
 

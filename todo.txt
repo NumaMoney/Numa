@@ -3,7 +3,8 @@
      - lending, maxborrow, UR, prix utilisés, liquidations, leverage
      - printer: prix utilisés, scaling, blocking, security, les cf_warning, cf_critical
      - les différents CF, par exemple CFwithoutdebt pour blocking?
-
+     - quand est-ce qu'on appelle les accrueinterest
+     - quand est-ce qu'on update le synthscaling
 
 *** Questions en cours:
 

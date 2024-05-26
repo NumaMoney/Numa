@@ -445,7 +445,7 @@ contract NumaPrinterMock is Pausable, Ownable2Step {
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
     function getNbOfNumaFromAssetWithFee(address _nuAsset,
-        uint256 _nuAssetAmount,bool _applyScaling
+        uint256 _nuAssetAmount
     ) public returns (uint256, uint256) 
     {
 
@@ -454,17 +454,13 @@ contract NumaPrinterMock is Pausable, Ownable2Step {
             _nuAsset,
             numaPool
         );
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        // apply scale
+        _output = (_output*scaleOverride)/BASE_1000;
+        // save 
+        lastScale = scaleMemory;
+        lastBlockTime = blockTime;
 
-        if (_applyScaling)
-        {
-            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
-            // apply scale
-            _output = (_output*scaleOverride)/BASE_1000;
-            // save 
-            lastScale = scaleMemory;
-            lastBlockTime = blockTime;
-
-        }
 
         // burn fee
         uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
@@ -581,7 +577,7 @@ contract NumaPrinterMock is Pausable, Ownable2Step {
         uint256 _output;
         uint256 amountToBurn;
 
-        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount,true);
+        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount);
 
         // burn amount       
         burnNuAssetFrom(nuAsset,msg.sender,_nuAssetAmount);
@@ -639,14 +635,6 @@ contract NumaPrinterMock is Pausable, Ownable2Step {
 
         INuAsset nuAssetFrom = INuAsset(_nuAssetFrom);
         INuAsset nuAssetTo = INuAsset(_nuAssetTo);
-        // // estimate output and check that it's ok with slippage
-        // // don't apply synth scaling here
-        // // fee is applied only 1 time when swapping
-        // // --> not applied here
-        // (uint256 numaEstimatedOutput,uint amountToBurnNotUsed) = getNbOfNumaFromAssetWithFee(_nuAssetFrom,_amountToSwap,false);
-        // // --> applied here
-	    // (uint assetAmount, uint numaFee) = getNbOfNuAssetFromNuma(_nuAssetTo,numaEstimatedOutput);
-
 
         (uint256 assetAmount,uint amountInFee) = getNbOfNuAssetFromNuAsset(_nuAssetFrom,_nuAssetTo,_amountToSwap);
 
@@ -691,12 +679,6 @@ contract NumaPrinterMock is Pausable, Ownable2Step {
 
         INuAsset nuAssetFrom = INuAsset(_nuAssetFrom);
         INuAsset nuAssetTo = INuAsset(_nuAssetTo);
-
-        // // number of numa needed
-        // (uint256 numaAmount, uint256 fee) = getNbOfNumaNeededAndFee(_nuAssetFrom,_amountToReceive);
-
-        // // how much _nuAssetFrom are needed to get this amount of Numa
-        // uint256 nuAssetAmount = getNbOfnuAssetNeededForNuma(_nuAssetTo,numaAmount + fee,false);
 
         (uint256 nuAssetAmount, uint256 fee) = getNbOfNuAssetNeededForNuAsset(_nuAssetFrom,_nuAssetTo,_amountToReceive);
 

@@ -13,6 +13,7 @@ import "../interfaces/INuAssetManager.sol";
 import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
 import "../interfaces/IRewardFeeReceiver.sol";
+import "../interfaces/INumaPrinter.sol";
 import "./NumaMinter.sol";
 import "../lending/CNumaToken.sol";
 
@@ -82,6 +83,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     CNumaToken cNuma;
     uint leverageDebt;
 
+    // printer
+    INumaPrinter printer;
 
     // Events
     event SetOracle(address oracle);
@@ -169,6 +172,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         emit SetCTokens(_cNuma,_clstToken);
     }
 
+    function setPrinter(address _printer) external onlyOwner {
+        printer = INumaPrinter(_printer);
+    }
 
     function setMaxCF(uint _maxCF) external onlyOwner 
     {
@@ -394,6 +400,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     
         // CF will change so we need to update interest rates
         accrueInterestLending();
+        if (address(printer) != address(0))
+            printer.getSynthScalingUpdate();
 
 
         // extract rewards if any
@@ -478,6 +486,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         require(_numaAmount > MIN, "must trade over min");
         // CF will change so we need to update interest rates
         accrueInterestLending();
+        if (address(printer) != address(0))
+            printer.getSynthScalingUpdate();
 
         // extract rewards if any
         extractRewardsNoRequire();

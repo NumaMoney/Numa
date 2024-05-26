@@ -204,7 +204,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
         require(currentCF > cf_warning,"minting forbidden");
 
         // accrue interest on lending because synth supply has changed so utilization rates also
+        // as to be done before minting because we accrue interest from current parameters
         vaultManager.accrueInterests();
+
+        // for same reasons, we need to update our synth scaling snapshot because synth supplies changes
+        getSynthScalingUpdate();
         // mint
         _asset.mint(_recipient, _amount);
         emit AssetMint(address(_asset), _amount);
@@ -224,7 +228,15 @@ contract NumaPrinter is Pausable, Ownable2Step {
     }
 
 
-    function getSynthScaling() internal view returns (uint,uint,uint)
+    function getSynthScalingUpdate() public returns (uint,uint,uint)
+    {  
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        // save 
+        lastScale = scaleMemory;
+        lastBlockTime = blockTime;
+    }
+
+    function getSynthScaling() public view returns (uint,uint,uint)
     {
         uint lastScaleMemory = lastScale;
         // synth scaling
@@ -373,8 +385,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @return {uint256} amount of nuAsset that will be needed
      */
     function getNbOfnuAssetNeededForNuma(address _nuAsset,
-        uint _numaAmount,bool _applyScaling
-    ) internal returns (uint256,uint256) 
+        uint _numaAmount
+        ) internal returns (uint256,uint256) 
     {
         uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
@@ -384,17 +396,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
             numaPool
         );
 
-        if (_applyScaling)
-        {
-            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
-            // apply scale
-            nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
-            // save 
-            lastScale = scaleMemory;
-            lastBlockTime = blockTime;
 
-        }
-
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScalingUpdate();
+        // apply scale
+        nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
+        
         return (nuAssetIn,amountWithFee - _numaAmount);
     }
 
@@ -405,7 +411,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @return {uint256} amount of nuAsset that will be needed
      */
     function getNbOfnuAssetNeededForNumaView(address _nuAsset,
-        uint _numaAmount,bool _applyScaling
+        uint _numaAmount
     ) public view returns (uint256,uint256) 
     {
         uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
@@ -415,12 +421,10 @@ contract NumaPrinter is Pausable, Ownable2Step {
             numaPool
         );
 
-        if (_applyScaling)
-        {
-            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
-            // apply scale
-            nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
-        }
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        // apply scale
+        nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
+        
 
         return (nuAssetIn,amountWithFee - _numaAmount);
     }
@@ -435,7 +439,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
     function getNbOfNumaFromAssetWithFee(address _nuAsset,
-        uint256 _nuAssetAmount,bool _applyScaling
+        uint256 _nuAssetAmount
     ) public returns (uint256, uint256) 
     {
 
@@ -445,17 +449,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
             numaPool
         );
 
-        if (_applyScaling)
-        {
-            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
-            // apply scale
-            _output = (_output*scaleOverride)/BASE_1000;
-            // save 
-            lastScale = scaleMemory;
-            lastBlockTime = blockTime;
 
-        }
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScalingUpdate();
+        // apply scale
+        _output = (_output*scaleOverride)/BASE_1000;
 
+
+    
         // burn fee
         uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
         return (_output, amountToBurn);
@@ -468,7 +468,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
     function getNbOfNumaFromAssetWithFeeView(address _nuAsset,
-        uint256 _nuAssetAmount,bool _applyScaling
+        uint256 _nuAssetAmount
     ) external view returns (uint256, uint256) 
     {
 
@@ -478,13 +478,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
             numaPool
         );
 
-        if (_applyScaling)
-        {
-            (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
-            // apply scale
-            _output = (_output*scaleOverride)/BASE_1000;         
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        // apply scale
+        _output = (_output*scaleOverride)/BASE_1000;         
 
-        }
+        
 
         // burn fee
         uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
@@ -493,7 +491,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
 
 
- /**
+    /**
      * dev
      * notice
      * param {uint256} _amount
@@ -571,7 +569,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _output;
         uint256 amountToBurn;
 
-        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount,true);
+        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount);
         // burn fee
         _output -= amountToBurn;
         require (_output >= _minimumReceivedAmount,"minimum amount");
@@ -597,7 +595,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         //uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
         // how much _nuAssetFrom are needed to get this amount of Numa
-        (uint256 nuAssetAmount,uint256 numaFee) = getNbOfnuAssetNeededForNuma(_nuAsset,_numaAmount,true);
+        (uint256 nuAssetAmount,uint256 numaFee) = getNbOfnuAssetNeededForNuma(_nuAsset,_numaAmount);
 
         require(nuAssetAmount <= _maximumAmountIn,"max amount");
         // burn amount
@@ -674,12 +672,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         INuAsset nuAssetFrom = INuAsset(_nuAssetFrom);
         INuAsset nuAssetTo = INuAsset(_nuAssetTo);
-
-        // // number of numa needed
-        // (uint256 numaAmount, uint256 fee) = getNbOfNumaNeededAndFee(_nuAssetFrom,_amountToReceive);
-
-        // // how much _nuAssetFrom are needed to get this amount of Numa
-        // uint256 nuAssetAmount = getNbOfnuAssetNeededForNuma(_nuAssetTo,numaAmount + fee,false);
 
         (uint256 nuAssetAmount, uint256 fee) = getNbOfNuAssetNeededForNuAsset(_nuAssetFrom,_nuAssetTo,_amountToReceive);
 
