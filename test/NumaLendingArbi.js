@@ -2,7 +2,7 @@
 
 
 const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../scripts/Utils.js");
-const { deployPrinterTestFixtureArbi, configArbi } = require("./fixtures/NumaTestFixture.js");
+const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("./fixtures/NumaTestFixtureNew.js");
 const { time, loadFixture, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const helpers = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
@@ -158,7 +158,7 @@ describe('NUMA LENDING', function () {
   async function initContracts() 
   {
     snapshotGlobal = await takeSnapshot();
-    testData = await loadFixture(deployPrinterTestFixtureArbi);
+    testData = await loadFixture(deployNumaNumaPoolnuAssetsPrinters);
 
     owner = testData.signer;
     userA = testData.signer2;
@@ -311,7 +311,7 @@ describe('NUMA LENDING', function () {
 
     //let blocksPerYear = "2628000";// 12/sec to be confirmed
     const blocksPerYear = "2102400";// eth values for test
-    rateModel = await ethers.deployContract("JumpRateModelV4",
+    rateModel = await ethers.deployContract("JumpRateModelVariable",
     [blocksPerYear,baseRatePerYear,multiplierPerYear,jumpMultiplierPerYear,kink,await owner.getAddress(),"numaRateModel"]);
   
 
@@ -354,7 +354,7 @@ describe('NUMA LENDING', function () {
     
     // REMOVE IR
     let IM_address = await cReth.interestRateModel();
-    let IMV2 = await ethers.getContractAt("BaseJumpRateModelV2", IM_address);
+    let IMV2 = await ethers.getContractAt("JumpRateModelVariable", IM_address);
     // await IMV2.updateJumpRateModel(ethers.parseEther('0.02'),ethers.parseEther('0.18')
     // ,ethers.parseEther('4'),ethers.parseEther('0.8'));
   
@@ -370,6 +370,7 @@ describe('NUMA LENDING', function () {
     rethsupplyamount
   ) 
   {
+   
      await rEth_contract.connect(account).approve(await cReth.getAddress(),rethsupplyamount);
      await cReth.connect(account).mint(rethsupplyamount);
      // accept rEth as collateral
@@ -1150,7 +1151,7 @@ describe('NUMA LENDING', function () {
       {
 
         let IM_address = await cReth.interestRateModel();
-        let IMV2 = await ethers.getContractAt("JumpRateModelV4", IM_address);
+        let IMV2 = await ethers.getContractAt("JumpRateModelVariable", IM_address);
         // uint baseRatePerYear, uint multiplierPerYear, uint jumpMultiplierPerYear, uint kink_
 
         let baseRatePerYear = ethers.parseEther('0');
@@ -1312,6 +1313,27 @@ describe('NUMA LENDING', function () {
       });
 
     
+      it('variable interest rates', async () => 
+      {
+        // utilization in range --> interest rate is default
+
+        // and does not change after some time
+
+        // utilization above threshold --> interest rate increases
+
+        // change time & check increase
+
+        // back to range
+
+        // change time & check it did not change
+
+        // below threshold, should diminish
+
+        // should stay in limits
+      
+
+      });
+
 
 
     });

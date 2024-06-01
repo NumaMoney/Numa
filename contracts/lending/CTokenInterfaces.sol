@@ -67,6 +67,15 @@ contract CTokenStorage {
     uint public accrualBlockNumber;
 
     /**
+     * @notice Block timestamp that interest was last accrued at
+     */
+    uint public accrualBlockTimestamp;
+
+    uint currentInterestRateMultiplier;
+
+    uint currentInterestRateJumpMultiplier;
+
+    /**
      * @notice Accumulator of the total earned interest rate since the opening of the market
      */
     uint public borrowIndex;

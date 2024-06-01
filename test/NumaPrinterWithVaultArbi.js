@@ -238,7 +238,7 @@ describe('NUMA NUASSET PRINTER', function () {
     let numaBalBefore = await numa.balanceOf(await signer.getAddress());
     let nuUSDBefore = await nuUSD.balanceOf(await signer2.getAddress());
     await moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,nuassetAmount,
-      numaCostAndFee[0],await signer2.getAddress())
+      numaCostAndFee[0],await signer2.getAddress());
 
     let numaBalAfter = await numa.balanceOf(await signer.getAddress());
     let nuUSDAfter = await nuUSD.balanceOf(await signer2.getAddress());
@@ -467,6 +467,15 @@ describe('NUMA NUASSET PRINTER', function () {
 
   it('synth scaling', async function () 
   {
+    await moneyPrinter.setScalingParameters(15000,
+      1700,
+      20,
+      10,
+      600,
+      600,
+      500) ;
+
+
     let nuAMAddy = await VaultManager.getNuAssetManager();
     const AssetMgr = await ethers.getContractFactory('nuAssetManager');
     let nuAM = await AssetMgr.attach(nuAMAddy);   
@@ -496,7 +505,12 @@ describe('NUMA NUASSET PRINTER', function () {
 
 
     let mintUSDAmount = (totalbalanceEth * BigInt(price))/BigInt(10 ** Number(decimals));
-    await nuUSD.mint(await signer.getAddress(),mintUSDAmount);
+    mintUSDAmount = mintUSDAmount / BigInt(14);
+    //await nuUSD.mint(await signer.getAddress(),mintUSDAmount);
+    let numaCostAndFee = await moneyPrinter.getNbOfNumaNeededAndFee(NUUSD_ADDRESS,mintUSDAmount);
+    await numa.approve(MONEY_PRINTER_ADDRESS,numaCostAndFee[0]);
+    await moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,mintUSDAmount,
+      numaCostAndFee[0],await signer.getAddress());
 
     globCF = await VaultManager.getGlobalCF();
     totalbalanceEth = await VaultManager.getTotalBalanceEth();
@@ -509,22 +523,94 @@ describe('NUMA NUASSET PRINTER', function () {
 
     // start debasing
     synthScalingBase = await moneyPrinter.getSynthScaling();
-    expect(synthScalingBase[0]).to.equal(BigInt(1000) - await moneyPrinter.debaseValue());
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(BigInt(1000));
+
 
     // continue debasing
+    await time.increase(600*10);
+    synthScalingBase = await moneyPrinter.getSynthScaling();
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(BigInt(1000) - BigInt(10)*await moneyPrinter.debaseValue());
+
 
     // reach minimum check that we don't debase anymore
 
+    await time.increase(600*10);
+    synthScalingBase = await moneyPrinter.getSynthScaling();
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(BigInt(1000) - BigInt(20)*await moneyPrinter.debaseValue());
+
+    await time.increase(600*10);
+    synthScalingBase = await moneyPrinter.getSynthScaling();
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(await moneyPrinter.minimumScale());
+
+
     // start rebasing
+    let numaAmountAndFee = await moneyPrinter.getNbOfNumaFromAssetWithFeeView(NUUSD_ADDRESS,mintUSDAmount);
+    await nuUSD.approve(MONEY_PRINTER_ADDRESS,BigInt(10)*mintUSDAmount);
+
+
+    await moneyPrinter.burnAssetInputToNuma(NUUSD_ADDRESS,mintUSDAmount,
+      numaAmountAndFee[0] - numaAmountAndFee[1],await signer.getAddress());
+
+      // globCF = await VaultManager.getGlobalCF();
+      // totalbalanceEth = await VaultManager.getTotalBalanceEth();
+      // totalSynthValue = await nuAM.getTotalSynthValueEth();
+  
+      // console.log(globCF);
+      // console.log(ethers.formatEther(totalbalanceEth));
+      // console.log(ethers.formatEther(totalSynthValue));
+  
+    await time.increase(600*10);
+    synthScalingBase = await moneyPrinter.getSynthScaling();
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(await moneyPrinter.minimumScale() + BigInt(10)*await moneyPrinter.rebaseValue());
 
     // continue rebasing
+    await time.increase(600*10);
+    synthScalingBase = await moneyPrinter.getSynthScaling();
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(await moneyPrinter.minimumScale() + BigInt(20)*await moneyPrinter.rebaseValue());
 
     // reach max rebase check that we don't rebase anymore
+    await time.increase(600*50);
+    synthScalingBase = await moneyPrinter.getSynthScaling();
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(BigInt(1000));
 
     // security debase
+    // mint some
+    // numaCostAndFee = await moneyPrinter.getNbOfNumaNeededAndFee(NUUSD_ADDRESS,mintUSDAmount);
+    // await numa.approve(MONEY_PRINTER_ADDRESS,numaCostAndFee[0]);
+    // await moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,mintUSDAmount,
+    //   numaCostAndFee[0],await signer.getAddress());
+
+    let mintUSDAmount2 = (totalbalanceEth * BigInt(price))/BigInt(10 ** Number(decimals));
+    mintUSDAmount2 = BigInt(3)*mintUSDAmount2 / BigInt(2);
+    //await nuUSD.mint(await signer.getAddress(),mintUSDAmount2);
+    await numa.mint(await signer.getAddress(),mintUSDAmount2*BigInt(10));
+    numaCostAndFee = await moneyPrinter.getNbOfNumaNeededAndFee(NUUSD_ADDRESS,mintUSDAmount2);
+    await numa.approve(MONEY_PRINTER_ADDRESS,numaCostAndFee[0]);
+    await moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,mintUSDAmount2,
+      numaCostAndFee[0],await signer.getAddress());
 
 
-    // TODO: need to test execute transactions too?
+
+    globCF = await VaultManager.getGlobalCF();
+    totalbalanceEth = await VaultManager.getTotalBalanceEth();
+    totalSynthValue = await nuAM.getTotalSynthValueEth();
+  
+    console.log(globCF);
+    console.log(ethers.formatEther(totalbalanceEth));
+    console.log(ethers.formatEther(totalSynthValue));
+
+    synthScalingBase = await moneyPrinter.getSynthScaling();
+    console.log(synthScalingBase);
+    expect(synthScalingBase[0]).to.equal(BigInt(globCF));
+
+
   });
 
 

@@ -50,7 +50,12 @@ contract CNumaLst is CNumaToken
         if (address(vault) != address(0))
             maxBorrowableAmountFromVault = vault.GetMaxBorrow();
 
-        return interestRateModel.getBorrowRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves);
+        uint currentTimestamp = block.timestamp;
+        uint timestampPrior = accrualBlockTimestamp;
+        uint deltaTime = currentTimestamp - timestampPrior;
+
+        (uint ratePerBlock,,) = interestRateModel.getBorrowRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        return ratePerBlock;
     }
 
     /**
@@ -64,10 +69,13 @@ contract CNumaLst is CNumaToken
         if (address(vault) != address(0))
             maxBorrowableAmountFromVault = vault.GetMaxBorrow();
 
+        uint currentTimestamp = block.timestamp;
+        uint timestampPrior = accrualBlockTimestamp;
+        uint deltaTime = currentTimestamp - timestampPrior;
 
         console.log("reserve factor");
         console.logUint(reserveFactorMantissa);
-        return interestRateModel.getSupplyRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves, reserveFactorMantissa);
+        return interestRateModel.getSupplyRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves, reserveFactorMantissa,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
     }
 
 
@@ -78,9 +86,8 @@ contract CNumaLst is CNumaToken
      */
     function accrueInterest() virtual override public returns (uint) {
         /* Remember the initial block number */
-        uint currentBlockNumber = getBlockNumber();
+        uint currentBlockNumber = getBlockNumber();       
         uint accrualBlockNumberPrior = accrualBlockNumber;
-
         /* Short-circuit accumulating 0 interest */
         if (accrualBlockNumberPrior == currentBlockNumber) {
             return NO_ERROR;
@@ -99,7 +106,7 @@ contract CNumaLst is CNumaToken
         uint borrowIndexPrior = borrowIndex;
 
         /* Calculate the current borrow interest rate */
-        uint borrowRateMantissa = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior);
+        (uint borrowRateMantissa,uint newMultiplier,uint newJumpMultiplier) = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior,block.timestamp - accrualBlockTimestamp,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
         require(borrowRateMantissa <= borrowRateMaxMantissa, "borrow rate is absurdly high");
 
         /* Calculate the number of blocks elapsed since the last accrual */
@@ -126,9 +133,13 @@ contract CNumaLst is CNumaToken
 
         /* We write the previously calculated values into storage */
         accrualBlockNumber = currentBlockNumber;
+        accrualBlockTimestamp = block.timestamp;
         borrowIndex = borrowIndexNew;
         totalBorrows = totalBorrowsNew;
         totalReserves = totalReservesNew;
+        
+        currentInterestRateMultiplier = newMultiplier;
+        currentInterestRateJumpMultiplier = newJumpMultiplier;
 
         /* We emit an AccrueInterest event */
         emit AccrueInterest(cashPrior, interestAccumulated, borrowIndexNew, totalBorrowsNew);

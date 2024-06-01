@@ -9,7 +9,7 @@ import "../interfaces/INuAsset.sol";
 import "../interfaces/INumaOracle.sol";
 import "../interfaces/IVaultManager.sol";
 
-
+import "hardhat/console.sol";
 
 /// @title NumaPrinter
 /// @notice Responsible for minting/burning Numa for nuAsset
@@ -40,6 +40,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     uint public deltaDebase = 24 hours;
 
     uint lastScale = 1000;
+    //uint lastCF = 20000;
     uint lastBlockTime;
 
 
@@ -208,9 +209,16 @@ contract NumaPrinter is Pausable, Ownable2Step {
         vaultManager.accrueInterests();
 
         // for same reasons, we need to update our synth scaling snapshot because synth supplies changes
-        getSynthScalingUpdate();
+        //getSynthScalingUpdate();       
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
         // mint
         _asset.mint(_recipient, _amount);
+
+        // update snapshot
+        //lastCF = vaultManager.getGlobalCF();
+        lastBlockTime = blockTime;
+        lastScale = scaleMemory;
+
         emit AssetMint(address(_asset), _amount);
     }
 
@@ -238,49 +246,60 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     function getSynthScaling() public view returns (uint,uint,uint)
     {
+        
         uint lastScaleMemory = lastScale;
         // synth scaling
         uint currentCF = vaultManager.getGlobalCF();
         uint blockTime = block.timestamp;
         if (currentCF < cf_critical)
-        {
+        {        
             // we need to debase
-            if (lastScaleMemory < BASE_1000)
+            console.logUint(lastScaleMemory);
+            //if (lastScaleMemory < BASE_1000)
             {
                 // we are currently in debase/rebase mode
 
-                if (blockTime > lastBlockTime + deltaDebase)
+                if (blockTime > (lastBlockTime + deltaDebase))
                 {
+                    console.logUint(blockTime);
+                    console.logUint(lastBlockTime);
                     // debase again
-                    uint ndebase = blockTime/(lastBlockTime + deltaDebase);
+                    uint ndebase = (blockTime - lastBlockTime)/(deltaDebase);
+                    console.logUint(ndebase);
                     ndebase = ndebase * debaseValue;
+                     console.logUint(ndebase);
                     if (lastScaleMemory > ndebase)
+                    {
                         lastScaleMemory = lastScaleMemory - ndebase;
                         if (lastScaleMemory < minimumScale)
                             lastScaleMemory = minimumScale;
+                    }
                     else
                         lastScaleMemory = minimumScale;
                 } 
 
             }
-            else
-            {
-                // start debase
-                lastScaleMemory = lastScaleMemory - debaseValue;
-            }
+            // else
+            // {
+            //     // start debase
+            //     lastScaleMemory = lastScaleMemory - debaseValue;
+            // }
         }
         else
         {
             if (lastScaleMemory < BASE_1000)
             {
+                 console.logUint(lastScaleMemory);
                 // need to rebase
-                if (blockTime > lastBlockTime + deltaRebase)
+                if (blockTime > (lastBlockTime + deltaRebase))
                 {
                     // rebase
-                    uint nrebase = blockTime/(lastBlockTime + deltaRebase);
+                    uint nrebase = (blockTime - lastBlockTime)/(deltaRebase);
+                     console.logUint(nrebase);
                     nrebase = nrebase * rebaseValue;
-
+                    console.logUint(nrebase);
                     lastScaleMemory = lastScaleMemory + nrebase;
+                      console.logUint(lastScaleMemory);
                     if (lastScaleMemory > BASE_1000)
                         lastScaleMemory = BASE_1000;
                 } 
@@ -396,10 +415,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
             numaPool
         );
 
-
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScalingUpdate();
-        // apply scale
-        nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
+       
         
         return (nuAssetIn,amountWithFee - _numaAmount);
     }
@@ -439,7 +455,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
     function getNbOfNumaFromAssetWithFee(address _nuAsset,
-        uint256 _nuAssetAmount
+        uint256 _nuAssetAmount,uint scaleOverride
     ) public returns (uint256, uint256) 
     {
 
@@ -450,7 +466,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         );
 
 
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScalingUpdate();
+        // (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScalingUpdate();
         // apply scale
         _output = (_output*scaleOverride)/BASE_1000;
 
@@ -509,6 +525,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 assetAmount;
         uint256 numaFee;
         // this function applies fees (amount = amount - fee)
+        
         (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset,_numaAmount);
 
         require(assetAmount >= _minNuAssetAmount,"min amount");
@@ -566,10 +583,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
       
         INuAsset nuAsset = INuAsset(_nuAsset);
       
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
         uint256 _output;
         uint256 amountToBurn;
+        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount,scaleOverride);
 
-        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount);
+      
         // burn fee
         _output -= amountToBurn;
         require (_output >= _minimumReceivedAmount,"minimum amount");
@@ -578,6 +597,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
         burnNuAssetFrom(nuAsset,msg.sender,_nuAssetAmount);
         // and mint
         minterContract.mint(_recipient,_output);
+
+        // update snapshot
+        //lastCF = vaultManager.getGlobalCF();
+        lastBlockTime = blockTime;
+        lastScale = scaleMemory;
+
+
+
         emit BurntFee(amountToBurn); // NUMA burnt (not minted)
         return (_output);
     }
@@ -595,13 +622,24 @@ contract NumaPrinter is Pausable, Ownable2Step {
         //uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
         // how much _nuAssetFrom are needed to get this amount of Numa
-        (uint256 nuAssetAmount,uint256 numaFee) = getNbOfnuAssetNeededForNuma(_nuAsset,_numaAmount);
 
+        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        (uint256 nuAssetAmount,uint256 numaFee) = getNbOfnuAssetNeededForNuma(_nuAsset,_numaAmount);
+        // apply scale
+        nuAssetAmount = (nuAssetAmount*BASE_1000)/scaleOverride;
         require(nuAssetAmount <= _maximumAmountIn,"max amount");
+
         // burn amount
         burnNuAssetFrom(nuAsset,msg.sender,nuAssetAmount);
              
         minterContract.mint(_recipient,_numaAmount);
+
+        
+        // update snapshot
+        //lastCF = vaultManager.getGlobalCF();
+        lastBlockTime = blockTime;
+        lastScale = scaleMemory;
+        
       
         emit BurntFee(numaFee); // NUMA burnt (not minted)
         return (_numaAmount);

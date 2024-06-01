@@ -42,7 +42,10 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         // Initialize block number and borrow index (block number mocks depend on comptroller being set)
         accrualBlockNumber = getBlockNumber();
-        borrowIndex = mantissaOne;
+        accrualBlockTimestamp = block.timestamp;
+        
+        currentInterestRateMultiplier = interestRateModel_.multiplierPerBlock();
+        currentInterestRateJumpMultiplier = interestRateModel_.jumpMultiplierPerBlock();
 
         // Set the interest rate model (depends on block number / borrow index)
         err = _setInterestRateModelFresh(interestRateModel_);
@@ -205,15 +208,23 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
      * @return The borrow interest rate per block, scaled by 1e18
      */
     function borrowRatePerBlock() virtual override external view returns (uint) {
-        return interestRateModel.getBorrowRate(getCashPrior(), totalBorrows, totalReserves);
+        uint currentTimestamp = block.timestamp;
+        uint timestampPrior = accrualBlockTimestamp;
+        uint deltaTime = currentTimestamp - timestampPrior;
+        (uint borrowRateMantissa,uint newMultiplier,uint newJumpMultiplier) = interestRateModel.getBorrowRate(getCashPrior(), totalBorrows, totalReserves,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        return borrowRateMantissa;
     }
 
     /**
      * @notice Returns the current per-block supply interest rate for this cToken
      * @return The supply interest rate per block, scaled by 1e18
      */
-    function supplyRatePerBlock() virtual override external view returns (uint) {
-        return interestRateModel.getSupplyRate(getCashPrior(), totalBorrows, totalReserves, reserveFactorMantissa);
+    function supplyRatePerBlock() virtual override external view returns (uint) 
+    {
+        uint currentTimestamp = block.timestamp;
+        uint timestampPrior = accrualBlockTimestamp;
+        uint deltaTime = currentTimestamp - timestampPrior;
+        return interestRateModel.getSupplyRate(getCashPrior(), totalBorrows, totalReserves, reserveFactorMantissa,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
     }
 
     /**
@@ -328,22 +339,19 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         /* Remember the initial block number */
         uint currentBlockNumber = getBlockNumber();
         uint accrualBlockNumberPrior = accrualBlockNumber;
-
         /* Short-circuit accumulating 0 interest */
         if (accrualBlockNumberPrior == currentBlockNumber) {
             return NO_ERROR;
         }
 
         /* Read the previous values out of storage */
-
-
         uint cashPrior = getCashPrior();
         uint borrowsPrior = totalBorrows;
         uint reservesPrior = totalReserves;
         uint borrowIndexPrior = borrowIndex;
 
         /* Calculate the current borrow interest rate */
-        uint borrowRateMantissa = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior);
+        (uint borrowRateMantissa,uint newMultiplier,uint newJumpMultiplier) = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior,block.timestamp - accrualBlockTimestamp,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
         require(borrowRateMantissa <= borrowRateMaxMantissa, "borrow rate is absurdly high");
 
         /* Calculate the number of blocks elapsed since the last accrual */
@@ -370,9 +378,12 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /* We write the previously calculated values into storage */
         accrualBlockNumber = currentBlockNumber;
+        accrualBlockTimestamp = block.timestamp;
         borrowIndex = borrowIndexNew;
         totalBorrows = totalBorrowsNew;
         totalReserves = totalReservesNew;
+        currentInterestRateMultiplier = newMultiplier;
+        currentInterestRateJumpMultiplier = newJumpMultiplier;
 
         /* We emit an AccrueInterest event */
         emit AccrueInterest(cashPrior, interestAccumulated, borrowIndexNew, totalBorrowsNew);
@@ -386,7 +397,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
      * @param mintAmount The amount of the underlying asset to supply
      */
     function mintInternal(uint mintAmount) internal nonReentrant {
-        accrueInterest();
+        //accrueInterest();
         // mintFresh emits the actual Mint event if successful and logs on errors, so we don't need to
         mintFresh(msg.sender, mintAmount);
     }

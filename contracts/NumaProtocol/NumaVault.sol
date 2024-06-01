@@ -401,7 +401,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         // CF will change so we need to update interest rates
         accrueInterestLending();
         if (address(printer) != address(0))
+        {
             printer.getSynthScalingUpdate();
+        }
+           
 
 
         // extract rewards if any

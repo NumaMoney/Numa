@@ -337,7 +337,8 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   await Vault1.setPrinter(moneyPrinter_address);
   // add moneyPrinter as a minter
   theMinter.addToMinters(moneyPrinter_address);
-
+  // add vault as a minter
+  theMinter.addToMinters(VAULT1_ADDRESS);
   // set printer as a NuUSD minter
 
   await nuUSD.connect(signer).grantRole(roleMinter, moneyPrinter_address);// owner is NuUSD deployer
@@ -425,9 +426,10 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
 
   return {
     signer, signer2, signer3,signer4, numaOwner, numa, NUMA_ETH_POOL_ADDRESS, nuUSD, NUUSD_ADDRESS: nuusd_address,NUBTC:nuBTC,NUBTC_ADDRESS: nubtc_address, moneyPrinter: moneyPrinter, MONEY_PRINTER_ADDRESS: moneyPrinter_address, nonfungiblePositionManager,
-    wethContract, oracleAddress, numaAmount, cardinality, factory,swapRouter,VM,snapshotGlobal,MINTER_ADDRESS
+    wethContract, oracleAddress, numaAmount, cardinality, factory,swapRouter,VM,Vault1,snapshotGlobal,MINTER_ADDRESS,nuAM
   };
 }
+
 
 
 

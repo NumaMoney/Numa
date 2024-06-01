@@ -34,7 +34,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     uint constant max_vault = 50;
     uint16 public constant BASE_1000 = 1000;
-    uint16 public constant MAX_CF = 10000;
+    uint16 public constant MAX_CF = 20000;
 
     // sell fee
     uint16 public sell_fee = 950; // 5%

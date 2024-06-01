@@ -1,8 +1,17 @@
+tests printer ok
+refaire tests vaults & lending
+revoir/documenter le code
+
+- new features stiive: frax machin, formule numa price (POL in pools)
+- doc, I need to confirm code from doc, give some feedbacks to doc and iterate on it with Stiive
+
+
 *** à documenter
 
      - lending, maxborrow, UR, prix utilisés, liquidations, leverage
      - printer: prix utilisés, scaling, blocking, security, les cf_warning, cf_critical
      - les différents CF, par exemple CFwithoutdebt pour blocking?
+     - formule security pour le debasing
      - quand est-ce qu'on appelle les accrueinterest
      - quand est-ce qu'on update le synthscaling
 
@@ -14,6 +23,12 @@
 
 - check debasing/rebasing and security last check
 
+-  j'update le snapshot avant devrais-le faire après l'operation?
+juste un get avant si necessaire et puis un recalcul et update apres
+
+
+pour les burn un get&update avant et un get&update apres
+pour les autres OP un update apres
 
 - liquidateborrow with too much
 
