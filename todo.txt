@@ -1,3 +1,9 @@
+*** frax
+
+ - specific code when kink = 0 or 1e18
+
+
+***
 tests printer ok
 refaire tests vaults & lending
 revoir/documenter le code

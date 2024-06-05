@@ -11,7 +11,7 @@ import "hardhat/console.sol";
   * @notice Version 3 includes Ownable and have updatable blocksPerYear.
   * @notice Version 4 moves blocksPerYear to the constructor.
   */
-contract JumpRateModelVariable is InterestRateModel, Ownable {
+contract JumpRateModelV4 is InterestRateModel, Ownable {
 
 
     event NewInterestParams(uint baseRatePerBlock, uint multiplierPerBlock, uint jumpMultiplierPerBlock, uint kink);
@@ -24,7 +24,7 @@ contract JumpRateModelVariable is InterestRateModel, Ownable {
     /**
      * @notice The multiplier of utilization rate that gives the slope of the interest rate
      */
-    //uint public multiplierPerBlock;
+    uint public multiplierPerBlock;
 
     /**
      * @notice The base interest rate which is the y-intercept when utilization rate is 0
@@ -34,7 +34,7 @@ contract JumpRateModelVariable is InterestRateModel, Ownable {
     /**
      * @notice The multiplierPerBlock after hitting a specified utilization point
      */
-    //uint public jumpMultiplierPerBlock;
+    uint public jumpMultiplierPerBlock;
 
     /**
      * @notice The utilization point at which the jump multiplier is applied
@@ -99,108 +99,26 @@ contract JumpRateModelVariable is InterestRateModel, Ownable {
         blocksPerYear = blocksPerYear_;
     }
 
-
-    function getFullUtilizationInterest(
-        uint256 _deltaTime,
-        uint256 _utilization,
-        uint64 _fullUtilizationInterest
-    ) internal view returns (uint64 _newFullUtilizationInterest) {
-
-        // TODO: contract parameters
-//         MIN_TARGET_UTIL The minimum utilization wherein no adjustment to full utilization and vertex rates occurs
-// MAX_TARGET_UTIL The maximum utilization wherein no adjustment to full utilization and vertex rates occurs
-
-// RATE_HALF_LIFE The half life parameter for interest rate adjustments
-
-// MIN_FULL_UTIL_RATE _minFullUtilizationRate The minimum interest rate at 100% utilization
-// MAX_FULL_UTIL_RATE _maxFullUtilizationRate The maximum interest rate at 100% utilization
-
-        uint MIN_TARGET_UTIL;
- uint MAX_TARGET_UTIL;
-
- uint RATE_HALF_LIFE;
-
- uint MIN_FULL_UTIL_RATE;
- uint MAX_FULL_UTIL_RATE;
-uint UTIL_PREC;
-
-        if (_utilization < MIN_TARGET_UTIL) {
-            // 18 decimals
-            uint256 _deltaUtilization = ((MIN_TARGET_UTIL - _utilization) * 1e18) / MIN_TARGET_UTIL;
-            // 36 decimals
-            uint256 _decayGrowth = (RATE_HALF_LIFE * 1e36) + (_deltaUtilization * _deltaUtilization * _deltaTime);
-            // 18 decimals
-            _newFullUtilizationInterest = uint64((_fullUtilizationInterest * (RATE_HALF_LIFE * 1e36)) / _decayGrowth);
-        } else if (_utilization > MAX_TARGET_UTIL) {
-            // 18 decimals
-            uint256 _deltaUtilization = ((_utilization - MAX_TARGET_UTIL) * 1e18) / (UTIL_PREC - MAX_TARGET_UTIL);
-            // 36 decimals
-            uint256 _decayGrowth = (RATE_HALF_LIFE * 1e36) + (_deltaUtilization * _deltaUtilization * _deltaTime);
-            // 18 decimals
-            _newFullUtilizationInterest = uint64((_fullUtilizationInterest * _decayGrowth) / (RATE_HALF_LIFE * 1e36));
-        } else {
-            _newFullUtilizationInterest = _fullUtilizationInterest;
-        }
-        if (_newFullUtilizationInterest > MAX_FULL_UTIL_RATE) {
-            _newFullUtilizationInterest = uint64(MAX_FULL_UTIL_RATE);
-        } else if (_newFullUtilizationInterest < MIN_FULL_UTIL_RATE) {
-            _newFullUtilizationInterest = uint64(MIN_FULL_UTIL_RATE);
-        }
-    }
-
-
     /**
      * @notice Calculates the current borrow rate per block, with the error code expected by the market
      * @param cash The amount of cash in the market
      * @param borrows The amount of borrows in the market
      * @param reserves The amount of reserves in the market
-     * @return The borrow rate percentage per block as a mantissa (scaled by 1e18)
+     * @param deltaTime deltaTime since last update
+     * @param _OldfullUtilizationRate fullUtilizationRate at last update
+     * @return newRatePerBlock The borrow rate percentage per block as a mantissa (scaled by 1e18)
      */
-    function getBorrowRate(uint cash, uint borrows, uint reserves,uint deltaTime,uint currentInterestRateMultiplier,uint currentInterestRateJumpMultiplier) public override view returns (uint,uint,uint) 
+    function getBorrowRate(uint cash, uint borrows, uint reserves,uint deltaTime,uint _OldfullUtilizationRate) public override view returns (uint newRatePerBlock,uint) 
     {
         uint util = utilizationRate(cash, borrows, reserves);
 
-        // compute current MaxRate/VertexRate from multiplierPerBlock/jumpMultiplierPerBlock
-        // (vertexRate - baseRate)/kink = multiplierPerBlock
-        // (maxRate - VertexRate)/(1 - kink) = jumpMultiplierPerBlock
-        uint64 vertexRatePerBlock = uint64(kink * multiplierPerBlock + baseRatePerBlock);
-        uint64 maxRatePerBlock = uint64(jumpMultiplierPerBlock * (1-kink)) +vertexRatePerBlock;
-        // compute vertex_rate_percent from multiplier and jumpMultiplier
-        // TODO: should be done at init because it's immutable
-        // uint256 _vertexInterest = (((_newmaxRatePerBlock - ZERO_UTIL_RATE) * VERTEX_RATE_PERCENT) / RATE_PREC) +
-        //     ZERO_UTIL_RATE;
-        // vertexRatePerBlock = baseRatePerBlock + (maxRatePerBlock - baseRatePerBlock)* VERTEX_RATE_PERCENT;
-        // --> VERTEX_RATE_PERCENT = (vertexRatePerBlock - baseRatePerBlock)/(maxRatePerBlock - baseRatePerBlock);
-        // --> VERTEX_RATE_PERCENT = kink * multiplierPerBlock/(jumpMultiplierPerBlock * (1-kink) + kink * multiplierPerBlock)
-        uint VERTEX_RATE_PERCENT = kink * multiplierPerBlock/(jumpMultiplierPerBlock * (1-kink) + kink * multiplierPerBlock);
-
-        // DISABLED FOR NOW
-        uint _newmaxRatePerBlock = maxRatePerBlock;
-        //uint _newmaxRatePerBlock = getFullUtilizationInterest(deltaTime, util, maxRatePerBlock);
-
-
-
-        // _vertexInterest is calculated as the percentage of the delta between min and max interest
-        // uint256 _vertexInterest = (((_newmaxRatePerBlock - ZERO_UTIL_RATE) * VERTEX_RATE_PERCENT) / RATE_PREC) +
-        //     ZERO_UTIL_RATE;
-        uint _newVertexRatePerBlock = baseRatePerBlock + (maxRatePerBlock - baseRatePerBlock)* VERTEX_RATE_PERCENT;
-
-        // then deduce multiplierPerBlock & jumpMultiplierPerBlock
-        uint newMultiplierPerBlock = (_newVertexRatePerBlock - baseRatePerBlock)/kink;
-        uint newJumpMultiplierPerBlock = (_newmaxRatePerBlock - _newVertexRatePerBlock)/(1 - kink);
-
-        uint newRate;
         if (util <= kink) {
-            newRate = (util * newMultiplierPerBlock / 1e18) + baseRatePerBlock;
+            newRatePerBlock = (util * multiplierPerBlock / 1e18) + baseRatePerBlock;
         } else {
-           
-            uint normalRate = (kink * newMultiplierPerBlock / 1e18) + baseRatePerBlock;
+            uint normalRate = (kink * multiplierPerBlock / 1e18) + baseRatePerBlock;
             uint excessUtil = util - kink;
-      
-
-            newRate = (excessUtil * newJumpMultiplierPerBlock/ 1e18) + normalRate;
+            newRatePerBlock = (excessUtil * jumpMultiplierPerBlock/ 1e18) + normalRate;
         }
-        return (newRate,newMultiplierPerBlock,newJumpMultiplierPerBlock);
     }
 
     /**
@@ -211,9 +129,9 @@ uint UTIL_PREC;
      * @param reserveFactorMantissa The current reserve factor for the market
      * @return The supply rate percentage per block as a mantissa (scaled by 1e18)
      */
-    function getSupplyRate(uint cash, uint borrows, uint reserves, uint reserveFactorMantissa,uint deltaTime,uint currentInterestRateMultiplier,uint currentInterestRateJumpMultiplier) public override view returns (uint) {
+    function getSupplyRate(uint cash, uint borrows, uint reserves, uint reserveFactorMantissa,uint deltaTime,uint fullUtilizationRate) public override view returns (uint) {
         uint oneMinusReserveFactor = 1e18 - reserveFactorMantissa;
-        (uint borrowRate,,) = getBorrowRate(cash, borrows, reserves,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        (uint borrowRate,) = getBorrowRate(cash, borrows, reserves,deltaTime,fullUtilizationRate);
         uint rateToPool = borrowRate * oneMinusReserveFactor / 1e18;
         console.log("supply rate");
         console.logUint(rateToPool);

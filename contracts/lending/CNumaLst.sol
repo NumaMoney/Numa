@@ -21,6 +21,7 @@ contract CNumaLst is CNumaToken
                 string memory name_,
                 string memory symbol_,
                 uint8 decimals_,
+                uint fullUtilizationRate_,
                 address payable admin_,
                 address _vault)
                 CNumaToken(underlying_,
@@ -30,6 +31,7 @@ contract CNumaLst is CNumaToken
                 name_,
                 symbol_,
                 decimals_,
+                fullUtilizationRate_,
                 admin_,
                 _vault)
     {
@@ -54,7 +56,7 @@ contract CNumaLst is CNumaToken
         uint timestampPrior = accrualBlockTimestamp;
         uint deltaTime = currentTimestamp - timestampPrior;
 
-        (uint ratePerBlock,,) = interestRateModel.getBorrowRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        (uint ratePerBlock,) = interestRateModel.getBorrowRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves,deltaTime,fullUtilizationRate);
         return ratePerBlock;
     }
 
@@ -75,7 +77,7 @@ contract CNumaLst is CNumaToken
 
         console.log("reserve factor");
         console.logUint(reserveFactorMantissa);
-        return interestRateModel.getSupplyRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves, reserveFactorMantissa,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        return interestRateModel.getSupplyRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves, reserveFactorMantissa,deltaTime,fullUtilizationRate);
     }
 
 
@@ -106,7 +108,7 @@ contract CNumaLst is CNumaToken
         uint borrowIndexPrior = borrowIndex;
 
         /* Calculate the current borrow interest rate */
-        (uint borrowRateMantissa,uint newMultiplier,uint newJumpMultiplier) = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior,block.timestamp - accrualBlockTimestamp,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        (uint borrowRateMantissa,uint newfullUtilizationRate) = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior,block.timestamp - accrualBlockTimestamp,fullUtilizationRate);
         require(borrowRateMantissa <= borrowRateMaxMantissa, "borrow rate is absurdly high");
 
         /* Calculate the number of blocks elapsed since the last accrual */
@@ -126,20 +128,27 @@ contract CNumaLst is CNumaToken
         uint totalBorrowsNew = interestAccumulated + borrowsPrior;
         uint totalReservesNew = mul_ScalarTruncateAddUInt(Exp({mantissa: reserveFactorMantissa}), interestAccumulated, reservesPrior);
         uint borrowIndexNew = mul_ScalarTruncateAddUInt(simpleInterestFactor, borrowIndexPrior, borrowIndexPrior);
-
+        console.log("borrowIndexNew");
+        console.logUint(borrowIndexNew);
+               console.logUint(borrowIndexPrior);
         /////////////////////////
         // EFFECTS & INTERACTIONS
         // (No safe failures beyond this point)
 
         /* We write the previously calculated values into storage */
+        console.logUint(currentBlockNumber);
+        console.logUint(accrualBlockNumber);
         accrualBlockNumber = currentBlockNumber;
         accrualBlockTimestamp = block.timestamp;
         borrowIndex = borrowIndexNew;
         totalBorrows = totalBorrowsNew;
         totalReserves = totalReservesNew;
         
-        currentInterestRateMultiplier = newMultiplier;
-        currentInterestRateJumpMultiplier = newJumpMultiplier;
+        if (fullUtilizationRate != newfullUtilizationRate)
+        {
+            emit UpdateRate(fullUtilizationRate,newfullUtilizationRate);
+            fullUtilizationRate = newfullUtilizationRate;
+        }
 
         /* We emit an AccrueInterest event */
         emit AccrueInterest(cashPrior, interestAccumulated, borrowIndexNew, totalBorrowsNew);

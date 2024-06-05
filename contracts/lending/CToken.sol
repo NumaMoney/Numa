@@ -28,7 +28,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
                         uint initialExchangeRateMantissa_,
                         string memory name_,
                         string memory symbol_,
-                        uint8 decimals_) public {
+                        uint8 decimals_,
+                        uint fullUtilizationRate_) public {
         require(msg.sender == admin, "only admin may initialize the market");
         require(accrualBlockNumber == 0 && borrowIndex == 0, "market may only be initialized once");
 
@@ -42,11 +43,10 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         // Initialize block number and borrow index (block number mocks depend on comptroller being set)
         accrualBlockNumber = getBlockNumber();
+        borrowIndex = mantissaOne;
         accrualBlockTimestamp = block.timestamp;
         
-        currentInterestRateMultiplier = interestRateModel_.multiplierPerBlock();
-        currentInterestRateJumpMultiplier = interestRateModel_.jumpMultiplierPerBlock();
-
+        fullUtilizationRate = fullUtilizationRate_;
         // Set the interest rate model (depends on block number / borrow index)
         err = _setInterestRateModelFresh(interestRateModel_);
         require(err == NO_ERROR, "setting interest rate model failed");
@@ -211,7 +211,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         uint currentTimestamp = block.timestamp;
         uint timestampPrior = accrualBlockTimestamp;
         uint deltaTime = currentTimestamp - timestampPrior;
-        (uint borrowRateMantissa,uint newMultiplier,uint newJumpMultiplier) = interestRateModel.getBorrowRate(getCashPrior(), totalBorrows, totalReserves,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        (uint borrowRateMantissa,) = interestRateModel.getBorrowRate(getCashPrior(), totalBorrows, totalReserves,deltaTime,fullUtilizationRate);
         return borrowRateMantissa;
     }
 
@@ -224,7 +224,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         uint currentTimestamp = block.timestamp;
         uint timestampPrior = accrualBlockTimestamp;
         uint deltaTime = currentTimestamp - timestampPrior;
-        return interestRateModel.getSupplyRate(getCashPrior(), totalBorrows, totalReserves, reserveFactorMantissa,deltaTime,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        return interestRateModel.getSupplyRate(getCashPrior(), totalBorrows, totalReserves, reserveFactorMantissa,deltaTime,fullUtilizationRate);
     }
 
     /**
@@ -275,6 +275,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
          *  recentBorrowBalance = borrower.borrowBalance * market.borrowIndex / borrower.borrowIndex
          */
         uint principalTimesIndex = borrowSnapshot.principal * borrowIndex;
+        console.log("CHECK");
+        console.logUint(borrowSnapshot.interestIndex);
         return principalTimesIndex / borrowSnapshot.interestIndex;
     }
 
@@ -351,7 +353,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         uint borrowIndexPrior = borrowIndex;
 
         /* Calculate the current borrow interest rate */
-        (uint borrowRateMantissa,uint newMultiplier,uint newJumpMultiplier) = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior,block.timestamp - accrualBlockTimestamp,currentInterestRateMultiplier,currentInterestRateJumpMultiplier);
+        (uint borrowRateMantissa,uint newfullUtilizationRate) = interestRateModel.getBorrowRate(cashPrior, borrowsPrior, reservesPrior,block.timestamp - accrualBlockTimestamp,fullUtilizationRate);
         require(borrowRateMantissa <= borrowRateMaxMantissa, "borrow rate is absurdly high");
 
         /* Calculate the number of blocks elapsed since the last accrual */
@@ -382,8 +384,11 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         borrowIndex = borrowIndexNew;
         totalBorrows = totalBorrowsNew;
         totalReserves = totalReservesNew;
-        currentInterestRateMultiplier = newMultiplier;
-        currentInterestRateJumpMultiplier = newJumpMultiplier;
+        if (fullUtilizationRate != newfullUtilizationRate)
+        {
+            emit UpdateRate(fullUtilizationRate,newfullUtilizationRate);
+            fullUtilizationRate = newfullUtilizationRate;
+        }
 
         /* We emit an AccrueInterest event */
         emit AccrueInterest(cashPrior, interestAccumulated, borrowIndexNew, totalBorrowsNew);
@@ -397,7 +402,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
      * @param mintAmount The amount of the underlying asset to supply
      */
     function mintInternal(uint mintAmount) internal nonReentrant {
-        //accrueInterest();
+        accrueInterest();
         // mintFresh emits the actual Mint event if successful and logs on errors, so we don't need to
         mintFresh(msg.sender, mintAmount);
     }

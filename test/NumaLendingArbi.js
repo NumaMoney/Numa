@@ -31,7 +31,10 @@ const roleMinter = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
 const epsilon = ethers.parseEther('0.000001');
 const epsilon2 = ethers.parseEther('0.00001');
 
-
+//let blocksPerYear = "2628000";// 12/sec to be confirmed
+const blocksPerYear = "2102400";// eth values for test
+let maxUtilizationRatePerYear = '1000000000000000000';//100%
+let useVariableIRM = true;
 
 
 // ********************* Numa lending test using arbitrum fork for chainlink *************************
@@ -99,7 +102,7 @@ describe('NUMA LENDING', function () {
   let numaCollateralFactor = 0.8;
 
   let vaultInitialBalance = ethers.parseEther("100");
-  let usersInitialBalance = ethers.parseEther("5");
+  let usersInitialBalance = ethers.parseEther("10");
 
 
 
@@ -213,8 +216,8 @@ describe('NUMA LENDING', function () {
     console.log('nuAssetManager address: ', NUAM_ADDRESS);
 
     // register nuAsset
-    await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,86400);
-    await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,86400);
+    await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,16*86400);// 16 days for test
+    await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,16*86400);// 16 days for test
 
 
     // *********************** vaultManager **********************************
@@ -304,32 +307,62 @@ describe('NUMA LENDING', function () {
     console.log('comptroller._setPriceOracle Done');
 
     // INTEREST RATE MODEL
-    let baseRatePerYear = '20000000000000000';
-    let multiplierPerYear = '180000000000000000';
-    let jumpMultiplierPerYear = '4000000000000000000';
-    let kink = '800000000000000000';
+    let maxUtilizationRatePerBlock = Math.floor(maxUtilizationRatePerYear/blocksPerYear);
 
-    //let blocksPerYear = "2628000";// 12/sec to be confirmed
-    const blocksPerYear = "2102400";// eth values for test
-    rateModel = await ethers.deployContract("JumpRateModelVariable",
-    [blocksPerYear,baseRatePerYear,multiplierPerYear,jumpMultiplierPerYear,kink,await owner.getAddress(),"numaRateModel"]);
-  
+    if (useVariableIRM)
+    {
+      let _vertexUtilization = '800000000000000000';// 80%
+      let _vertexRatePercentOfDelta = '500000000000000000';// 50%
+      let _minUtil = '400000000000000000';// 40%
+      let _maxUtil ='600000000000000000';// 60%
+      let _zeroUtilizationRate = '20000000000000000';//2%
+      let _minFullUtilizationRate = '1000000000000000000';//100%
+      let _maxFullUtilizationRate = '5000000000000000000';//500%
+      // 
+      // Interest Rate Half-Life: The time it takes for the interest to halve when Utilization is 0%.
+      // This is the speed at which the interest rate adjusts.
+      // In the currently available Rate Calculator, the Interest Rate Half-Life is 12 hours.
+
+      let _rateHalfLife = 12*3600;
+      // perblock
+      let _zeroUtilizationRatePerBlock = Math.floor(_zeroUtilizationRate/blocksPerYear);
+      let _minFullUtilizationRatePerBlock = Math.floor(_minFullUtilizationRate/blocksPerYear);
+      let _maxFullUtilizationRatePerBlock = Math.floor(_maxFullUtilizationRate/blocksPerYear);
+
+
+      rateModel = await ethers.deployContract("JumpRateModelVariable",
+      ["numaRateModel",_vertexUtilization,_vertexRatePercentOfDelta,_minUtil,_maxUtil,
+      _zeroUtilizationRatePerBlock,_minFullUtilizationRatePerBlock,_maxFullUtilizationRatePerBlock,
+      _rateHalfLife,await owner.getAddress()]);
+
+
+    }
+    else
+    {
+      let baseRatePerYear = '20000000000000000';
+      let multiplierPerYear = '180000000000000000';
+      let jumpMultiplierPerYear = '4000000000000000000';
+      let kink = '800000000000000000';
+      rateModel = await ethers.deployContract("JumpRateModelV4",
+      [blocksPerYear,baseRatePerYear,multiplierPerYear,jumpMultiplierPerYear,kink,await owner.getAddress(),"numaRateModel"]);
+    }
 
     await rateModel.waitForDeployment();
     JUMPRATEMODELV2_ADDRESS = await rateModel.getAddress();
     console.log('rate model address: ', JUMPRATEMODELV2_ADDRESS);
 
+    
     // CTOKENS
     cReth = await ethers.deployContract("CNumaLst",
     [rETH_ADDRESS,comptroller,rateModel,'200000000000000000000000000',
-    'rEth CToken','crEth',8,await owner.getAddress(),VAULT1_ADDRESS]);
+    'rEth CToken','crEth',8,maxUtilizationRatePerBlock,await owner.getAddress(),VAULT1_ADDRESS]);
     await cReth.waitForDeployment();
     CRETH_ADDRESS = await cReth.getAddress();
     console.log('crEth address: ', CRETH_ADDRESS);
 
     cNuma = await ethers.deployContract("CNumaToken",
     [numa_address,comptroller,rateModel,'200000000000000000000000000',
-    'numa CToken','cNuma',8,await owner.getAddress(),VAULT1_ADDRESS]);
+    'numa CToken','cNuma',8,maxUtilizationRatePerBlock,await owner.getAddress(),VAULT1_ADDRESS]);
     await cNuma.waitForDeployment();
     CNUMA_ADDRESS = await cNuma.getAddress();
     console.log('cNuma address: ', CNUMA_ADDRESS);
@@ -352,15 +385,6 @@ describe('NUMA LENDING', function () {
     await comptroller._setCloseFactor(ethers.parseEther("0.5").toString());
   
     
-    // REMOVE IR
-    let IM_address = await cReth.interestRateModel();
-    let IMV2 = await ethers.getContractAt("JumpRateModelVariable", IM_address);
-    // await IMV2.updateJumpRateModel(ethers.parseEther('0.02'),ethers.parseEther('0.18')
-    // ,ethers.parseEther('4'),ethers.parseEther('0.8'));
-  
-    console.log("cancelling interest rates");
-    await IMV2.updateJumpRateModel(ethers.parseEther('0'),ethers.parseEther('0')
-    ,ethers.parseEther('0'),ethers.parseEther('1'));
 
     
   }
@@ -488,7 +512,7 @@ describe('NUMA LENDING', function () {
       it('Supply Numa, Borrow rEth from vault only', async () => 
       {
         
-        let numaPriceBefore = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
 
         
         let numasupplyamount = ethers.parseEther("200000");
@@ -518,7 +542,7 @@ describe('NUMA LENDING', function () {
         let debt = await Vault1.getDebt();
         expect(debt).to.equal(notTooMuchrEth);
 
-        let numaPriceAfter = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
 
         // price
         expect(numaPriceAfter).to.equal(numaPriceBefore);
@@ -1020,16 +1044,15 @@ describe('NUMA LENDING', function () {
         it('Supply&redeem rEth from vault', async () => 
         {
           let rethBalanceBefore = await rEth_contract.balanceOf(await userA.getAddress());
-          let crethBalanceBefore = await cReth.balanceOf(await userA.getAddress());
-          let rethSupplyAmount = ethers.parseEther("3");
+          
+          let rethSupplyAmount = ethers.parseEther("9");
           let numasupplyamount = ethers.parseEther("200000");
 
           await supplyNuma(userB,numasupplyamount);
           await supplyReth(userA,rethSupplyAmount);
 
           let rethBalanceAfter = await rEth_contract.balanceOf(await userA.getAddress());
-          let crethBalanceAfter = await cReth.balanceOf(await userA.getAddress());
-          
+           
 
           expect(rethBalanceAfter).to.equal(rethBalanceBefore - rethSupplyAmount); 
 
@@ -1050,17 +1073,21 @@ describe('NUMA LENDING', function () {
           let vaultDebt = await Vault1.getDebt();
           expect(vaultDebt).to.equal(0); 
           
-               
-          await cReth.connect(userA).redeemUnderlying(rethSupplyAmount + BigInt(50000000));
+          let rethBalanceBeforeRedeem = await rEth_contract.balanceOf(await userA.getAddress());
+          await cReth.connect(userA).redeemUnderlying(rethSupplyAmount);// + BigInt(50000000));
     
          
           let rethBalanceAfterRedeem = await rEth_contract.balanceOf(await userA.getAddress());
+          expect(rethBalanceAfterRedeem - rethBalanceBeforeRedeem).to.be.closeTo(rethSupplyAmount,epsilon);
+
           let crethBalanceAfterRedeem = await cReth.balanceOf(await userA.getAddress());
 
           expect(crethBalanceAfterRedeem).to.be.closeTo(0,epsilon); 
-          expect(rethBalanceAfterRedeem).to.be.closeTo(rethBalanceBefore,epsilon); 
+          //expect(rethBalanceAfterRedeem).to.be.closeTo(rethBalanceBefore,epsilon); 
+
+          //expect(rethBalanceAfterRedeem).to.equal(rethBalanceBefore); 
           vaultDebt = await Vault1.getDebt();
-          expect(vaultDebt).to.equal(rethSupplyAmount - rethBalancecreth); 
+          expect(vaultDebt).to.equal((rethBalanceAfterRedeem - rethBalanceBeforeRedeem) - rethBalancecreth); 
 
         });
 
@@ -1149,25 +1176,55 @@ describe('NUMA LENDING', function () {
 
       it('IR supply&borrow lst borrowers no lenders vault < CF', async () => 
       {
-
-        let IM_address = await cReth.interestRateModel();
-        let IMV2 = await ethers.getContractAt("JumpRateModelVariable", IM_address);
-        // uint baseRatePerYear, uint multiplierPerYear, uint jumpMultiplierPerYear, uint kink_
-
         let baseRatePerYear = ethers.parseEther('0');
         let multiplierPerYear = ethers.parseEther('0.02');
         let jumpMultiplierPerYear = ethers.parseEther('0');
         let kink = ethers.parseEther('1.0');
-        await IMV2.updateJumpRateModel(baseRatePerYear,multiplierPerYear
-        ,jumpMultiplierPerYear,kink);
 
+        if (useVariableIRM) 
+        {
+          let _vertexUtilization = '1000000000000000000';// 100%
+          let _vertexRatePercentOfDelta = '1000000000000000000';// 100%
+          let _minUtil = '0';// 0%
+          let _maxUtil = '1000000000000000000';// 100%
+          let _zeroUtilizationRate = '0';//0%
+          let _minFullUtilizationRate = multiplierPerYear;//multiplierPerYear
+          let _maxFullUtilizationRate = multiplierPerYear;//multiplierPerYear
+          // 
+          // Interest Rate Half-Life: The time it takes for the interest to halve when Utilization is 0%.
+          // This is the speed at which the interest rate adjusts.
+          // In the currently available Rate Calculator, the Interest Rate Half-Life is 12 hours.
+    
+          let _rateHalfLife = 12 * 3600;
+          // perblock
+          let _zeroUtilizationRatePerBlock = Math.floor(_zeroUtilizationRate / blocksPerYear);
+          let _minFullUtilizationRatePerBlock = Math.floor(Number(_minFullUtilizationRate) / blocksPerYear);
+          let _maxFullUtilizationRatePerBlock = Math.floor(Number(_maxFullUtilizationRate) / blocksPerYear);
+    
+    
+          let rateModel2 = await ethers.deployContract("JumpRateModelVariable",
+            ["numaRateModel", _vertexUtilization, _vertexRatePercentOfDelta, _minUtil, _maxUtil,
+              _zeroUtilizationRatePerBlock, _minFullUtilizationRatePerBlock, _maxFullUtilizationRatePerBlock,
+              _rateHalfLife, await owner.getAddress()]);
+    
+          await cReth._setInterestRateModel(rateModel2);
+          await cNuma._setInterestRateModel(rateModel2);
+    
+        }
+        else
+        {
+          let IM_address = await cReth.interestRateModel();
+          let IMV2 = await ethers.getContractAt("JumpRateModelV4", IM_address);
+          await IMV2.updateJumpRateModel(baseRatePerYear,multiplierPerYear
+          ,jumpMultiplierPerYear,kink);
 
+        }
 
         const ethMantissa = 1e18;
         const blocksPerDay = (4 * 60 * 24);
         const daysPerYear = (365);
 
-        let blocksPerYear = daysPerYear*blocksPerDay;
+        // let blocksPerYear = daysPerYear*blocksPerDay;
         
         let supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
         let borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
@@ -1178,7 +1235,7 @@ describe('NUMA LENDING', function () {
         console.log(`Supply APY for ETH ${supplyApy} %`);
         console.log(`Borrow APY for ETH ${borrowApy} %`);
         console.log("*************************");
-        let numaPriceBefore = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
 
         let numasupplyamount = ethers.parseEther("200000");
         // userB supply numa      
@@ -1204,17 +1261,17 @@ describe('NUMA LENDING', function () {
         let borrowRate = Number(baseRatePerYear)/blocksPerYear + UR * Number(multiplierPerYear)/blocksPerYear;
         let supplyRate = UR * borrowRate;
        
-        // 
-        // console.log("borrow rate computed");
-        // console.log((borrowRate));
-        // console.log((supplyRate));
+        
+        console.log("borrow rate computed");
+        console.log((borrowRate));
+        console.log((supplyRate));
 
 
-        // console.log("borrow rate from contracts");
-        // console.log((borrowRatePerBlock));
-        // console.log((supplyRatePerBlock));
-        expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
-        expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
+        console.log("borrow rate from contracts");
+        console.log((borrowRatePerBlock));
+        console.log((supplyRatePerBlock));
+        expect(borrowRatePerBlock).to.equal(Math.floor(borrowRate));
+        expect(supplyRatePerBlock).to.equal(Math.floor(supplyRate));
       
         supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
         borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
@@ -1236,8 +1293,8 @@ describe('NUMA LENDING', function () {
         supplyRate = UR * borrowRate;
        
  
-        expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
-        expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
+        expect(borrowRatePerBlock).to.equal(Math.floor(borrowRate));
+        expect(supplyRatePerBlock).to.equal(Math.floor(supplyRate));
       
         supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
         borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
@@ -1261,8 +1318,8 @@ describe('NUMA LENDING', function () {
          supplyRate = UR * borrowRate;
         
   
-         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
-         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
+         expect(borrowRatePerBlock).to.equal(Math.floor(borrowRate));
+         expect(supplyRatePerBlock).to.equal(Math.floor(supplyRate));
        
          supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
          borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
@@ -1271,12 +1328,55 @@ describe('NUMA LENDING', function () {
  
          console.log(`Utilization rate ${UR*100} %`);
          console.log("*************************");
-         // change kink & jump
-         jumpMultiplierPerYear = ethers.parseEther('3');
-         kink = ethers.parseEther('0.01');
-         await IMV2.updateJumpRateModel(baseRatePerYear,multiplierPerYear
-         ,jumpMultiplierPerYear,kink);
+          // change kink & jump
+          jumpMultiplierPerYear = ethers.parseEther('3');
+          kink = ethers.parseEther('0.01');
+         if (useVariableIRM) 
+         {
+          let _vertexUtilization = kink;
+          //let _vertexRatePercentOfDelta = kink * multiplierPerYear;// 100%
+          let _minUtil = '0';// 0%
+          let _maxUtil = '1000000000000000000';// 100%
+          let _zeroUtilizationRate = '0';//0%
+          //let maxRate = jumpMultiplierPerYear * (ethers.parseEther('1') - kink)/(ethers.parseEther('1') - _vertexRatePercentOfDelta);
 
+          // to match jumpratemodelV2 and following test we divide multiplierPerYear by kink
+          let multiplierPerYearModified = Number(multiplierPerYear)/ethers.formatEther(kink);
+          console.log(multiplierPerYearModified);
+          let maxRate = (kink * BigInt(multiplierPerYearModified.toString()) + (ethers.parseEther('1') - kink) * jumpMultiplierPerYear)/ethers.parseEther('1');
+          let _vertexRatePercentOfDelta = (kink * BigInt(multiplierPerYearModified.toString()))/maxRate;
+          console.log(maxRate);
+          console.log(_vertexRatePercentOfDelta);
+          let _minFullUtilizationRate = maxRate;
+          let _maxFullUtilizationRate = maxRate;
+          // 
+          // Interest Rate Half-Life: The time it takes for the interest to halve when Utilization is 0%.
+          // This is the speed at which the interest rate adjusts.
+          // In the currently available Rate Calculator, the Interest Rate Half-Life is 12 hours.
+    
+          let _rateHalfLife = 12 * 3600;
+          // perblock
+          let _zeroUtilizationRatePerBlock = Math.floor(_zeroUtilizationRate / blocksPerYear);
+          let _minFullUtilizationRatePerBlock = Math.floor(Number(_minFullUtilizationRate) / blocksPerYear);
+          let _maxFullUtilizationRatePerBlock = Math.floor(Number(_maxFullUtilizationRate) / blocksPerYear);
+    
+    
+          let rateModel2 = await ethers.deployContract("JumpRateModelVariable",
+            ["numaRateModel", _vertexUtilization, _vertexRatePercentOfDelta, _minUtil, _maxUtil,
+              _zeroUtilizationRatePerBlock, _minFullUtilizationRatePerBlock, _maxFullUtilizationRatePerBlock,
+              _rateHalfLife, await owner.getAddress()]);
+    
+          await cReth._setInterestRateModel(rateModel2);
+          await cNuma._setInterestRateModel(rateModel2);
+         }
+         else
+         {
+          let IM_address = await cReth.interestRateModel();
+          let IMV2 = await ethers.getContractAt("JumpRateModelV4", IM_address);
+         
+           await IMV2.updateJumpRateModel(baseRatePerYear,multiplierPerYear
+           ,jumpMultiplierPerYear,kink);
+         }
          // change UR
          await Vault1.setMaxBorrow(vaultInitialBalance/BigInt(8));
          supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
@@ -1285,14 +1385,29 @@ describe('NUMA LENDING', function () {
  
          cashAvailable = await Vault1.GetMaxBorrow();
          UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+         console.log(UR);
+
+
+
+          console.log(ethers.parseEther(UR.toString())) ;
+          
+          // in V2 multiplierPerBlock = multiplierPerYear/(BlockPerYear*kink)
+          let multiplierPerBlock =  Number(multiplierPerYear)/(blocksPerYear* ethers.formatEther(kink));
+          let normalRate = Number(baseRatePerYear)/blocksPerYear + Number(ethers.formatEther(kink)) * multiplierPerBlock;
+          let excessUtil = UR.toString() - ethers.formatEther(kink);
  
-         borrowRate = Number(baseRatePerYear)/blocksPerYear + UR * Number(multiplierPerYear)/blocksPerYear;
+          borrowRate = normalRate  + Number(excessUtil) * Number(jumpMultiplierPerYear)/blocksPerYear;
+           
+  
+         
+       
+
          supplyRate = UR * borrowRate;
         
   
-         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),epsilon);
-         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),epsilon);
-       
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),20000);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),20000);
+  
          supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
          borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
          console.log(`Supply APY for ETH ${supplyApy} %`);
@@ -1315,22 +1430,339 @@ describe('NUMA LENDING', function () {
     
       it('variable interest rates', async () => 
       {
+        if (useVariableIRM) 
+        {
+          // 
+          await Vault1.setOracle(VO_ADDRESScustomHeartbeat);
+          let _vertexUtilization = '800000000000000000';// 80%
+          let _vertexRatePercentOfDelta = '500000000000000000';// 50%
+          let _minUtil = '500000000000000000';// 50%
+          let _maxUtil = '700000000000000000';// 70%
+          let _zeroUtilizationRate = '20000000000000000';//2%
+          // for min we use same value as specified in token contracts
+          // because I guess initial value should be minimum interest rate at max utilization
+          let _minFullUtilizationRate = maxUtilizationRatePerYear;          
+          let _maxFullUtilizationRate ='2000000000000000000';// 200 %
+          // 
+          // Interest Rate Half-Life: The time it takes for the interest to halve when Utilization is 0%.
+          // This is the speed at which the interest rate adjusts.
+          // In the currently available Rate Calculator, the Interest Rate Half-Life is 12 hours.
+    
+          let _rateHalfLife = 6 * 3600;
+          // perblock
+          let _zeroUtilizationRatePerBlock = Math.floor(_zeroUtilizationRate / blocksPerYear);
+          let _minFullUtilizationRatePerBlock = Math.floor(Number(_minFullUtilizationRate) / blocksPerYear);
+          let _maxFullUtilizationRatePerBlock = Math.floor(Number(_maxFullUtilizationRate) / blocksPerYear);
+    
+    
+          let rateModel2 = await ethers.deployContract("JumpRateModelVariable",
+            ["numaRateModel", _vertexUtilization, _vertexRatePercentOfDelta, _minUtil, _maxUtil,
+              _zeroUtilizationRatePerBlock, _minFullUtilizationRatePerBlock, _maxFullUtilizationRatePerBlock,
+              _rateHalfLife, await owner.getAddress()]);
+    
+          await cReth._setInterestRateModel(rateModel2);
+          await cNuma._setInterestRateModel(rateModel2);
+    
+        
+
         // utilization in range --> interest rate is default
+        const ethMantissa = 1e18;
+        const blocksPerDay = (4 * 60 * 24);
+        const daysPerYear = (365);
 
-        // and does not change after some time
+        // let blocksPerYear = daysPerYear*blocksPerDay;
+        
+        let supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+        let borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+        // console.log(borrowRatePerBlock);
+        // console.log(supplyRatePerBlock);
+        let supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        let borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        console.log(`Supply APY for ETH ${supplyApy} %`);
+        console.log(`Borrow APY for ETH ${borrowApy} %`);
+        console.log("*************************");
+        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
 
-        // utilization above threshold --> interest rate increases
+        let numasupplyamount = ethers.parseEther("200000");
+        // userB supply numa      
+        await supplyNuma(userB,numasupplyamount);
 
-        // change time & check increase
+        // max borrow
+        let collateralValueInrEthWei = await getMaxBorrowReth(numasupplyamount);
 
-        // back to range
+        // verify toomuch/nottoomuch (x2: collat and available from vault)
+        let notTooMuchrEth = collateralValueInrEthWei;
+        let tooMuchrEth = notTooMuchrEth+BigInt(1);
+        // 
+        await cReth.connect(userB).borrow(notTooMuchrEth);
 
-        // change time & check it did not change
+        // should be > 0
+        supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+        borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
 
-        // below threshold, should diminish
 
-        // should stay in limits
+        let cashAvailable = await Vault1.GetMaxBorrow();
+        let UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+
+        let maxUtilizationRatePerBlock = Math.floor(maxUtilizationRatePerYear/blocksPerYear);
+
+
+        supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+        console.log(`Supply APY for ETH ${supplyApy} %`);
+        console.log(`Borrow APY for ETH ${borrowApy} %`);
+        console.log(`Utilization rate ${UR*100} %`);
+        console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+        console.log("*************************");
+
+        // check rates
+        // _newRatePerBlock = (
+        //   ZERO_UTIL_RATE + (_utilization * (_vertexInterest - ZERO_UTIL_RATE)) / VERTEX_UTILIZATION
+        // );
+
+
+
+        let _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+        let borrowRate = _zeroUtilizationRatePerBlock  + ((UR*1e18) * (_vertexInterest - _zeroUtilizationRatePerBlock))/_vertexUtilization;
+         
+
+        let supplyRate = UR * borrowRate;
       
+
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),20000);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),20000);
+
+         // should not change as we are below range BUT our min is currentmaxrate
+         await time.increase(3600*12);
+
+         supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+         borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),20000);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),20000);
+
+         // change max borrow so that UR > 65% --> in range
+         let maxBorrow = ((collateralValueInrEthWei)*(BigInt(1e18) - BigInt('650000000000000000')))/BigInt('650000000000000000');
+        
+         await Vault1.setMaxBorrow(maxBorrow);
+         cashAvailable = await Vault1.GetMaxBorrow();
+          UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+          console.log(UR);
+
+          // should not change as we are in range
+         await time.increase(3600*12);
+         _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+         borrowRate = _zeroUtilizationRatePerBlock  + ((UR*1e18) * (_vertexInterest - _zeroUtilizationRatePerBlock))/_vertexUtilization;
+         supplyRate = UR * borrowRate;
+         supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+         borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),20000);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),20000);
+
+
+         // change max borrow so that UR > 80% --> out of range and kink
+         maxBorrow = ((collateralValueInrEthWei)*(BigInt(1e18) - BigInt('850000000000000000')))/BigInt('850000000000000000');
+        
+        await Vault1.setMaxBorrow(maxBorrow);
+        cashAvailable = await Vault1.GetMaxBorrow();
+         UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+         console.log(UR);
+          // kink formula
+        //   _newRatePerBlock = (
+        //     _vertexInterest +
+        //         ((_utilization - VERTEX_UTILIZATION) * (_newFullUtilizationInterest - _vertexInterest)) /
+        //         (UTIL_PREC - VERTEX_UTILIZATION)
+        // );
+         _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+         borrowRate = _vertexInterest  + ((UR*1e18 - _vertexUtilization) * (maxUtilizationRatePerBlock - _vertexInterest))/(1e18 - _vertexUtilization);
+
+         supplyRate = UR * borrowRate;
+         supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+         borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),200000);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),200000);
+
+         supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         console.log(`Supply APY for ETH ${supplyApy} %`);
+         console.log(`Borrow APY for ETH ${borrowApy} %`);
+         console.log(`Utilization rate ${UR*100} %`);
+         console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+         console.log("*************************");
+
+
+         // advance in time maxrate should change
+         let _deltaTime = 3600*12;
+         await time.increase(_deltaTime);
+         // half life is 6 hours
+         let _deltaUtilization = ((UR*1e18 - _maxUtil) * 1e18) / (1e18 - _maxUtil);
+         // 36 decimals
+
+         let _decayGrowth = (6*3600 * 1e36) + (_deltaUtilization * _deltaUtilization * _deltaTime);
+         // 18 decimals
+         maxUtilizationRatePerBlock = ((maxUtilizationRatePerBlock * _decayGrowth) / (6*3600 * 1e36));
+       
+         // test
+         _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+         borrowRate = _vertexInterest  + ((UR*1e18 - _vertexUtilization) * (maxUtilizationRatePerBlock - _vertexInterest))/(1e18 - _vertexUtilization);
+
+         supplyRate = UR * borrowRate;
+         supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+         borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+         expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),500000);
+         expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),500000);
+
+         supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+         console.log(`Supply APY for ETH ${supplyApy} %`);
+         console.log(`Borrow APY for ETH ${borrowApy} %`);
+         console.log(`Utilization rate ${UR*100} %`);
+         console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+         console.log("*************************");
+
+          // advance again so that we test max maxRate clamping
+          await time.increase(_deltaTime);
+          // half life is 6 hours
+          _deltaUtilization = ((UR*1e18 - _maxUtil) * 1e18) / (1e18 - _maxUtil);
+          // 36 decimals
+ 
+          _decayGrowth = (6*3600 * 1e36) + (_deltaUtilization * _deltaUtilization * _deltaTime);
+          // 18 decimals
+          maxUtilizationRatePerBlock = ((maxUtilizationRatePerBlock * _decayGrowth) / (6*3600 * 1e36));
+          if (maxUtilizationRatePerBlock > _maxFullUtilizationRatePerBlock)
+            maxUtilizationRatePerBlock = _maxFullUtilizationRatePerBlock;
+        
+          // test
+          _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+          borrowRate = _vertexInterest  + ((UR*1e18 - _vertexUtilization) * (maxUtilizationRatePerBlock - _vertexInterest))/(1e18 - _vertexUtilization);
+ 
+          supplyRate = UR * borrowRate;
+          supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+          borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+          expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),500000);
+          expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),500000);
+ 
+          supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+          borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+          console.log(`Supply APY for ETH ${supplyApy} %`);
+          console.log(`Borrow APY for ETH ${borrowApy} %`);
+          console.log(`Utilization rate ${UR*100} %`);
+          console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+          console.log("*************************");
+
+
+         // back in range 
+          maxBorrow = ((collateralValueInrEthWei)*(BigInt(1e18) - BigInt('650000000000000000')))/BigInt('650000000000000000');
+        
+          await Vault1.setMaxBorrow(maxBorrow);
+          cashAvailable = await Vault1.GetMaxBorrow();
+           UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+           console.log(UR);
+
+           // advance in time maxrate should change but not kinked anymore
+           await time.increase(_deltaTime); 
+
+           _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+           borrowRate = _zeroUtilizationRatePerBlock  + ((UR*1e18) * (_vertexInterest - _zeroUtilizationRatePerBlock))/_vertexUtilization;
+            supplyRate = UR * borrowRate;
+         
+            supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+            borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+            expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),3000000);
+            expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),3000000);
+            supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+            borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+            console.log(`Supply APY for ETH ${supplyApy} %`);
+            console.log(`Borrow APY for ETH ${borrowApy} %`);
+            console.log(`Utilization rate ${UR*100} %`);
+            console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+            console.log("*************************");
+
+            // below range
+            maxBorrow = ((collateralValueInrEthWei)*(BigInt(1e18) - BigInt('250000000000000000')))/BigInt('250000000000000000');
+        
+            await Vault1.setMaxBorrow(maxBorrow);
+            cashAvailable = await Vault1.GetMaxBorrow();
+             UR = Number(collateralValueInrEthWei) / Number(collateralValueInrEthWei + cashAvailable);
+             console.log(UR);
+
+
+             // no time change
+             _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+             borrowRate = _zeroUtilizationRatePerBlock  + ((UR*1e18) * (_vertexInterest - _zeroUtilizationRatePerBlock))/_vertexUtilization;
+              supplyRate = UR * borrowRate;
+           
+              supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+              borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+              expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),3000000);
+              expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),3000000);
+              supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+              borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+              console.log(`Supply APY for ETH ${supplyApy} %`);
+              console.log(`Borrow APY for ETH ${borrowApy} %`);
+              console.log(`Utilization rate ${UR*100} %`);
+              console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+              console.log("*************************");
+
+  
+             // advance in time maxrate should change 
+             await time.increase(_deltaTime); 
+
+              _deltaUtilization = ((_minUtil - UR*1e18 ) * 1e18) / (_minUtil);
+             // 36 decimals
+    
+             _decayGrowth = (6*3600 * 1e36) + (_deltaUtilization * _deltaUtilization * _deltaTime);
+             // 18 decimals
+             maxUtilizationRatePerBlock = ((maxUtilizationRatePerBlock * (6*3600 * 1e36)) / (_decayGrowth));
+           
+  
+             _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+             borrowRate = _zeroUtilizationRatePerBlock  + ((UR*1e18) * (_vertexInterest - _zeroUtilizationRatePerBlock))/_vertexUtilization;
+              supplyRate = UR * borrowRate;
+           
+              supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+              borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+              expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),3000000);
+              expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),3000000);
+              supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+              borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+              console.log(`Supply APY for ETH ${supplyApy} %`);
+              console.log(`Borrow APY for ETH ${borrowApy} %`);
+              console.log(`Utilization rate ${UR*100} %`);
+              console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+              console.log("*************************");
+
+              // again to check minimum maxRate
+              await time.increase(_deltaTime); 
+
+              _deltaUtilization = ((_minUtil - UR*1e18 ) * 1e18) / (_minUtil);
+             // 36 decimals
+    
+             _decayGrowth = (6*3600 * 1e36) + (_deltaUtilization * _deltaUtilization * _deltaTime);
+             // 18 decimals
+             maxUtilizationRatePerBlock = ((maxUtilizationRatePerBlock * (6*3600 * 1e36)) / (_decayGrowth));
+           
+
+             if (maxUtilizationRatePerBlock < _minFullUtilizationRatePerBlock)
+                maxUtilizationRatePerBlock = _minFullUtilizationRatePerBlock;
+
+  
+             _vertexInterest = _zeroUtilizationRatePerBlock + (_vertexRatePercentOfDelta * (maxUtilizationRatePerBlock - _zeroUtilizationRatePerBlock))/1e18;
+             borrowRate = _zeroUtilizationRatePerBlock  + ((UR*1e18) * (_vertexInterest - _zeroUtilizationRatePerBlock))/_vertexUtilization;
+              supplyRate = UR * borrowRate;
+           
+              supplyRatePerBlock = Number(await cReth.supplyRatePerBlock());
+              borrowRatePerBlock = Number(await cReth.borrowRatePerBlock());
+              expect(borrowRatePerBlock).to.be.closeTo(Math.floor(borrowRate),3000000);
+              expect(supplyRatePerBlock).to.be.closeTo(Math.floor(supplyRate),3000000);
+              supplyApy = (((Math.pow(((supplyRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+              borrowApy = (((Math.pow(((borrowRatePerBlock / ethMantissa * blocksPerDay) + (1)), daysPerYear))) - (1)) * (100);
+              console.log(`Supply APY for ETH ${supplyApy} %`);
+              console.log(`Borrow APY for ETH ${borrowApy} %`);
+              console.log(`Utilization rate ${UR*100} %`);
+              console.log(`maxUtilizationRate ${(100*maxUtilizationRatePerBlock*blocksPerYear)/1e18} %`);
+              console.log("*************************");
+        }
+
 
       });
 
@@ -1440,8 +1872,8 @@ describe('NUMA LENDING', function () {
       {
         // standart liquidate numa borrowers
         // remove fees for checks
-        await Vault1.setBuyFee(1000);
-        await Vault1.setSellFee(1000);
+        await VM.setBuyFee(1000);
+        await VM.setSellFee(1000);
         await Vault1.setFee(0);
         // approve
         let rethsupplyamount = ethers.parseEther("2"); 
@@ -1560,8 +1992,8 @@ describe('NUMA LENDING', function () {
       it('Borrow rEth, change price, liquidate simple', async () => 
       {
         // remove fees for checks
-        await Vault1.setBuyFee(1000);
-        await Vault1.setSellFee(1000);
+        await VM.setBuyFee(1000);
+        await VM.setSellFee(1000);
         await Vault1.setFee(0);
 
         // supply reth
@@ -1657,8 +2089,8 @@ describe('NUMA LENDING', function () {
       it('Borrow numa, change price, liquidate flashloan', async () => 
       {
         // remove fees for checks
-        await Vault1.setBuyFee(1000);
-        await Vault1.setSellFee(1000);
+        await VM.setBuyFee(1000);
+        await VM.setSellFee(1000);
         await Vault1.setFee(0);
 
         // supply
@@ -1754,8 +2186,8 @@ describe('NUMA LENDING', function () {
       it('Borrow numa, change price, liquidate flashloan, max profit', async () => 
       {
         // remove fees for checks
-        await Vault1.setBuyFee(1000);
-        await Vault1.setSellFee(1000);
+        await VM.setBuyFee(1000);
+        await VM.setSellFee(1000);
         await Vault1.setFee(0);
 
         // supply
@@ -1779,7 +2211,7 @@ describe('NUMA LENDING', function () {
         // double the supply, will multiply the price by 2
         let totalsupply = await numa.totalSupply();
         await numa.burn(totalsupply/BigInt(2));
-        let numaPriceBefore = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
         [_, collateral, shortfall] = await comptroller.getAccountLiquidity(
           await userA.getAddress()
         );
@@ -1850,7 +2282,7 @@ describe('NUMA LENDING', function () {
         // check numa price is the same
 
         
-        let numaPriceAfter = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
 
         // price
         expect(numaPriceAfter).to.be.above(numaPriceBefore);
@@ -1860,8 +2292,8 @@ describe('NUMA LENDING', function () {
       it('Borrow rEth, change price, liquidate flashloan', async () => 
       {
         // remove fees for checks
-        await Vault1.setBuyFee(1000);
-        await Vault1.setSellFee(1000);
+        await VM.setBuyFee(1000);
+        await VM.setSellFee(1000);
         await Vault1.setFee(0);
 
         let rethsupplyamount = ethers.parseEther("1");
@@ -1987,7 +2419,7 @@ describe('NUMA LENDING', function () {
         // let balAfter = await numa.balanceOf(await owner.getAddress());
         // console.log(balAfter - balBefore);
       
-        let numaPriceBefore = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
 
         let suppliedAmount = ethers.parseEther("100");
         let borrowAmount = ethers.parseEther("100");
@@ -2034,7 +2466,7 @@ describe('NUMA LENDING', function () {
         expect(rethBalanceAfter).to.equal(0);
 
 
-        let numaPriceAfter = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
 
         // price
         expect(numaPriceAfter).to.be.above(numaPriceBefore);
@@ -2044,7 +2476,7 @@ describe('NUMA LENDING', function () {
       });
       it('Leverage rEth', async () => 
       {
-        let numaPriceBefore = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
         // userB supply numa      
         let numasupplyamount = ethers.parseEther("200000");
         await supplyNuma(userB,numasupplyamount);
@@ -2108,7 +2540,7 @@ describe('NUMA LENDING', function () {
           // expect(rethBalanceAfter).to.equal(0);
   
   
-          let numaPriceAfter = await VM.GetPriceFromVaultWithoutFees(ethers.parseEther("1"));
+          let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
   
           // price
           expect(numaPriceAfter).to.be.above(numaPriceBefore);

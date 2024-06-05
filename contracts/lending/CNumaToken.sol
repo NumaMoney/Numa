@@ -29,6 +29,7 @@ contract CNumaToken is CErc20Immutable
                 string memory name_,
                 string memory symbol_,
                 uint8 decimals_,
+                uint fullUtilizationRate_,
                 address payable admin_,address _vault)
                 CErc20Immutable(underlying_,
                 comptroller_,
@@ -37,6 +38,7 @@ contract CNumaToken is CErc20Immutable
                 name_,
                 symbol_,
                 decimals_,
+                fullUtilizationRate_,
                  admin_)
     {
         vault = INumaVault(_vault);

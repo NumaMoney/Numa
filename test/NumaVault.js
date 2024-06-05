@@ -371,14 +371,14 @@ describe('NUMA VAULT', function () {
         let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
         // fees
         let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
-        let buyprice = await Vault1.getBuyNuma(inputreth);
+        let buyprice = await Vault1.getBuyNumaSimulateExtract(inputreth);
         expect(buypriceref).to.equal(buyprice);
 
         // SELL 
         let inputnuma = ethers.parseEther("1000");
         let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
         let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
-        let sellprice = await Vault1.getSellNuma(inputnuma);
+        let sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);
         //expect(sellpriceref).to.equal(sellprice); 
         expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
 
@@ -431,7 +431,7 @@ describe('NUMA VAULT', function () {
         let inputnuma = ethers.parseEther("1000");
         let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
         let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
-        let sellprice = await Vault1.getSellNuma(inputnuma);
+        let sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);
         //expect(sellpriceref).to.equal(sellprice); 
         expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
 
@@ -621,19 +621,22 @@ describe('NUMA VAULT', function () {
         let ratio = newprice/lastprice;
         // BUY
         let inputreth = ethers.parseEther("2");
-        //let buypricerefnofees = ratio*inputreth*numaSupply/(BigInt(decaydenom/100)*balvaultWei);
-        let buypricerefnofees = inputreth*numaSupply/(BigInt(decaydenom/100)*balvaultWei);
+        let buypricerefnofees = ratio*inputreth*numaSupply/(BigInt(decaydenom/100)*balvaultWei);
+        
         // fees
         let buypriceref = (buypricerefnofees* BigInt(buyfee))/BigInt(feedenom);
         let buyprice = await Vault1.getBuyNumaSimulateExtract(inputreth);
+        let numaSupplyVM = await VM.getNumaSupply();
+        console.log(numaSupplyVM);
+        console.log(numaSupply);
         expect(buypriceref).to.equal(buyprice);
 
         // SELL 
         let inputnuma = ethers.parseEther("1000");
-        //let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply*ratio);
-        let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply);
+        let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply*ratio);
+        
         let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
-        let sellprice = await Vault1.getSellNuma(inputnuma);
+        let sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);
         expect(sellpriceref).to.equal(sellprice); 
 
 
@@ -667,7 +670,7 @@ describe('NUMA VAULT', function () {
 
     it('buy with rEth', async () => 
     {
-      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+      let buypricerefnofees = (ethers.parseEther("2")*ethers.parseEther("10000000"))/vault1Bal;
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
       //await sendEthToVault();
       // BUY
@@ -683,7 +686,7 @@ describe('NUMA VAULT', function () {
 
       let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
       expect(balbuyer).to.equal(buypriceref);
-      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
       expect(balfee).to.equal(fees);
     });
 
@@ -733,7 +736,7 @@ describe('NUMA VAULT', function () {
       await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,26*86400);
       await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,26*86400);
 
-      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+      let buypricerefnofees = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(vault1Bal);
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
       //await sendEthToVault();
       let balvaultWei = await rEth_contract.balanceOf(VAULT1_ADDRESS);
@@ -782,7 +785,7 @@ describe('NUMA VAULT', function () {
       expect(balbuyer).to.equal(ratio*buypriceref);
       let balrwd = await rEth_contract.balanceOf(await signer4.getAddress());
       expect(balrwd).to.equal(estimateRewards);
-      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100) - balrwd);
+      expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100) - balrwd);
       expect(balfee).to.equal(fees);
       
     });
@@ -802,7 +805,7 @@ describe('NUMA VAULT', function () {
       await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,26*86400);
 
 
-      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+      let buypricerefnofees = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(vault1Bal);
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
       //await sendEthToVault();
       await time.increase(25*3600);
@@ -823,11 +826,11 @@ describe('NUMA VAULT', function () {
       
       let [estimateRewards,newvalue] = await Vault1.rewardsValue();
       expect(newvalue).to.equal(newprice);
-      // we have 100 rEth and price made x 2 so rewards should be 50 rEth
-      expect(estimateRewards).to.equal(ethers.parseEther("50"));
+      //price made x 2 so rewards should be half balance
+      expect(estimateRewards).to.equal(vault1Bal / BigInt(2));
 
       // change threshold so that we can not extract
-      let newThreshold = ethers.parseEther("51");
+      let newThreshold = estimateRewards+ethers.parseEther("1");
       await Vault1.setRewardsThreshold(newThreshold);
       [estimateRewards,newvalue] = await Vault1.rewardsValue();
       await expect(Vault1.extractRewards()).to.be.reverted;
@@ -853,7 +856,7 @@ describe('NUMA VAULT', function () {
       expect(balbuyer).to.equal(buypriceref);
       let balrwd = await rEth_contract.balanceOf(await signer4.getAddress());
       expect(balrwd).to.equal(0);// no extraction thanks to new threshold
-      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100) - balrwd);
+      expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100) - balrwd);
       expect(balfee).to.equal(fees);
     });
 
@@ -865,7 +868,7 @@ describe('NUMA VAULT', function () {
 
     it('buy with rEth with decay starting time', async () => 
     {
-      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+      let buypricerefnofees = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(vault1Bal);
 
       buypricerefnofees = (buypricerefnofees * BigInt(100))/BigInt(decaydenom);
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
@@ -886,7 +889,7 @@ describe('NUMA VAULT', function () {
 
       let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
       expect(balbuyer).to.equal(buypriceref);
-      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
       expect(balfee).to.equal(fees);
     });
 
@@ -900,7 +903,7 @@ describe('NUMA VAULT', function () {
       await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,26*86400);
 
 
-      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+      let buypricerefnofees = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(vault1Bal);
 
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
 
@@ -924,7 +927,7 @@ describe('NUMA VAULT', function () {
       let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
       
       expect(balbuyer).to.be.closeTo(buypriceref, epsilon);
-      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
       expect(balfee).to.equal(fees);
 
     });
@@ -942,7 +945,7 @@ describe('NUMA VAULT', function () {
       await Vault1.setRwdAddress(await signer4.getAddress(),false);
       //await Vault1.setOracle(VO_ADDRESScustomHeartbeat);
 
-      let buypricerefnofees = ethers.parseEther("2")*BigInt(10000000)/(BigInt(100));
+      let buypricerefnofees = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(vault1Bal);
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
 
       //await sendEthToVault();
@@ -963,7 +966,7 @@ describe('NUMA VAULT', function () {
 
       let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
       expect(balbuyer).to.equal(buypriceref);
-      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
       expect(balfee).to.equal(fees);
     });
 
@@ -988,7 +991,7 @@ describe('NUMA VAULT', function () {
      // console.log('synth value after minting nuAssets: ', fullSynthValueInrEth);
 
       // TODO: some imprecision (10-6 numa) 
-      let buypricerefnofees = ethers.parseEther("2")*ethers.parseEther("10000000")/(ethers.parseEther("100") - fullSynthValueInrEth);
+      let buypricerefnofees = ethers.parseEther("2")*ethers.parseEther("10000000")/(vault1Bal - fullSynthValueInrEth);
 
       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
 
@@ -1006,7 +1009,7 @@ describe('NUMA VAULT', function () {
       let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
 
       expect(balbuyer).to.be.closeTo(buypriceref, epsilon);
-      expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+      expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
       expect(balfee).to.equal(fees);
     });
   });

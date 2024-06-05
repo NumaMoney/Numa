@@ -186,6 +186,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     }
 
     function setMaxBorrow(uint _maxBorrow) external onlyOwner {
+         // CF will change so we need to update interest rates
+        accrueInterestLending();
+        
         maxBorrow = _maxBorrow;
         emit SetMaxBorrow(_maxBorrow);   
     }

@@ -71,9 +71,9 @@ contract CTokenStorage {
      */
     uint public accrualBlockTimestamp;
 
-    uint currentInterestRateMultiplier;
+    uint public fullUtilizationRate;
 
-    uint currentInterestRateJumpMultiplier;
+
 
     /**
      * @notice Accumulator of the total earned interest rate since the opening of the market
@@ -161,6 +161,13 @@ abstract contract CTokenInterface is CTokenStorage {
      */
     event LiquidateBorrow(address liquidator, address borrower, uint repayAmount, address cTokenCollateral, uint seizeTokens);
 
+    /// @notice The ```UpdateRate``` event is emitted when the interest rate is updated
+    /// @param oldFullUtilizationRate The old full utilization rate
+    /// @param newFullUtilizationRate The new full utilization rate
+    event UpdateRate(        
+        uint256 oldFullUtilizationRate,        
+        uint256 newFullUtilizationRate
+    );
 
     /*** Admin Events ***/
 
