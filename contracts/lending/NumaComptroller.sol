@@ -277,6 +277,9 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
     }
 
     function redeemAllowedInternal(address cToken, address redeemer, uint redeemTokens) internal view returns (uint) {
+
+         console.log("redeemAllowedInternal");
+
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
@@ -289,6 +292,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         /* Otherwise, perform a hypothetical liquidity check to guard against shortfall */
         (Error err, , uint shortfall) = getHypotheticalAccountLiquidityInternal(redeemer, CToken(cToken), redeemTokens, 0);
         if (err != Error.NO_ERROR) {
+            console.log("KO");
             return uint(err);
         }
         if (shortfall > 0) {
