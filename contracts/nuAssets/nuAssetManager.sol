@@ -152,7 +152,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
                 info.feed,
                 info.heartbeat
             );         
-            uint256 EthValue = getPriceInEth(totalSupply, priceFeed, heartbeat,IERC20Metadata(nuAssetList[i]).decimals());
+            uint256 EthValue = getPriceInEth(totalSupply, priceFeed, heartbeat,IERC20Metadata(nuAsset).decimals());
             result += EthValue;
         }
         return result;

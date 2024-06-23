@@ -753,6 +753,21 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         liquidateBorrowFresh(msg.sender, borrower, repayAmount, cTokenCollateral);
     }
 
+  
+    function liquidateBadDebtInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal nonReentrant {
+        accrueInterest();
+
+        uint error = cTokenCollateral.accrueInterest();
+        if (error != NO_ERROR) {
+            // accrueInterest emits logs on errors, but we still want to log the fact that an attempted liquidation failed
+            revert LiquidateAccrueCollateralInterestFailed(error);
+        }
+
+        // liquidateBorrowFresh emits borrow-specific logs on errors, so we don't need to
+        liquidateBadDebtFresh(msg.sender, borrower, repayAmount, cTokenCollateral);
+    }
+
+
     /**
      * @notice The liquidator liquidates the borrowers collateral.
      *  The collateral seized is transferred to the liquidator.
@@ -819,6 +834,68 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /* We emit a LiquidateBorrow event */
         emit LiquidateBorrow(liquidator, borrower, actualRepayAmount, address(cTokenCollateral), seizeTokens);
+    }
+
+
+    function liquidateBadDebtFresh(address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal {
+
+        /* Fail if liquidate not allowed */
+        uint allowed = comptroller.liquidateBadDebtAllowed(address(this), address(cTokenCollateral), liquidator, borrower, repayAmount);
+        if (allowed != 0) {
+            console.log("LiquidateComptrollerRejection");
+            revert LiquidateComptrollerRejection(allowed);
+        }
+
+        /* Verify market's block number equals current block number */
+        if (accrualBlockNumber != getBlockNumber()) {
+            revert LiquidateFreshnessCheck();
+        }
+
+        /* Verify cTokenCollateral market's block number equals current block number */
+        if (cTokenCollateral.accrualBlockNumber() != getBlockNumber()) {
+            revert LiquidateCollateralFreshnessCheck();
+        }
+
+
+        /* Fail if borrower = liquidator */
+        if (borrower == liquidator) {
+            revert LiquidateLiquidatorIsBorrower();
+        }
+
+        /* Fail if repayAmount = 0 */
+        if (repayAmount == 0) {
+            revert LiquidateCloseAmountIsZero();
+        }
+
+        /* Fail if repayAmount = -1 */
+        if (repayAmount == type(uint).max) {
+            revert LiquidateCloseAmountIsUintMax();
+        }
+
+        /* Fail if repayBorrow fails */
+        uint actualRepayAmount = repayBorrowFresh(liquidator, borrower, repayAmount);
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        /* We calculate the number of collateral tokens that will be seized */
+        (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateBadDebtCalculateSeizeTokens(address(this), address(cTokenCollateral), actualRepayAmount);
+        require(amountSeizeError == NO_ERROR, "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
+
+        console.log("WE HERE");
+        /* Revert if borrower collateral token balance < seizeTokens */
+        require(cTokenCollateral.balanceOf(borrower) >= seizeTokens, "LIQUIDATE_SEIZE_TOO_MUCH");
+
+        // If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
+        if (address(cTokenCollateral) == address(this)) {
+            seizeBadDebtInternal(address(this), liquidator, borrower, seizeTokens);
+        } else {
+            require(cTokenCollateral.seizeBadDebt(liquidator, borrower, seizeTokens) == NO_ERROR, "token seizure failed");
+        }
+
+        /* We emit a LiquidateBorrow event */
+        emit LiquidateBadDebt(liquidator, borrower, actualRepayAmount, address(cTokenCollateral), seizeTokens);
     }
 
     /**

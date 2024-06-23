@@ -25,6 +25,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   let { DEPLOY_UNISWAP, WETH_ADDRESS, FACTORY_ADDRESS,
     POSITION_MANAGER_ADDRESS, PRICEFEEDETHUSD,PRICEFEEDBTCETH, INTERVAL_SHORT, INTERVAL_LONG, FEE } = configArbi;
 
+  let USDC_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";// arbitrum usdc
   let signer, signer2;
   let numaOwner;
   let numa;
@@ -39,6 +40,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   // uniswap
   let nonfungiblePositionManager;
   let wethContract;
+  let usdcContract;
   // oracle
   let oracleAddress;
   let factory;
@@ -123,7 +125,8 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
 
 
   wethContract = await hre.ethers.getContractAt(weth9.WETH9.abi, WETH_ADDRESS);
-
+  usdcContract = await hre.ethers.getContractAt(ERC20abi, USDC_ADDRESS);
+  
   // get pool price from chainlink USD/ETH PRICEFEEDETHUSD
   let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, PRICEFEEDETHUSD);
   let latestRoundData = await chainlinkInstance.latestRoundData();
@@ -137,6 +140,14 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   await wethContract.connect(signer).deposit({
     value: ethers.parseEther('100'),
   });
+
+  // get some usdc
+  const addressWhaleUSDC = "0x70d95587d40a2caf56bd97485ab3eec10bee6336";
+  await helpers.impersonateAccount(addressWhaleUSDC);
+  const impersonatedSignerUSDC = await ethers.getSigner(addressWhaleUSDC);
+  await helpers.setBalance(addressWhaleUSDC, ethers.parseEther("10"));
+  // transfer to signer so that it can buy numa
+  await usdcContract.connect(impersonatedSignerUSDC).transfer(await signer.getAddress(), ethers.parseUnits("20000000",6));
 
 
   // *** Numa deploy
@@ -162,8 +173,12 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
     console.log(`Numa deployed to: ${numa_address}`);
   // numa at 0.5 usd     
   let EthPriceInNuma = price * 2;
+  let USDCPriceInNuma = 2000000000000;// 12 decimals because USDC has 6 decimals
   // create numa/eth univ3 pool
   await initPoolETH(WETH_ADDRESS, numa_address, _fee, EthPriceInNuma, nonfungiblePositionManager, WETH_ADDRESS);
+
+  // create numa/USDC univ3 pool
+  await initPoolETH(USDC_ADDRESS, numa_address, _fee, USDCPriceInNuma, nonfungiblePositionManager, USDC_ADDRESS);
 
   // 10 ethers
   let nbEthers = 10;
@@ -194,6 +209,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   );
 
 
+
   let NUMA_ETH_POOL_ADDRESS = await factory.getPool(
     WETH_ADDRESS,
     numa_address,
@@ -202,8 +218,49 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   if (LOG)
     console.log('numa eth pool: ', NUMA_ETH_POOL_ADDRESS);
 
-  const poolContractNuma = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_ETH_POOL_ADDRESS);
-  const poolDataNuma = await getPoolData(poolContractNuma);
+    
+  // numa/USDC pool
+  let USDCAmountNumaPool = ethers.parseUnits("200000",6);
+  let NumaAmountNumaPoolUSDC = ethers.parseEther("400000");
+
+
+  await addLiquidity(
+      USDC_ADDRESS,
+      numa_address,
+      usdcContract,
+      numa,
+      _fee,
+      tickMin,
+      tickMax,
+      USDCAmountNumaPool,
+      NumaAmountNumaPoolUSDC,
+      BigInt(0),
+      BigInt(0),
+      signer,
+      timestamp,
+      nonfungiblePositionManager
+    );
+  let NUMA_USDC_POOL_ADDRESS = await factory.getPool(
+      USDC_ADDRESS,
+      numa_address,
+      _fee,
+    );
+
+   if (LOG)
+   {
+      console.log('numa usdc pool: ', NUMA_USDC_POOL_ADDRESS);
+      let balancePoolUSDC = await usdcContract.balanceOf(NUMA_USDC_POOL_ADDRESS);
+      let balancePoolNuma = await numa.balanceOf(NUMA_USDC_POOL_ADDRESS);
+      console.log('bal pool usdc', hre.ethers.formatUnits(balancePoolUSDC, 6));
+      console.log('bal pool numa', hre.ethers.formatUnits(balancePoolNuma, 18));
+
+      console.log('bal pool usdc expected', hre.ethers.formatUnits(USDCAmountNumaPool, 6));
+      console.log('bal pool numa expected', hre.ethers.formatUnits(NumaAmountNumaPoolUSDC, 18));
+   }
+  
+    
+  const poolContractNuma = await hre.ethers.getContractAt(artifacts.UniswapV3Pool.abi, NUMA_USDC_POOL_ADDRESS);
+  //const poolDataNuma = await getPoolData(poolContractNuma);
 
   // Deploy vault
    // *********************** nuAssetManager **********************************
@@ -287,7 +344,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
 
 
   // ***********************************  NUMA ORACLE ******************************
-  const oracle = await ethers.deployContract("NumaOracle", [WETH_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, signer.getAddress(),NUAM_ADDRESS]);
+  const oracle = await ethers.deployContract("NumaOracle", [USDC_ADDRESS, INTERVAL_SHORT, INTERVAL_LONG, signer.getAddress(),NUAM_ADDRESS]);
   await oracle.waitForDeployment();
   oracleAddress = await oracle.getAddress();
   if (LOG)
@@ -318,6 +375,14 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   //await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,86400);
   
 
+let USDCtoETHConverter = await ethers.deployContract("USDCToEthConverter",
+  ["0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3",1000*86400,"0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612",1000*86400,UPTIME_FEED]);
+await USDCtoETHConverter.waitForDeployment();
+let USDCtoETHConverter_address = await USDCtoETHConverter.getAddress();
+if (LOG)
+  console.log(`usdc/ETH converter deployed to: ${USDCtoETHConverter_address}`);
+
+
 
   // Deploy printerUSD 
   // address _numaAddress,
@@ -327,7 +392,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   // address _vaultManagerAddress
 
   moneyPrinter = await ethers.deployContract("NumaPrinter",
-    [numa_address, MINTER_ADDRESS, NUMA_ETH_POOL_ADDRESS, oracleAddress, VM_ADDRESS]);
+    [numa_address, MINTER_ADDRESS, NUMA_USDC_POOL_ADDRESS,USDCtoETHConverter_address, oracleAddress, VM_ADDRESS]);
   await moneyPrinter.waitForDeployment();
   moneyPrinter_address = await moneyPrinter.getAddress();
   if (LOG)
@@ -425,8 +490,8 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   swapRouter = await hre.ethers.getContractAt(artifacts.SwapRouter.abi, "0xE592427A0AEce92De3Edee1F18E0157C05861564");
 
   return {
-    signer, signer2, signer3,signer4, numaOwner, numa, NUMA_ETH_POOL_ADDRESS, nuUSD, NUUSD_ADDRESS: nuusd_address,NUBTC:nuBTC,NUBTC_ADDRESS: nubtc_address, moneyPrinter: moneyPrinter, MONEY_PRINTER_ADDRESS: moneyPrinter_address, nonfungiblePositionManager,
-    wethContract, oracleAddress, numaAmount, cardinality, factory,swapRouter,VM,Vault1,snapshotGlobal,MINTER_ADDRESS,nuAM
+    signer, signer2, signer3,signer4, numaOwner, numa, NUMA_USDC_POOL_ADDRESS, nuUSD, NUUSD_ADDRESS: nuusd_address,NUBTC:nuBTC,NUBTC_ADDRESS: nubtc_address, moneyPrinter: moneyPrinter, MONEY_PRINTER_ADDRESS: moneyPrinter_address, nonfungiblePositionManager,
+    wethContract, oracleAddress, numaAmount, cardinality, factory,swapRouter,VM,Vault1,snapshotGlobal,MINTER_ADDRESS,nuAM,USDCtoETHConverter_address
   };
 }
 

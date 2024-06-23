@@ -7,6 +7,7 @@ contract ComptrollerErrorReporter {
         UNAUTHORIZED,
         COMPTROLLER_MISMATCH,
         INSUFFICIENT_SHORTFALL,
+        INSUFFICIENT_BADDEBT,
         INSUFFICIENT_LIQUIDITY,
         INVALID_CLOSE_FACTOR,
         INVALID_COLLATERAL_FACTOR,
@@ -20,7 +21,8 @@ contract ComptrollerErrorReporter {
         REJECTION,
         SNAPSHOT_ERROR,
         TOO_MANY_ASSETS,
-        TOO_MUCH_REPAY
+        TOO_MUCH_REPAY,
+        BAD_DEBT
     }
 
     enum FailureInfo {

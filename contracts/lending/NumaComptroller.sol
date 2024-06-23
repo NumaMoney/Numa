@@ -290,7 +290,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         }
 
         /* Otherwise, perform a hypothetical liquidity check to guard against shortfall */
-        (Error err, , uint shortfall) = getHypotheticalAccountLiquidityInternal(redeemer, CToken(cToken), redeemTokens, 0);
+        (Error err, , uint shortfall,) = getHypotheticalAccountLiquidityInternal(redeemer, CToken(cToken), redeemTokens, 0);
         if (err != Error.NO_ERROR) {
             console.log("KO");
             return uint(err);
@@ -363,7 +363,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             require(nextTotalBorrows < borrowCap, "market borrow cap reached");
         }
 
-        (Error err, , uint shortfall) = getHypotheticalAccountLiquidityInternal(borrower, CToken(cToken), 0, borrowAmount);
+        (Error err, , uint shortfall,) = getHypotheticalAccountLiquidityInternal(borrower, CToken(cToken), 0, borrowAmount);
         if (err != Error.NO_ERROR) {
             return uint(err);
         }
@@ -472,7 +472,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             require(borrowBalance >= repayAmount, "Can not repay more than the total borrow");
         } else {
             /* The borrower must have shortfall in order to be liquidatable */
-            (Error err, , uint shortfall) = getAccountLiquidityInternal(borrower);
+            (Error err, , uint shortfall,uint badDebt) = getAccountLiquidityInternal(borrower);
             if (err != Error.NO_ERROR) {
                 return uint(err);
             }
@@ -488,10 +488,55 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
 
                 return uint(Error.TOO_MUCH_REPAY);
             }
+            if (badDebt > 0)
+            {
+                console.log("bad debt");
+                console.logUint(badDebt);
+                return uint(Error.BAD_DEBT);
+            }
         }
         return uint(Error.NO_ERROR);
     }
 
+    function liquidateBadDebtAllowed(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        address liquidator,
+        address borrower,
+        uint repayAmount) override external returns (uint) {
+        // Shh - currently unused
+        liquidator;
+
+        if (!markets[cTokenBorrowed].isListed || !markets[cTokenCollateral].isListed) {
+            return uint(Error.MARKET_NOT_LISTED);
+        }
+
+        uint borrowBalance = CToken(cTokenBorrowed).borrowBalanceStored(borrower);
+
+        /* allow accounts to be liquidated if the market is deprecated */
+        if (isDeprecated(CToken(cTokenBorrowed))) {
+            require(borrowBalance >= repayAmount, "Can not repay more than the total borrow");
+        } else {
+            /* The borrower must have shortfall in order to be liquidatable */
+            (Error err, , uint shortfall,uint badDebt) = getAccountLiquidityInternal(borrower);
+            if (err != Error.NO_ERROR) {
+                return uint(err);
+            }
+
+            if (shortfall == 0) {
+                return uint(Error.INSUFFICIENT_SHORTFALL);
+            }
+
+   
+            if (badDebt == 0)
+            {
+
+                return uint(Error.INSUFFICIENT_BADDEBT);
+            }
+
+        }
+        return uint(Error.NO_ERROR);
+    }
     /**
      * @notice Validates liquidateBorrow and reverts on rejection. May emit logs.
      * @param cTokenBorrowed Asset which was borrowed by the borrower
@@ -629,7 +674,8 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
      *  whereas `borrowBalance` is the amount of underlying that the account has borrowed.
      */
     struct AccountLiquidityLocalVars {
-        uint sumCollateral;
+        uint sumCollateral; 
+        uint sumCollateralNoCollateralFactor;       
         uint sumBorrowPlusEffects;
         uint cTokenBalance;
         uint borrowBalance;
@@ -641,6 +687,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         Exp oraclePriceCollateral;
         Exp oraclePriceBorrowed;
         Exp tokensToDenomCollateral;
+        Exp tokensToDenomCollateralNoCollateralFactor;
         Exp tokensToDenomBorrowed;
     }
 
@@ -650,10 +697,10 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
                 account liquidity in excess of collateral requirements,
      *          account shortfall below collateral requirements)
      */
-    function getAccountLiquidity(address account) public view returns (uint, uint, uint) {
-        (Error err, uint liquidity, uint shortfall) = getHypotheticalAccountLiquidityInternal(account, CToken(address(0)), 0, 0);
+    function getAccountLiquidity(address account) public view returns (uint, uint, uint,uint) {
+        (Error err, uint liquidity, uint shortfall,uint badDebt) = getHypotheticalAccountLiquidityInternal(account, CToken(address(0)), 0, 0);
 
-        return (uint(err), liquidity, shortfall);
+        return (uint(err), liquidity, shortfall,badDebt);
     }
 
     /**
@@ -662,7 +709,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
                 account liquidity in excess of collateral requirements,
      *          account shortfall below collateral requirements)
      */
-    function getAccountLiquidityInternal(address account) internal view returns (Error, uint, uint) {
+    function getAccountLiquidityInternal(address account) internal view returns (Error, uint, uint,uint) {
         return getHypotheticalAccountLiquidityInternal(account, CToken(address(0)), 0, 0);
     }
 
@@ -681,7 +728,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         address cTokenModify,
         uint redeemTokens,
         uint borrowAmount) public view returns (uint, uint, uint) {
-        (Error err, uint liquidity, uint shortfall) = getHypotheticalAccountLiquidityInternal(account, CToken(cTokenModify), redeemTokens, borrowAmount);
+        (Error err, uint liquidity, uint shortfall,uint badDebt) = getHypotheticalAccountLiquidityInternal(account, CToken(cTokenModify), redeemTokens, borrowAmount);
         return (uint(err), liquidity, shortfall);
     }
 
@@ -701,7 +748,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         address account,
         CToken cTokenModify,
         uint redeemTokens,
-        uint borrowAmount) internal view returns (Error, uint, uint) {
+        uint borrowAmount) internal view returns (Error, uint, uint,uint) {
 
         AccountLiquidityLocalVars memory vars; // Holds all our calculation results
         uint oErr;
@@ -716,7 +763,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             if (oErr != 0) 
             { 
                 // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
-                return (Error.SNAPSHOT_ERROR, 0, 0);
+                return (Error.SNAPSHOT_ERROR, 0, 0,0);
             }
             vars.collateralFactor = Exp({mantissa: markets[address(asset)].collateralFactorMantissa});
             vars.exchangeRate = Exp({mantissa: vars.exchangeRateMantissa});
@@ -726,7 +773,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             vars.oraclePriceMantissaBorrowed = oracle.getUnderlyingPriceAsBorrowed(asset);
 
             if (vars.oraclePriceMantissaCollateral == 0) {
-                return (Error.PRICE_ERROR, 0, 0);
+                return (Error.PRICE_ERROR, 0, 0,0);
             }
             vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
             vars.oraclePriceBorrowed = Exp({mantissa: vars.oraclePriceMantissaBorrowed});
@@ -734,15 +781,12 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             // Pre-compute a conversion factor from tokens -> ether (normalized price value)
             vars.tokensToDenomCollateral = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceCollateral);
             vars.tokensToDenomBorrowed = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceBorrowed);
-
+            vars.tokensToDenomCollateralNoCollateralFactor = mul_(vars.exchangeRate, vars.oraclePriceCollateral);
             // sumCollateral += tokensToDenom * cTokenBalance
 
             // NUMALENDING: use collateral price
             vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, vars.cTokenBalance, vars.sumCollateral);
-
-   console.log("collat ");
-                console.logUint(vars.cTokenBalance);
-                console.logUint(vars.oraclePriceMantissaCollateral);
+            vars.sumCollateralNoCollateralFactor = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateralNoCollateralFactor, vars.cTokenBalance, vars.sumCollateralNoCollateralFactor);
 
 
 
@@ -750,9 +794,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
 
             // NUMALENDING: use borrow price
             vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, vars.borrowBalance, vars.sumBorrowPlusEffects);
-                          console.log("borrow 0");
-                console.logUint(vars.borrowBalance);
-                console.logUint(vars.oraclePriceMantissaBorrowed);
+                       
 
             // Calculate effects of interacting with cTokenModify
             if (asset == cTokenModify) {
@@ -764,10 +806,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
                 // borrow effect
                 // sumBorrowPlusEffects += oraclePrice * borrowAmount
                 // NUMALENDING: use numa as borrowed price  
-                console.log("borrow");
-                console.logUint(borrowAmount);
-                console.logUint(vars.oraclePriceMantissaBorrowed);
-
                 vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, borrowAmount, vars.sumBorrowPlusEffects);
             }
         }
@@ -777,12 +815,45 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         // These are safe, as the underflow condition is checked first
         if (vars.sumCollateral > vars.sumBorrowPlusEffects) 
         {
-            return (Error.NO_ERROR, vars.sumCollateral - vars.sumBorrowPlusEffects, 0);
+            return (Error.NO_ERROR, vars.sumCollateral - vars.sumBorrowPlusEffects, 0,0);
         }
         else 
         {
-            return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral);
+            if (vars.sumCollateralNoCollateralFactor > vars.sumBorrowPlusEffects) 
+                return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,0);
+            else// returning bad debt
+                return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,vars.sumBorrowPlusEffects - vars.sumCollateralNoCollateralFactor);
         }
+    }
+
+
+
+
+    function liquidateBadDebtCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint actualRepayAmount) override external view returns (uint, uint) {
+        
+
+        /*
+         * Get the exchange rate and calculate the number of collateral tokens to seize:
+         * for bad debt liquidation, we take % of amount repaid as % of collateral seized
+         *  seizeAmount = (repayAmount / borrowBalance) * collateralAmount
+         *  seizeTokens = seizeAmount / exchangeRate
+         *   
+         */
+        uint exchangeRateMantissa = CToken(cTokenCollateral).exchangeRateStored(); // Note: reverts on error
+        uint seizeTokens;
+        Exp memory numerator;
+        Exp memory denominator;
+        Exp memory ratio;
+
+        uint borrowBalance = CToken(cTokenBorrowed).borrowBalanceStored(borrower);
+        
+        numerator = mul_(Exp({mantissa: liquidationIncentiveMantissa}), Exp({mantissa: priceBorrowedMantissa}));
+        denominator = mul_(Exp({mantissa: priceCollateralMantissa}), Exp({mantissa: exchangeRateMantissa}));
+        ratio = div_(numerator, denominator);
+
+        seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
+
+        return (uint(Error.NO_ERROR), seizeTokens);
     }
 
     /**

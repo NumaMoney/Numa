@@ -5,21 +5,20 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV2V3Interface.sol";
-
-import {IChainlinkAggregator} from "../interfaces/IChainlinkAggregator.sol";
-import {IChainlinkPriceFeed} from "../interfaces/IChainlinkPriceFeed.sol";
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../interfaces/INumaPrice.sol";
 import "../nuAssets/nuAssetManager.sol";
 import "hardhat/console.sol";
 
+import "../interfaces/INumaTokenToEthConverter.sol";
+
+
 /// @title NumaOracle
 /// @notice Responsible for getting prices from chainlink and uniswap V3 pools
 /// @dev
 contract NumaOracle is Ownable2Step {
-    address public immutable weth9;
+    address public immutable token;
     uint32 public intervalShort;
     uint32 public intervalLong;
 
@@ -32,13 +31,13 @@ contract NumaOracle is Ownable2Step {
     event NumaPrice(address _numaPrice);
 
     constructor(
-        address _weth9,
+        address _token,
         uint32 _intervalShort,
         uint32 _intervalLong,
         address initialOwner,
         address _nuAManager
     ) Ownable(initialOwner) {
-        weth9 = _weth9;
+        token = _token;
         intervalShort = _intervalShort;
         intervalLong = _intervalLong;
         nuAManager = nuAssetManager(_nuAManager);
@@ -129,9 +128,9 @@ contract NumaOracle is Ownable2Step {
             _uniswapV3Pool,
             _intervalLong
         );
-        //Takes the lowest token price denominated in WETH
-        //Condition checks to see if WETH is in denominator of pair, ie: token1/token0
-        if (IUniswapV3Pool(_uniswapV3Pool).token0() == weth9) {
+        //Takes the lowest token price denominated in token
+        //Condition checks to see if token is in denominator of pair, ie: token1/token0
+        if (IUniswapV3Pool(_uniswapV3Pool).token0() == token) {
             sqrtPriceX96 = (
                 sqrtPriceX96Long >= sqrtPriceX96Short
                     ? sqrtPriceX96Long
@@ -189,9 +188,9 @@ contract NumaOracle is Ownable2Step {
             _intervalLong
         );
 
-        //Takes the highest token price denominated in WETH
-        //Condition checks to see if WETH is in denominator of pair, ie: token1/token0
-        if (IUniswapV3Pool(_uniswapV3Pool).token0() == weth9) {
+        //Takes the highest token price denominated in token
+        //Condition checks to see if token is in denominator of pair, ie: token1/token0
+        if (IUniswapV3Pool(_uniswapV3Pool).token0() == token) {
             sqrtPriceX96 = (
                 sqrtPriceX96Long <= sqrtPriceX96Short
                     ? sqrtPriceX96Long
@@ -230,27 +229,55 @@ contract NumaOracle is Ownable2Step {
     function getNbOfNumaNeeded(
         uint256 _nuAssetAmount,
         address _nuAsset,
-        address _numaPool
+        address _numaPool,
+        address _converter
     ) external view returns (uint256) {
        uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
             _numaPool,
             intervalShort,
             intervalLong
         );
+
+        
         uint256 numerator = (
-            IUniswapV3Pool(_numaPool).token0() == weth9
-                ? sqrtPriceX96
+            IUniswapV3Pool(_numaPool).token0() == token
+                ? sqrtPriceX96 
                 : FixedPoint96.Q96
         );
+
+
+
         uint256 denominator = (
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
         //numa per ETH, times _nuAssetAmount
-        uint256 numaPerETHmulAmount = FullMath.mulDivRoundingUp(
-            FullMath.mulDivRoundingUp(numerator, numerator, denominator),
+        // uint256 numaPerETHmulAmount = FullMath.mulDivRoundingUp(
+        //     FullMath.mulDivRoundingUp(numerator, numerator, denominator),
+        //     _nuAssetAmount,
+        //     denominator
+        // );
+
+        console.log("DECIMALS");
+        console.logUint(10**IERC20Metadata(token).decimals());
+
+        uint256 numaPerETHmulAmount = (
+            numerator == sqrtPriceX96 ?
+        FullMath.mulDivRoundingUp(
+            FullMath.mulDivRoundingUp(numerator, numerator* 10**18, denominator),
             _nuAssetAmount,
-            denominator
+            denominator * 10**IERC20Metadata(token).decimals()// numa decimals
+        ) 
+        : FullMath.mulDivRoundingUp(
+            FullMath.mulDivRoundingUp(numerator, numerator * 10**IERC20Metadata(token).decimals(), denominator),// numa decimals
+            _nuAssetAmount,
+            denominator* 10**18
+        )
         );
+
+        if (_converter != address(0))
+        {
+            numaPerETHmulAmount = INumaTokenToEthConverter(_converter).convertNumaPerTokenToNumaPerEth(numaPerETHmulAmount);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+        }
 
         // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {
@@ -294,7 +321,8 @@ contract NumaOracle is Ownable2Step {
     function getNbOfNumaFromAsset(
         uint256 _nuAssetAmount,
         address _nuAsset,
-        address _numaPool
+        address _numaPool,
+        address _converter
     ) external view returns (uint256) {
          // highest price for numa to minimize amount to mint
         uint160 sqrtPriceX96 = getV3SqrtHighestPrice(
@@ -303,7 +331,7 @@ contract NumaOracle is Ownable2Step {
             intervalLong
         );
         uint256 numerator = (
-            IUniswapV3Pool(_numaPool).token0() == weth9
+            IUniswapV3Pool(_numaPool).token0() == token
                 ? sqrtPriceX96
                 : FixedPoint96.Q96
         );
@@ -311,11 +339,36 @@ contract NumaOracle is Ownable2Step {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
         //numa per ETH, times _amount
-        uint256 numaPerETHmulAmount = FullMath.mulDiv(
-            FullMath.mulDiv(numerator, numerator, denominator),
-            _nuAssetAmount,
-            denominator
+        // uint256 numaPerETHmulAmount = FullMath.mulDiv(
+        //     FullMath.mulDiv(numerator, numerator, denominator),
+        //     _nuAssetAmount,
+        //     denominator
+        // );
+
+        uint256 numaPerETHmulAmount = (
+            numerator == sqrtPriceX96 ?
+            FullMath.mulDivRoundingUp(
+                FullMath.mulDivRoundingUp(numerator, numerator* 10**18, denominator),
+                _nuAssetAmount,
+                denominator * 10**IERC20Metadata(token).decimals()
+            ) 
+            : FullMath.mulDivRoundingUp(
+                FullMath.mulDivRoundingUp(numerator, numerator * 10**IERC20Metadata(token).decimals(), denominator),
+                _nuAssetAmount,
+                denominator* 10**18
+            )
         );
+
+        if (_converter != address(0))
+        {
+            numaPerETHmulAmount = INumaTokenToEthConverter(_converter).convertNumaPerTokenToNumaPerEth(numaPerETHmulAmount);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+        }
+
+
+        // numaUSDC pool
+        //numaPerETHmulAmount = nuAManager.convertNumaPerUSDCToNumaPerEth(numaPerETHmulAmount,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+
+
 
         // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {
@@ -342,7 +395,8 @@ contract NumaOracle is Ownable2Step {
     function getNbOfNuAsset(
         uint256 _numaAmount,
         address _nuAsset,
-        address _numaPool
+        address _numaPool,
+        address _converter
     ) external view returns (uint256) 
     {
 
@@ -352,7 +406,7 @@ contract NumaOracle is Ownable2Step {
             intervalLong
         );
         uint256 numerator = (
-            IUniswapV3Pool(_numaPool).token0() == weth9
+            IUniswapV3Pool(_numaPool).token0() == token
                 ? sqrtPriceX96
                 : FixedPoint96.Q96
         );
@@ -360,13 +414,37 @@ contract NumaOracle is Ownable2Step {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
         //Eth per numa times amount
-        uint256 EthPerNuma = FullMath.mulDiv(
-            FullMath.mulDiv(denominator, denominator, numerator),
-            _numaAmount,
-            numerator
+        // uint256 EthPerNuma = FullMath.mulDiv(
+        //     FullMath.mulDiv(denominator, denominator, numerator),
+        //     _numaAmount,
+        //     numerator
+        // );
+        uint256 EthPerNuma = (
+            numerator == sqrtPriceX96 ?
+                FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(denominator, denominator*10**IERC20Metadata(token).decimals() , numerator),
+                    _numaAmount,
+                    numerator * 10**18// numa decimals
+            ) 
+            : FullMath.mulDivRoundingUp(
+                FullMath.mulDivRoundingUp(denominator, denominator * 10**18, numerator),// numa decimals
+                _numaAmount,
+                numerator* 10**IERC20Metadata(token).decimals()
+            )
         );
 
-          // check that numa price is within vault's price bounds to prevent price manipulation
+        if (_converter != address(0))
+        {
+            EthPerNuma = INumaTokenToEthConverter(_converter).convertTokenPerNumaToEthPerNuma(EthPerNuma);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+        }
+
+
+        // // usdc pool
+        // EthPerNuma = nuAManager.convertUSDCPerNumaToEthPerNuma(EthPerNuma,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+
+
+
+        // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {
             // do it only if we specified a contract that can give us numa price
             uint256 EthPerNumaVault = numaPrice.GetNumaPriceEth(
@@ -396,7 +474,9 @@ console.logUint(tokensForAmount);
     function getNbOfAssetneeded(
         uint256 _amountNumaOut,
         address _nuAsset,
-        address _numaPool
+        address _numaPool,
+        address _converter
+
     ) external view returns (uint256) 
     {
          // highest price for numa to minimize amount to mint
@@ -406,7 +486,7 @@ console.logUint(tokensForAmount);
             intervalLong
         );
         uint256 numerator = (
-            IUniswapV3Pool(_numaPool).token0() == weth9
+            IUniswapV3Pool(_numaPool).token0() == token
                 ? sqrtPriceX96
                 : FixedPoint96.Q96
         );
@@ -414,11 +494,35 @@ console.logUint(tokensForAmount);
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
         //numa per ETH, times _amount
-        uint256 EthPerNuma = FullMath.mulDivRoundingUp(
-            FullMath.mulDivRoundingUp(denominator, denominator, numerator),
-            _amountNumaOut,
-            numerator
+        // uint256 EthPerNuma = FullMath.mulDivRoundingUp(
+        //     FullMath.mulDivRoundingUp(denominator, denominator, numerator),
+        //     _amountNumaOut,
+        //     numerator
+        // );
+
+        uint256 EthPerNuma = (
+            numerator == sqrtPriceX96 ?
+            FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(denominator, denominator*10**IERC20Metadata(token).decimals() , numerator),
+                    _amountNumaOut,
+                    numerator * 10**18// numa decimals
+            ) 
+            : FullMath.mulDivRoundingUp(
+                FullMath.mulDivRoundingUp(denominator, denominator * 10**18, numerator),// numa decimals
+                _amountNumaOut,
+                numerator* 10**IERC20Metadata(token).decimals()
+            )
         );
+
+        if (_converter != address(0))
+        {
+            EthPerNuma = INumaTokenToEthConverter(_converter).convertTokenPerNumaToEthPerNuma(EthPerNuma);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+        }
+
+
+        // // usdc pool
+        // EthPerNuma = nuAManager.convertUSDCPerNumaToEthPerNuma(EthPerNuma,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+
 
         // check that numa price is within vault's price bounds to prevent price manipulation
         if (address(numaPrice) != address(0)) {

@@ -18,7 +18,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     NUMA public immutable numa;
     NumaMinter public immutable minterContract;
     address public numaPool;
-
+    address public tokenToEthConverter;
     //
     INumaOracle public oracle;
     //
@@ -48,7 +48,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     event SetOracle(address oracle); 
     event SetChainlinkFeed(address _chainlink);
-    event SetNumaPool(address _pool);
+    event SetNumaPool(address _pool,address _convertAddress);
     event AssetMint(address _asset, uint _amount);
     event AssetBurn(address _asset, uint _amount);
     event PrintAssetFeeBps(uint _newfee);
@@ -88,6 +88,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _numaAddress,
         address _numaMinterAddress,
         address _numaPool,
+        address _tokenToEthConverter,
         INumaOracle _oracle,
         address _vaultManagerAddress
 
@@ -96,6 +97,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
         minterContract = NumaMinter(_numaMinterAddress);
 
         numaPool = _numaPool;
+        // might not be necessary if using numa/ETH pool
+        if (_tokenToEthConverter != address(0))
+            tokenToEthConverter = _tokenToEthConverter;
         oracle = _oracle;
         vaultManager = IVaultManager(_vaultManagerAddress);
       
@@ -155,9 +159,10 @@ contract NumaPrinter is Pausable, Ownable2Step {
     /**
      * @notice not using whenNotPaused as we may want to pause contract to set these values
      */
-    function setNumaPool(address _numaPool) external onlyOwner {
+    function setNumaPoolAndConverter(address _numaPool,address _converterAddress) external onlyOwner {
         numaPool = _numaPool;
-        emit SetNumaPool(address(_numaPool));
+        tokenToEthConverter = _converterAddress;
+        emit SetNumaPool(_numaPool,_converterAddress);
     }
 
     /**
@@ -244,7 +249,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         lastBlockTime = blockTime;
     }
 
-    function getSynthScaling() public view returns (uint,uint,uint)
+    function getSynthScaling() public virtual view returns (uint,uint,uint)// virtual for test&overrides
     {
         
         uint lastScaleMemory = lastScale;
@@ -366,7 +371,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 output = oracle.getNbOfNuAsset(
             _numaAmount - amountToBurn,
             _nuAsset,
-            numaPool
+            numaPool,
+            tokenToEthConverter
         );
         return (output, amountToBurn);
     }
@@ -385,7 +391,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 costWithoutFee = oracle.getNbOfNumaNeeded(
             _nuAssetAmount,
             _nuAsset,
-            numaPool
+            numaPool,
+            tokenToEthConverter
         );
         uint256 costWithFee = (costWithoutFee*10000) / (10000 - printAssetFeeBps);
 
@@ -412,7 +419,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 nuAssetIn = oracle.getNbOfAssetneeded(
             amountWithFee,
             _nuAsset,
-            numaPool
+            numaPool,
+            tokenToEthConverter
         );
 
        
@@ -434,7 +442,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 nuAssetIn = oracle.getNbOfAssetneeded(
             amountWithFee,
             _nuAsset,
-            numaPool
+            numaPool,
+            tokenToEthConverter
         );
 
         (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
@@ -462,7 +471,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _output = oracle.getNbOfNumaFromAsset(
             _nuAssetAmount,
             _nuAsset,
-            numaPool
+            numaPool,
+            tokenToEthConverter
         );
 
 
@@ -491,7 +501,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _output = oracle.getNbOfNumaFromAsset(
             _nuAssetAmount,
             _nuAsset,
-            numaPool
+            numaPool,
+            tokenToEthConverter
         );
 
         (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();

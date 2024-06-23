@@ -2453,7 +2453,7 @@ describe('NUMA LENDING', function () {
           // burn half the supply, will multiply the price by 2
           let totalsupply = await numa.totalSupply();
           await numa.burn(totalsupply/BigInt(2));
-          [_, collateral, shortfall] = await comptroller.getAccountLiquidity(
+          [_, collateral, shortfall,badDebt] = await comptroller.getAccountLiquidity(
             await userA.getAddress()
           );
   
@@ -2477,29 +2477,63 @@ describe('NUMA LENDING', function () {
           // check lending protocol balance
           let numaBalanceLiquidatorBefore = await numa.balanceOf(await owner.getAddress());
           let rethBalanceLiquidatorBefore = await rEth_contract.balanceOf(await owner.getAddress());
-          await Vault1.liquidateNumaBorrowerNoSwap(await userA.getAddress(), repayAmount) ;
+          // revert LIQUIDATE_SEIZE_TOO_MUCH because we want to liquidtae whole position and there is bad debt
+          await expect (Vault1.liquidateNumaBorrowerNoSwap(await userA.getAddress(), repayAmount) ).to.be.reverted;
+
+          // this one will not but should when bad debt liquidations will be blocked
+          // check bad debt
+          let numaFromREth2 = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("1"));
+          console.log("how many numa with 1 rEth "+ ethers.formatEther(numaFromREth2));
+          let numaBuyPriceInReth2 = (ethers.parseEther("1") * ethers.parseEther("1")) / numaFromREth2;
   
-          //
-          // check new shortfall
-          [_, collateral2, shortfall2] = await comptroller.getAccountLiquidity(
-            await userA.getAddress()
-          );
+  
+          // add 1 because we round up division
+          numaBuyPriceInReth2 = numaBuyPriceInReth2 +BigInt(1);
+          console.log('numa buy price in rEth '+ numaBuyPriceInReth2);
+
+          let collateralValueInrEthWei2 =  (ethers.parseEther("1")*rethsupplyamount);
+          let collateralValueInNumaWei2 =  collateralValueInrEthWei2 / numaBuyPriceInReth2;
+
+          // 2 reth collateral, 120 000 numa borrowed
+          // numa price x 2
+
+          // collateral equals 100 000 numa
+          // bad debt = 20 000 numa
+
+
+          let badDebtEstim = notTooMuchNuma - collateralValueInNumaWei2;
+          console.log(ethers.formatEther(badDebtEstim));
+          console.log(ethers.formatEther(badDebt));
+          badDebt = (ethers.parseEther("1")*badDebt)/ numaBuyPriceInReth2;// in numa
+          console.log(ethers.formatEther(badDebt));
+          expect(badDebt).to.be.closeTo(badDebtEstim,epsilon);
+         
+          repayAmount = (repayAmount)/BigInt(2);
+          await expect(Vault1.liquidateNumaBorrowerNoSwap(await userA.getAddress(), repayAmount)).to.be.reverted;
+  
+          // repay bad debt custom function
+
+          // //
+          // // check new shortfall
+          // [_, collateral2, shortfall2] = await comptroller.getAccountLiquidity(
+          //   await userA.getAddress()
+          // );
   
 
   
    
-          // check lending protocol balance
-          let numaBalanceAfter = await numa.balanceOf(CNUMA_ADDRESS);
-          expect(numaBalanceAfter).to.equal(numaBalanceBefore + repayAmount);
+          // // check lending protocol balance
+          // let numaBalanceAfter = await numa.balanceOf(CNUMA_ADDRESS);
+          // expect(numaBalanceAfter).to.equal(numaBalanceBefore + repayAmount);
   
-          let numaBalanceLiquidatorAfter = await numa.balanceOf(await owner.getAddress());
-          let rethBalanceLiquidatorAfter = await rEth_contract.balanceOf(await owner.getAddress());
-          let rethReceived = rethBalanceLiquidatorAfter - rethBalanceLiquidatorBefore;
-          console.log(rethReceived);
-          let amountEstimateNuma = repayAmount+ (BigInt(10) * repayAmount) / BigInt(100);
+          // let numaBalanceLiquidatorAfter = await numa.balanceOf(await owner.getAddress());
+          // let rethBalanceLiquidatorAfter = await rEth_contract.balanceOf(await owner.getAddress());
+          // let rethReceived = rethBalanceLiquidatorAfter - rethBalanceLiquidatorBefore;
+          // console.log(rethReceived);
+          // let amountEstimateNuma = repayAmount+ (BigInt(10) * repayAmount) / BigInt(100);
 
-          let amountEstimateReth = await Vault1.getSellNumaSimulateExtract(amountEstimateNuma);
-          expect(rethReceived).to.be.closeTo(amountEstimateReth,epsilon2);
+          // let amountEstimateReth = await Vault1.getSellNumaSimulateExtract(amountEstimateNuma);
+          // expect(rethReceived).to.be.closeTo(amountEstimateReth,epsilon2);
   
   
         });

@@ -230,4 +230,6 @@ contract OracleUtils {
             if (descriptionBytes[i] != ethBytes[i]) return false;
         return true;
     }
+
+
 }

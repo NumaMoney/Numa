@@ -33,6 +33,15 @@ abstract contract ComptrollerInterface {
         uint repayAmount,
         uint borrowerIndex) virtual external;
 
+
+    function liquidateBadDebtAllowed(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        address liquidator,
+        address borrower,
+        uint repayAmount) virtual external returns (uint);
+
+
     function liquidateBorrowAllowed(
         address cTokenBorrowed,
         address cTokenCollateral,
