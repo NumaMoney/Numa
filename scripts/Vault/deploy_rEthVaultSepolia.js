@@ -112,7 +112,7 @@ async function main () {
    let numa = await hre.ethers.getContractAt("NUMA", numa_address);
    await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
-   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod,ethers.parseEther(constantRemoved));
+   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod,0,0,ethers.parseEther(constantRemoved));
 
    // BUY FEE 25%
    await Vault1.setBuyFee(750);

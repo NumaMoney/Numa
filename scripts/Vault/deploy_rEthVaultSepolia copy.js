@@ -130,7 +130,7 @@ async function main () {
    await numa.grantRole(roleMinter, VAULT1_ADDRESS);
 
    // TODO: decay amount/period
-   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod);
+   await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod,0,0,0);
 
 
 

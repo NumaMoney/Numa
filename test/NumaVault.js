@@ -270,7 +270,7 @@ describe('NUMA VAULT', function () {
 
         let removedSupply = numaSupply / BigInt(2);
        
-        await VM.setDecayValues(removedSupply,365*24*3600,0);
+        await VM.setDecayValues(removedSupply,365*24*3600,0,0,0);
 
 
 
@@ -306,7 +306,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = ethers.parseEther("4000000");
-        await VM.setDecayValues(removedSupply,400*24*3600,0);
+        await VM.setDecayValues(removedSupply,400*24*3600,0,0,0);
         console.log(numaSupply);
 
         await VM.startDecay();
@@ -364,7 +364,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = numaSupply / BigInt(2);
-        await VM.setDecayValues(removedSupply,400*24*3600,0);
+        await VM.setDecayValues(removedSupply,400*24*3600,0,0,0);
 
 
         await VM.startDecay();
@@ -410,7 +410,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = numaSupply / BigInt(2);
-        await VM.setDecayValues(removedSupply,100*24*3600,0);
+        await VM.setDecayValues(removedSupply,100*24*3600,0,0,0);
 
 
         await VM.startDecay();
@@ -425,7 +425,7 @@ describe('NUMA VAULT', function () {
 
   
 
-        await VM.setDecayValues(removedSupply,100*24*3600,0);
+        await VM.setDecayValues(removedSupply,100*24*3600,0,0,0);
         await VM.startDecay();
 
 
@@ -472,7 +472,7 @@ describe('NUMA VAULT', function () {
 
 
         let removedSupply = numaSupply / BigInt(2);
-        await VM.setDecayValues(removedSupply,400*24*3600,0);
+        await VM.setDecayValues(removedSupply,400*24*3600,0,0,0);
 
 
         await VM.startDecay();
@@ -487,7 +487,7 @@ describe('NUMA VAULT', function () {
 
   
 
-        await VM.setDecayValues(0,0,0);
+        await VM.setDecayValues(0,0,0,0,0);
 
         await VM.startDecay();
         // BUY

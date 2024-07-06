@@ -23,14 +23,20 @@ contract VaultManager is IVaultManager, Ownable2Step {
   
 
     uint public initialRemovedSupply;
+    uint public initialLPRemovedSupply;
+
     uint public constantRemovedSupply;
   
     bool public islockedSupply;
     uint public lockedSupply;
 
     uint public decayPeriod;
+    uint public decayPeriodLP;
+
     uint public startTime;
     bool public isDecaying;
+
+
    
 
     uint constant max_vault = 50;
@@ -400,11 +406,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
         islockedSupply = _lock;
     }
 
-    function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod,uint _constantRemovedSupply) external onlyOwner
+    function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod,uint _initialRemovedSupplyLP, uint _decayPeriodLP,uint _constantRemovedSupply) external onlyOwner
     {
         initialRemovedSupply = _initialRemovedSupply;
+        initialLPRemovedSupply = _initialRemovedSupplyLP;
         constantRemovedSupply = _constantRemovedSupply;
         decayPeriod = _decayPeriod;
+        decayPeriodLP = _decayPeriodLP;
         // start decay will have to be called again
         // CAREFUL: IF DECAYING, ALL VAULTS HAVE TO BE PAUSED WHEN CHANGING THESE VALUES, UNTIL startDecay IS CALLED
         isDecaying = false;
@@ -697,26 +705,38 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
         uint circulatingNuma = numa.totalSupply();
         uint currentRemovedSupply = initialRemovedSupply;
+        uint currentLPRemovedSupply = initialLPRemovedSupply;
 
         uint currentTime = block.timestamp;
-        if (isDecaying && (currentTime > startTime) && (decayPeriod > 0))
+        if (isDecaying && (currentTime > startTime))
         {
-            console.logUint(currentTime);
-             console.logUint(startTime);
-            uint delta = ((currentTime - startTime) * initialRemovedSupply)/decayPeriod;
-            if (delta >= (initialRemovedSupply))
+            if (decayPeriod > 0)
             {
-                currentRemovedSupply = 0;
+                if (currentTime >= startTime+decayPeriod)
+                {
+                    currentRemovedSupply = 0;
+                }
+                else 
+                {
+                    uint delta = ((currentTime - startTime) * initialRemovedSupply)/decayPeriod;
+                    currentRemovedSupply -= (delta);                
+                }
             }
-            else {
-                currentRemovedSupply -= (delta);                
-            }
-
+            if (decayPeriodLP > 0)
+            {
+                if (currentTime >= startTime+decayPeriodLP)
+                {
+                    currentLPRemovedSupply = 0;
+                }
+                else 
+                {
+                    uint delta = ((currentTime - startTime) * initialLPRemovedSupply)/decayPeriodLP;
+                    currentLPRemovedSupply -= (delta);                
+                }
+            } 
         }
 
-
-        circulatingNuma = circulatingNuma - currentRemovedSupply - constantRemovedSupply;
-
+        circulatingNuma = circulatingNuma - currentRemovedSupply - currentLPRemovedSupply - constantRemovedSupply;
         return circulatingNuma;
     }
 
