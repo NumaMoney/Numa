@@ -10,7 +10,8 @@ import "../interfaces/INumaVault.sol";
 import "../Numa.sol";
 
 import "../interfaces/INuAssetManager.sol";
-
+import "../utils/constants.sol";
+import "hardhat/console.sol";
 
 contract VaultManager is IVaultManager, Ownable2Step {
 
@@ -33,16 +34,43 @@ contract VaultManager is IVaultManager, Ownable2Step {
    
 
     uint constant max_vault = 50;
-    uint16 public constant BASE_1000 = 1000;
-    uint16 public constant MAX_CF = 20000;
 
     // sell fee
     uint16 public sell_fee = 950; // 5%
     // buy fee
     uint16 public buy_fee = 950; // 5%
-
-
+    // min numa price in Eth
     uint minNumaPriceEth = 0.000001 ether;
+
+
+
+    uint public cf_liquid_severe = 1500; 
+    uint16 public sell_fee_debaseValue = 10;
+    uint16 public sell_fee_rebaseValue = 10;
+    uint16 public sell_fee_minimum = 500;
+    uint public sell_fee_deltaRebase = 24 hours;
+    uint public sell_fee_deltaDebase = 24 hours;
+    uint16 last_sell_fee = 950;
+    uint lastBlockTime_sell_fee;   
+    uint public sell_fee_update_blocknumber;
+
+
+    // synth minting/burning parameters
+    uint public cf_critical = 1100;
+    uint public cf_severe = 1500;
+    uint public cf_warning = 1700;
+    uint public debaseValue = 20;//base 1000
+    uint public rebaseValue = 30;//base 1000
+    uint public minimumScale = 500;
+    uint public deltaRebase = 24 hours;
+    uint public deltaDebase = 24 hours;
+    uint lastScale = 1000;
+    uint lastScaleOverride = 1000;
+    uint lastBlockTime;
+    uint public synth_scaling_update_blocknumber;
+
+
+
     // 
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
@@ -50,8 +78,23 @@ contract VaultManager is IVaultManager, Ownable2Step {
     event SetMinimumNumaPriceEth(uint _minimumPriceEth);
     event SellFeeUpdated(uint16 sellFee);
     event BuyFeeUpdated(uint16 buyFee);
+    event SetScalingParameters(
+        uint cf_critical,
+        uint cf_warning,
+        uint cf_severe,
+        uint debaseValue,
+        uint rebaseValue,
+        uint deltaDebase,
+        uint deltaRebase,
+        uint minimumScale);
 
-
+    event SetSellFeeParameters(
+        uint _cf_liquid_severe,
+        uint16 _sell_fee_debaseValue,
+        uint16 _sell_fee_rebaseValue,
+        uint _sell_fee_deltaDebase,
+        uint _sell_fee_deltaRebase,      
+        uint16 _sell_fee_minimum );
 
     constructor(
         address _numaAddress,
@@ -84,6 +127,65 @@ contract VaultManager is IVaultManager, Ownable2Step {
         constantRemovedSupply = _constantRemovedSupply;
     }
 
+  function setScalingParameters(uint _cf_critical,
+        uint _cf_warning,
+        uint _cf_severe,
+        uint _debaseValue,
+        uint _rebaseValue,
+        uint _deltaDebase,
+        uint _deltaRebase,
+        uint _minimumScale) external onlyOwner
+    {
+
+        getSynthScalingUpdate();
+        cf_critical = _cf_critical;
+        cf_warning = _cf_warning;
+        cf_severe = _cf_severe;
+        debaseValue = _debaseValue;
+        rebaseValue = _rebaseValue;
+        deltaRebase = _deltaRebase;
+        deltaDebase = _deltaDebase;
+        minimumScale = _minimumScale;
+        emit SetScalingParameters(
+            _cf_critical,
+            _cf_warning,
+            _cf_severe,
+            _debaseValue,
+            _rebaseValue,
+            _deltaDebase,
+            _deltaRebase,
+            _minimumScale
+            );
+    }
+
+
+  function setSellFeeParameters(uint _cf_liquid_severe,
+        uint16 _sell_fee_debaseValue,
+        uint16 _sell_fee_rebaseValue,
+        uint _sell_fee_deltaDebase,
+        uint _sell_fee_deltaRebase,      
+        uint16 _sell_fee_minimum ) external onlyOwner
+    {
+
+        getSellFeeScalingUpdate();
+        cf_liquid_severe = _cf_liquid_severe;
+        sell_fee_debaseValue = _sell_fee_debaseValue;
+        sell_fee_rebaseValue = _sell_fee_rebaseValue;
+        sell_fee_deltaDebase = _sell_fee_deltaDebase;
+        sell_fee_deltaRebase = _sell_fee_deltaRebase;
+        sell_fee_minimum = _sell_fee_minimum;
+
+        emit SetSellFeeParameters(
+           _cf_liquid_severe,
+           _sell_fee_debaseValue,
+           _sell_fee_rebaseValue,
+           _sell_fee_deltaDebase,
+           _sell_fee_deltaRebase,      
+           _sell_fee_minimum
+           );
+    }
+
+
 
     /**
      * @dev Set Sell fee percentage (exemple: 5% fee --> fee = 950)
@@ -111,6 +213,177 @@ contract VaultManager is IVaultManager, Ownable2Step {
     function getSellFee() external view returns (uint16)
     {
         return sell_fee;
+    }
+
+    function getWarningCF() external view returns (uint)
+    {
+        return cf_warning;
+    }
+
+    function getSellFeeScalingUpdate() public returns (uint16 sell_fee_memory,uint blockTime)
+    {  
+        uint currentBlock = block.number;
+        if (currentBlock == sell_fee_update_blocknumber)
+        {
+            (sell_fee_memory, blockTime) = (last_sell_fee,lastBlockTime_sell_fee);
+         
+        }
+        else {
+            (sell_fee_memory,blockTime) = getSellFeeScaling();
+            // save 
+            last_sell_fee = sell_fee_memory;
+            lastBlockTime_sell_fee = blockTime;
+            sell_fee_update_blocknumber = currentBlock;
+        }
+    }
+
+    function getSellFeeScaling() public view returns (uint16,uint)
+    {  
+        uint lastSellFee = last_sell_fee;
+        // synth scaling
+        uint currentLiquidCF = getGlobalLiquidCF();
+        uint blockTime = block.timestamp;
+        if (currentLiquidCF < cf_liquid_severe)
+        {        
+            // we need to debase
+            if (blockTime > (lastBlockTime_sell_fee + sell_fee_deltaDebase))
+            {
+                // debase again
+                uint ndebase = (blockTime - lastBlockTime_sell_fee)/(sell_fee_deltaDebase);
+                ndebase = ndebase * sell_fee_debaseValue;
+
+                    if (lastSellFee > ndebase)
+                    {
+                        lastSellFee = lastSellFee - ndebase;
+                        if (lastSellFee < sell_fee_minimum)
+                            lastSellFee = sell_fee_minimum;
+                    }
+                    else
+                        lastSellFee = sell_fee_minimum;
+                } 
+
+        }
+        else
+        {
+            if (last_sell_fee < sell_fee)
+            {
+
+                // need to rebase
+                if (blockTime > (lastBlockTime_sell_fee + sell_fee_deltaRebase))
+                {
+                    // rebase
+                    uint nrebase = (blockTime - lastBlockTime_sell_fee)/(sell_fee_deltaRebase);
+                  
+                    nrebase = nrebase * sell_fee_rebaseValue;
+                  
+                    lastSellFee = lastSellFee + nrebase;
+                  
+                    if (lastSellFee > sell_fee)
+                        lastSellFee = sell_fee;
+                } 
+               
+
+            }
+        }
+
+        return (uint16(lastSellFee),blockTime);
+    }
+ 
+    function getSynthScalingUpdate() public returns (uint scaleOverride, uint scaleMemory,uint blockTime)
+    {  
+        uint currentBlock = block.number;
+        if (currentBlock == synth_scaling_update_blocknumber)
+        {
+            (scaleOverride, scaleMemory,blockTime) = (lastScaleOverride,lastScale,lastBlockTime);
+         
+        }
+        else {
+            (scaleOverride, scaleMemory,blockTime) = getSynthScaling();
+            // save 
+            lastScaleOverride = scaleOverride;
+            lastScale = scaleMemory;
+            lastBlockTime = blockTime;
+            synth_scaling_update_blocknumber = currentBlock;
+            
+        }
+    }
+
+    function getSynthScaling() public virtual view returns (uint,uint,uint)// virtual for test&overrides
+    {
+        
+        uint lastScaleMemory = lastScale;
+        // synth scaling
+        uint currentCF = getGlobalCF();
+        uint blockTime = block.timestamp;
+        if (currentCF < cf_severe)
+        {        
+            // we need to debase
+
+            //if (lastScaleMemory < BASE_1000)
+            {
+                // we are currently in debase/rebase mode
+
+                if (blockTime > (lastBlockTime + deltaDebase))
+                {
+                    // debase again
+                    uint ndebase = (blockTime - lastBlockTime)/(deltaDebase);
+
+                    ndebase = ndebase * debaseValue;
+
+                    if (lastScaleMemory > ndebase)
+                    {
+                        lastScaleMemory = lastScaleMemory - ndebase;
+                        if (lastScaleMemory < minimumScale)
+                            lastScaleMemory = minimumScale;
+                    }
+                    else
+                        lastScaleMemory = minimumScale;
+                } 
+
+            }
+            // else
+            // {
+            //     // start debase
+            //     lastScaleMemory = lastScaleMemory - debaseValue;
+            // }
+        }
+        else
+        {
+            if (lastScaleMemory < BASE_1000)
+            {
+
+                // need to rebase
+                if (blockTime > (lastBlockTime + deltaRebase))
+                {
+                    // rebase
+                    uint nrebase = (blockTime - lastBlockTime)/(deltaRebase);
+                  
+                    nrebase = nrebase * rebaseValue;
+                  
+                    lastScaleMemory = lastScaleMemory + nrebase;
+                  
+                    if (lastScaleMemory > BASE_1000)
+                        lastScaleMemory = BASE_1000;
+                } 
+               
+
+            }
+        }
+
+        // apply scale to synth burn price
+        uint scale1000 = lastScaleMemory;
+
+        // CRITICAL_CF
+        if (currentCF < cf_critical)
+        {
+            // scale such that currentCF = cf_critical
+            
+            uint scaleSecure = (currentCF*BASE_1000)/cf_critical;
+            if (scaleSecure < scale1000)
+                scale1000 = scaleSecure;
+        }
+        return (scale1000,lastScaleMemory,blockTime);
+
     }
 
 
@@ -159,18 +432,24 @@ contract VaultManager is IVaultManager, Ownable2Step {
     function tokenToNuma(
         uint _inputAmount,
         uint _refValueWei,
-        uint _decimals
+        uint _decimals,
+        uint _synthScaling
     ) external view returns (uint256) {
+        uint EthBalance = getTotalBalanceEth();
+        require(EthBalance > 0,"empty vaults");
         uint256 EthValue = FullMath.mulDiv(
             _refValueWei,
             _inputAmount,
             _decimals
         );
+        
+
+
         uint synthValueInEth = getTotalSynthValueEth();
+        synthValueInEth = (synthValueInEth*BASE_1000)/_synthScaling;
         uint circulatingNuma = getNumaSupply();
 
-        uint EthBalance = getTotalBalanceEth();
-
+      
         uint result;
         if (EthBalance <= synthValueInEth)
         {
@@ -216,11 +495,19 @@ contract VaultManager is IVaultManager, Ownable2Step {
     function numaToToken(
         uint _inputAmount,
         uint _refValueWei,
-        uint _decimals
+        uint _decimals,
+        uint _synthScaling
     ) external view returns (uint256) {
-        uint synthValueInEth = getTotalSynthValueEth();
-        uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
+        require(EthBalance > 0,"empty vaults");
+
+        uint synthValueInEth = getTotalSynthValueEth();
+
+        synthValueInEth = (synthValueInEth*BASE_1000)/_synthScaling;
+
+
+        uint circulatingNuma = getNumaSupply();
+        
 
  
         require(circulatingNuma > 0, "no numa in circulation");
@@ -285,10 +572,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     function GetNumaPriceEth(uint _inputAmount) external view returns (uint256)
     {
-        uint synthValueInEth = getTotalSynthValueEth();
-        uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
+        require(EthBalance > 0,"empty vaults");
 
+        uint synthValueInEth = getTotalSynthValueEth();
+        (uint scaling,,) = getSynthScaling();  
+        synthValueInEth = (synthValueInEth*BASE_1000)/scaling;
+        uint circulatingNuma = getNumaSupply();
 
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
@@ -333,9 +623,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _inputAmount
     ) external view returns (uint256)
     {
-        uint synthValueInEth = getTotalSynthValueEth();
-        uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
+        require(EthBalance > 0,"empty vaults");
+
+        uint synthValueInEth = getTotalSynthValueEth();
+        (uint scaling,,) = getSynthScaling();  
+        synthValueInEth = (synthValueInEth*BASE_1000)/scaling;
+        uint circulatingNuma = getNumaSupply();
 
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
@@ -407,7 +701,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint currentTime = block.timestamp;
         if (isDecaying && (currentTime > startTime) && (decayPeriod > 0))
         {
-            
+            console.logUint(currentTime);
+             console.logUint(startTime);
             uint delta = ((currentTime - startTime) * initialRemovedSupply)/decayPeriod;
             if (delta >= (initialRemovedSupply))
             {
@@ -490,7 +785,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         }
     }
 
-    function getGlobalCF() external view returns (uint)
+    function getGlobalCF() public view returns (uint)
     {
         uint EthBalance = getTotalBalanceEth();
         uint synthValue = nuAssetManager.getTotalSynthValueEth();
@@ -505,7 +800,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         }
     }
 
-    function getGlobalCFWithoutDebt() external view returns (uint)
+    function getGlobalLiquidCF() public view returns (uint)
     {
         uint EthBalance = getTotalBalanceEthNoDebt();
         uint synthValue = nuAssetManager.getTotalSynthValueEth();

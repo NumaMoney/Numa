@@ -161,6 +161,8 @@ abstract contract CTokenInterface is CTokenStorage {
      */
     event LiquidateBorrow(address liquidator, address borrower, uint repayAmount, address cTokenCollateral, uint seizeTokens);
 
+    event LiquidateBadDebt(address liquidator, address borrower, uint repayAmount, address cTokenCollateral, uint seizeTokens);
+
     /// @notice The ```UpdateRate``` event is emitted when the interest rate is updated
     /// @param oldFullUtilizationRate The old full utilization rate
     /// @param newFullUtilizationRate The new full utilization rate
@@ -236,6 +238,7 @@ abstract contract CTokenInterface is CTokenStorage {
     function getCash() virtual external view returns (uint);
     function accrueInterest() virtual external returns (uint);
     function seize(address liquidator, address borrower, uint seizeTokens) virtual external returns (uint);
+    function seizeBadDebt(address liquidator, address borrower, uint seizeTokens) virtual external returns (uint);
 
 
     /*** Admin Functions ***/
@@ -266,6 +269,8 @@ abstract contract CErc20Interface is CErc20Storage {
     function repayBorrow(uint repayAmount) virtual external returns (uint);
     function repayBorrowBehalf(address borrower, uint repayAmount) virtual external returns (uint);
     function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) virtual external returns (uint);
+    function liquidateBadDebt(address borrower, uint repayAmount, uint percentageToTake,CTokenInterface cTokenCollateral) virtual external returns (uint);
+  
     function sweepToken(EIP20NonStandardInterface token) virtual external;
 
 

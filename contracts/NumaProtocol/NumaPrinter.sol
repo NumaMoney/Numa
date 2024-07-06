@@ -8,7 +8,7 @@ import "./NumaMinter.sol";
 import "../interfaces/INuAsset.sol";
 import "../interfaces/INumaOracle.sol";
 import "../interfaces/IVaultManager.sol";
-
+import "../utils/constants.sol";
 import "hardhat/console.sol";
 
 /// @title NumaPrinter
@@ -28,20 +28,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
     uint public burnAssetFeeBps;
     uint public swapAssetFeeBps;
 
-    // synth minting/burning parameters
-    uint16 public constant BASE_1000 = 1000;
-    uint public cf_critical = 1500;
-    uint public cf_warning = 1700;
-
-    uint public debaseValue = 20;//base 1000
-    uint public rebaseValue = 30;//base 1000
-    uint public minimumScale = 500;
-    uint public deltaRebase = 24 hours;
-    uint public deltaDebase = 24 hours;
-
-    uint lastScale = 1000;
-    //uint lastCF = 20000;
-    uint lastBlockTime;
 
 
 
@@ -59,14 +45,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     event SwapFee(uint _fee);
     event SetVaultManager(address _vaultManager);
    
-    event SetScalingParameters(
-        uint cf_critical,
-        uint cf_warning,
-        uint debaseValue,
-        uint rebaseValue,
-        uint deltaRebase,
-        uint deltaDebase,
-        uint minimumScale);
+  
     event SwapExactInput(
         address _nuAssetFrom,
         address _nuAssetTo,
@@ -122,32 +101,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         emit SetVaultManager(_vaultManager);
     }
 
-    function setScalingParameters(uint _cf_critical,
-        uint _cf_warning,
-        uint _debaseValue,
-        uint _rebaseValue,
-        uint _deltaRebase,
-        uint _deltaDebase,
-        uint _minimumScale) external onlyOwner
-    {
-
-        cf_critical = _cf_critical;
-        cf_warning = _cf_warning;
-        debaseValue = _debaseValue;
-        rebaseValue = _rebaseValue;
-        deltaRebase = _deltaRebase;
-        deltaDebase = _deltaDebase;
-        minimumScale = _minimumScale;
-        emit SetScalingParameters(
-            _cf_critical,
-            _cf_warning,
-            _debaseValue,
-            _rebaseValue,
-            _deltaRebase,
-            _deltaDebase,
-            _minimumScale
-            );
-    }
+  
     /**
      * @notice not using whenNotPaused as we may want to pause contract to set these values
      */
@@ -204,25 +158,23 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @notice block minting according to globalCF. Call accrueInterests on lending contracts as it will impact vault max borrowable amount
      */
     function mintNuAsset(INuAsset _asset,address _recipient,uint _amount) internal
-    {
-        // TODO: we might want to use globalCFWithoutDebt for this one, to block minting of nuAssets when too much is borrowed
+    {    
         uint currentCF = vaultManager.getGlobalCF();
-        require(currentCF > cf_warning,"minting forbidden");
+        require(currentCF > vaultManager.getWarningCF(),"minting forbidden");
 
         // accrue interest on lending because synth supply has changed so utilization rates also
         // as to be done before minting because we accrue interest from current parameters
         vaultManager.accrueInterests();
 
-        // for same reasons, we need to update our synth scaling snapshot because synth supplies changes
-        //getSynthScalingUpdate();       
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        // for same reasons, we need to update our synth scaling snapshot because synth supplies changes      
+        vaultManager.getSynthScalingUpdate();
+        // and 
+        // should already be called 
+        // vaultManager.getSellFeeScalingUpdate();
+
         // mint
         _asset.mint(_recipient, _amount);
 
-        // update snapshot
-        //lastCF = vaultManager.getGlobalCF();
-        lastBlockTime = blockTime;
-        lastScale = scaleMemory;
 
         emit AssetMint(address(_asset), _amount);
     }
@@ -241,92 +193,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     }
 
 
-    function getSynthScalingUpdate() public returns (uint,uint,uint)
-    {  
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
-        // save 
-        lastScale = scaleMemory;
-        lastBlockTime = blockTime;
-    }
 
-    function getSynthScaling() public virtual view returns (uint,uint,uint)// virtual for test&overrides
-    {
-        
-        uint lastScaleMemory = lastScale;
-        // synth scaling
-        uint currentCF = vaultManager.getGlobalCF();
-        uint blockTime = block.timestamp;
-        if (currentCF < cf_critical)
-        {        
-            // we need to debase
-            console.logUint(lastScaleMemory);
-            //if (lastScaleMemory < BASE_1000)
-            {
-                // we are currently in debase/rebase mode
-
-                if (blockTime > (lastBlockTime + deltaDebase))
-                {
-                    console.logUint(blockTime);
-                    console.logUint(lastBlockTime);
-                    // debase again
-                    uint ndebase = (blockTime - lastBlockTime)/(deltaDebase);
-                    console.logUint(ndebase);
-                    ndebase = ndebase * debaseValue;
-                     console.logUint(ndebase);
-                    if (lastScaleMemory > ndebase)
-                    {
-                        lastScaleMemory = lastScaleMemory - ndebase;
-                        if (lastScaleMemory < minimumScale)
-                            lastScaleMemory = minimumScale;
-                    }
-                    else
-                        lastScaleMemory = minimumScale;
-                } 
-
-            }
-            // else
-            // {
-            //     // start debase
-            //     lastScaleMemory = lastScaleMemory - debaseValue;
-            // }
-        }
-        else
-        {
-            if (lastScaleMemory < BASE_1000)
-            {
-                 console.logUint(lastScaleMemory);
-                // need to rebase
-                if (blockTime > (lastBlockTime + deltaRebase))
-                {
-                    // rebase
-                    uint nrebase = (blockTime - lastBlockTime)/(deltaRebase);
-                     console.logUint(nrebase);
-                    nrebase = nrebase * rebaseValue;
-                    console.logUint(nrebase);
-                    lastScaleMemory = lastScaleMemory + nrebase;
-                      console.logUint(lastScaleMemory);
-                    if (lastScaleMemory > BASE_1000)
-                        lastScaleMemory = BASE_1000;
-                } 
-               
-
-            }
-        }
-
-        // apply scale to synth burn price
-        uint scale1000 = lastScaleMemory;
-
-        // SECURITY
-        if (currentCF < BASE_1000)
-        {
-            // TODO: do we use vaults balance with debt here?
-            uint scaleSecure = currentCF;
-            if (scaleSecure < scale1000)
-                scale1000 = scaleSecure;
-        }
-        return (scale1000,lastScaleMemory,blockTime);
-
-    }
 
     // NUASSET --> NUASSET
     
@@ -368,11 +235,16 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // print fee
         uint256 amountToBurn = (_numaAmount * printAssetFeeBps) / 10000;
 
+        // this function applies fees (amount = amount - fee)
+        uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);
+        EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (1000-vaultManager.getBuyFee())) /1000;
+
         uint256 output = oracle.getNbOfNuAsset(
             _numaAmount - amountToBurn,
             _nuAsset,
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            EthPerNumaVault
         );
         return (output, amountToBurn);
     }
@@ -387,12 +259,16 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _nuAssetAmount
     ) public view returns (uint256, uint256) 
     {
+        uint256 numaPerEthVault = vaultManager.GetNumaPerEth(_nuAssetAmount);
+        numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-vaultManager.getBuyFee()));
+
 
         uint256 costWithoutFee = oracle.getNbOfNumaNeeded(
             _nuAssetAmount,
             _nuAsset,
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            numaPerEthVault
         );
         uint256 costWithFee = (costWithoutFee*10000) / (10000 - printAssetFeeBps);
 
@@ -416,15 +292,21 @@ contract NumaPrinter is Pausable, Ownable2Step {
     {
         uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
+        uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);        
+        (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
+        EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
+
         uint256 nuAssetIn = oracle.getNbOfAssetneeded(
             amountWithFee,
             _nuAsset,
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            EthPerNumaVault
         );
 
-       
-        
+        (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
+        // apply scale
+        nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
         return (nuAssetIn,amountWithFee - _numaAmount);
     }
 
@@ -439,14 +321,20 @@ contract NumaPrinter is Pausable, Ownable2Step {
     ) public view returns (uint256,uint256) 
     {
         uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
+
+        uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);        
+        (uint16 sellfee,) = vaultManager.getSellFeeScaling();
+        EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
+
         uint256 nuAssetIn = oracle.getNbOfAssetneeded(
             amountWithFee,
             _nuAsset,
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            EthPerNumaVault
         );
 
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        (uint scaleOverride,,) = vaultManager.getSynthScaling();
         // apply scale
         nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
         
@@ -468,15 +356,19 @@ contract NumaPrinter is Pausable, Ownable2Step {
     ) public returns (uint256, uint256) 
     {
 
+        uint256 numaPerEthVault = vaultManager.GetNumaPerEth(_nuAssetAmount);
+        (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
+        numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
+
+
         uint256 _output = oracle.getNbOfNumaFromAsset(
             _nuAssetAmount,
             _nuAsset,
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            numaPerEthVault
         );
 
-
-        // (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScalingUpdate();
         // apply scale
         _output = (_output*scaleOverride)/BASE_1000;
 
@@ -498,14 +390,20 @@ contract NumaPrinter is Pausable, Ownable2Step {
     ) external view returns (uint256, uint256) 
     {
 
+        uint256 numaPerEthVault = vaultManager.GetNumaPerEth(_nuAssetAmount);
+        (uint16 sellfee,) = vaultManager.getSellFeeScaling();
+        numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
+
+
         uint256 _output = oracle.getNbOfNumaFromAsset(
             _nuAssetAmount,
             _nuAsset,
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            numaPerEthVault
         );
 
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        (uint scaleOverride, ,) = vaultManager.getSynthScaling();
         // apply scale
         _output = (_output*scaleOverride)/BASE_1000;         
 
@@ -535,8 +433,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         uint256 assetAmount;
         uint256 numaFee;
-        // this function applies fees (amount = amount - fee)
-        
+
         (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset,_numaAmount);
 
         require(assetAmount >= _minNuAssetAmount,"min amount");
@@ -594,7 +491,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
       
         INuAsset nuAsset = INuAsset(_nuAsset);
       
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
+        (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
         uint256 _output;
         uint256 amountToBurn;
         (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount,scaleOverride);
@@ -609,10 +506,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // and mint
         minterContract.mint(_recipient,_output);
 
-        // update snapshot
-        //lastCF = vaultManager.getGlobalCF();
-        lastBlockTime = blockTime;
-        lastScale = scaleMemory;
+
 
 
 
@@ -633,11 +527,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         //uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
         // how much _nuAssetFrom are needed to get this amount of Numa
-
-        (uint scaleOverride, uint scaleMemory,uint blockTime) = getSynthScaling();
         (uint256 nuAssetAmount,uint256 numaFee) = getNbOfnuAssetNeededForNuma(_nuAsset,_numaAmount);
-        // apply scale
-        nuAssetAmount = (nuAssetAmount*BASE_1000)/scaleOverride;
         require(nuAssetAmount <= _maximumAmountIn,"max amount");
 
         // burn amount
@@ -646,10 +536,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         minterContract.mint(_recipient,_numaAmount);
 
         
-        // update snapshot
-        //lastCF = vaultManager.getGlobalCF();
-        lastBlockTime = blockTime;
-        lastScale = scaleMemory;
+
         
       
         emit BurntFee(numaFee); // NUMA burnt (not minted)
@@ -731,10 +618,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         nuAssetFrom.burnFrom(msg.sender, nuAssetAmount);
         emit AssetBurn(_nuAssetFrom, nuAssetAmount);
 
-        // mint asset dest
-        // TODO don't call that function (block mint & accrueinterest)
-        // mintNuAsset(nuAssetTo,_receiver,_amountToReceive);
-        // emit PrintFee(fee);
+
 
         nuAssetTo.mint(_receiver, _amountToReceive);
         emit AssetMint(_nuAssetTo, _amountToReceive);

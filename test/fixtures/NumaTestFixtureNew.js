@@ -399,7 +399,6 @@ if (LOG)
     console.log(`printer deployed to: ${moneyPrinter_address}`);
 
 
-  await Vault1.setPrinter(moneyPrinter_address);
   // add moneyPrinter as a minter
   theMinter.addToMinters(moneyPrinter_address);
   // add vault as a minter

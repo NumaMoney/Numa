@@ -12,5 +12,5 @@ interface INumaPrice {
     ) external view returns (uint256);
 
     function getBuyFee() external view returns (uint16);
-    function getSellFee() external view returns (uint16);
+    function getSellFee() external view returns (uint16,uint);
 }

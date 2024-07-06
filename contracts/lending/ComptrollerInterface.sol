@@ -78,4 +78,8 @@ abstract contract ComptrollerInterface {
         address cTokenBorrowed,
         address cTokenCollateral,
         uint repayAmount) virtual external view returns (uint, uint);
+
+    function liquidateBadDebtCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, address borrower,uint actualRepayAmount) virtual external view returns (uint, uint);
+    function liquidateBadDebtCalculateSeizeTokensAfterRepay(address cTokenBorrowed, address cTokenCollateral, address borrower,uint actualRepayAmount,uint percentageToTake) virtual external view returns (uint, uint);
+     
 }

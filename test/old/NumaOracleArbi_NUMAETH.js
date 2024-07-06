@@ -1,5 +1,5 @@
-const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../scripts/Utils.js");
-const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("./fixtures/NumaTestFixtureNew.js");
+const { getPoolData, getPool, initPoolETH, addLiquidity, weth9, artifacts, swapOptions, buildTrade, SwapRouter, Token } = require("../../scripts/Utils.js");
+const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("../fixtures/NumaTestFixtureNew.js");
 const { time, loadFixture, takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");

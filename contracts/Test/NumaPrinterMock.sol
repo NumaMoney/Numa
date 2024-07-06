@@ -23,11 +23,6 @@ contract NumaPrinterMock is NumaPrinter {
     {
         
     }
-    function getSynthScaling() public override view returns (uint,uint,uint)// virtual for test&overrides
-    {
-       
-        return (250,250,0);
 
-    }
   
 }

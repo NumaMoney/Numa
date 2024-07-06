@@ -845,7 +845,7 @@ describe('NUMA ORACLE', function () {
       let amountEstimate = (inputAmount*numaPriceUsd);///BigInt(10**decimals);
       //console.log(amountEstimate);
       // 1. vault price same as pool price
-      await oracle.setNumaPrice(await VaultManager.getAddress());
+      //await oracle.setNumaPrice(await VaultManager.getAddress());
       
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
@@ -1024,7 +1024,7 @@ describe('NUMA ORACLE', function () {
     
       //console.log(amountEstimate);
       // 1. vault price same as pool price
-      await oracle.setNumaPrice(await VaultManager.getAddress());
+      //await oracle.setNumaPrice(await VaultManager.getAddress());
       
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
@@ -1172,7 +1172,7 @@ describe('NUMA ORACLE', function () {
     
       //console.log(amountEstimate);
       // 1. vault price same as pool price
-      await oracle.setNumaPrice(await VaultManager.getAddress());
+      //await oracle.setNumaPrice(await VaultManager.getAddress());
       
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
@@ -1322,7 +1322,7 @@ describe('NUMA ORACLE', function () {
     
       //console.log(amountEstimate);
       // 1. vault price same as pool price
-      await oracle.setNumaPrice(await VaultManager.getAddress());
+      //await oracle.setNumaPrice(await VaultManager.getAddress());
       
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle

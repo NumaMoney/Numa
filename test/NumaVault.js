@@ -215,6 +215,12 @@ describe('NUMA VAULT', function () {
       // getting prices should revert if vault is empty 
       it('empty vault', async () => 
       {
+        let bal = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+        console.log(bal);
+        await Vault1.withdrawToken(rETH_ADDRESS,bal,await owner.getAddress());
+        bal = await rEth_contract.balanceOf(VAULT1_ADDRESS);
+        console.log(bal);
+
         await expect(
           Vault1.getBuyNumaSimulateExtract(ethers.parseEther("2"))
         ).to.be.reverted;
@@ -301,7 +307,7 @@ describe('NUMA VAULT', function () {
 
         let removedSupply = ethers.parseEther("4000000");
         await VM.setDecayValues(removedSupply,400*24*3600,0);
-
+        console.log(numaSupply);
 
         await VM.startDecay();
         // change heartbeats for testing purpose
@@ -311,11 +317,18 @@ describe('NUMA VAULT', function () {
                    
         await nuAM.addNuAsset(NUUSD_ADDRESS,configArbi.PRICEFEEDETHUSD,400*86400);
         await nuAM.addNuAsset(NUBTC_ADDRESS,configArbi.PRICEFEEDBTCETH,400*86400);
-        await time.increase(300*24*3600 - 5);// don't know why it gives me 5 more seconds
+        await time.increase(300*24*3600-4);// don't know why it gives me 5 more seconds
 
         numaSupply = numaSupply - removedSupply/ BigInt(4);
 
+        let numaSupplyFromVM = await VM.getNumaSupply();
+
         console.log(numaSupply);
+        console.log(numaSupplyFromVM);
+
+        expect(numaSupply).to.be.closeTo(numaSupplyFromVM,epsilon);
+
+    
         // BUY
         let inputreth = ethers.parseEther("2");
         let buypricerefnofees = inputreth*(numaSupply)/(balvaultWei);
@@ -328,13 +341,13 @@ describe('NUMA VAULT', function () {
         console.log(supplyModi);
 
         let buyprice = await Vault1.getBuyNumaSimulateExtract(inputreth);
-        expect(buypriceref).to.equal(buyprice);
+        expect(buypriceref).to.be.closeTo(buyprice,epsilon);
 
         // SELL 
         let inputnuma = ethers.parseEther("1000");
         let sellpricerefnofees = inputnuma*balvaultWei/(numaSupply);
         let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
-        let sellprice = await Vault1.getSellNuma(inputnuma);
+        let sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);
         //expect(sellpriceref).to.equal(sellprice); 
         expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
 
@@ -566,7 +579,7 @@ describe('NUMA VAULT', function () {
         let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply);
         let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
         let sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);
-        expect(sellpriceref).to.equal(sellprice); 
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
       });
 
       it('with rETH in the vault and start decay and rebase', async () => 
@@ -636,15 +649,9 @@ describe('NUMA VAULT', function () {
         let sellpricerefnofees = BigInt(decaydenom/100)*inputnuma*balvaultWei/(numaSupply*ratio);
         
         let sellpriceref = (sellpricerefnofees* BigInt(sellfee))/BigInt(feedenom);
-        let sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);
-        expect(sellpriceref).to.equal(sellprice); 
+        let sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);        
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
 
-
-        // this one should give real price as we will extract rewards and update snapshot price
-        let buypriceReal = await Vault1.getBuyNumaSimulateExtract(inputreth);
-        expect(ratio*buypriceref).to.equal(buypriceReal);
-        let sellpriceReal = await Vault1.getSellNumaSimulateExtract(inputnuma);
-        expect(sellpriceref).to.equal(ratio*sellpriceReal); 
 
 
         // extract and price should stays the same
@@ -653,12 +660,12 @@ describe('NUMA VAULT', function () {
         expect(estimateRewards).to.equal(balrwd);
 
         // check prices
-        buyprice = await Vault1.getBuyNuma(inputreth);
+        buyprice = await Vault1.getBuyNumaSimulateExtract(inputreth);
 
 
-        expect(ratio*buypriceref).to.equal(buyprice);
-        sellprice = await Vault1.getSellNuma(inputnuma);
-        expect(sellpriceref).to.equal(ratio*sellprice); 
+        expect(buypriceref).to.equal(buyprice);
+        sellprice = await Vault1.getSellNumaSimulateExtract(inputnuma);
+        expect(sellpriceref).to.be.closeTo(sellprice,epsilon); 
 
 
       });

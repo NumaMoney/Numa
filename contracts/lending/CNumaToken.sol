@@ -140,5 +140,12 @@ contract CNumaToken is CErc20Immutable
         return NO_ERROR;
     }
 
+    function liquidateBadDebt(address borrower, uint repayAmount,uint percentageToTake, CTokenInterface cTokenCollateral) override external returns (uint) {
+        // only vault can liquidate        
+        require(msg.sender == address(vault),"vault only");
+        liquidateBadDebtInternal(borrower, repayAmount, percentageToTake, cTokenCollateral);
+        return NO_ERROR;
+    }
+
   
 }

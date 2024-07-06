@@ -1,7 +1,7 @@
 const { getPoolData, initPoolETH, initPool, addLiquidity, weth9, artifacts, linkLibraries } = require("../scripts/Utils.js");
 const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("./fixtures/NumaTestFixtureNew.js");
 
-const { time, loadFixture, } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { time, loadFixture,takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 const { upgrades } = require("hardhat");
@@ -29,11 +29,20 @@ describe('NUMA NUASSET PRINTER', function () {
   let numaAmount;
   let testData;
   let numa_address;
-  let NUMA_ETH_POOL_ADDRESS;
+  let NUMA_USDC_POOL_ADDRESS;
+  let converterAddress;
+  let snapshot;
   let snapshotGlobal;
   let minterAddress;
   let VaultManager;
   let moneyPrinterMock;
+  let vault1;
+
+  afterEach(async function () {
+    await snapshot.restore();
+    snapshot = await takeSnapshot();
+  })
+
   after(async function () {
     await snapshotGlobal.restore();
   });
@@ -60,17 +69,26 @@ describe('NUMA NUASSET PRINTER', function () {
     oracleAddress = testData.oracleAddress;
     numaAmount = testData.numaAmount;
     numa_address = await numa.getAddress();
-    NUMA_ETH_POOL_ADDRESS = testData.NUMA_ETH_POOL_ADDRESS;
+    NUMA_USDC_POOL_ADDRESS = testData.NUMA_USDC_POOL_ADDRESS;
+    converterAddress = testData.USDCtoETHConverter_address;
     minterAddress = testData.MINTER_ADDRESS;
     VaultManager = testData.VM;
+    vault1 = testData.Vault1;
     // deploy vault, vaultmanager
     const Oracle = await ethers.getContractFactory('NumaOracle');
     oracle = await Oracle.attach(oracleAddress);
 
 
     // SCALING
+    let VMMock = await ethers.deployContract("VaultManagerMock",
+      [numa_address,await VaultManager.getNuAssetManager()]);
+    await VMMock.waitForDeployment();
+    let VMMOCK_ADDRESS = await VMMock.getAddress();
+    await VMMock.addVault(await vault1.getAddress());
+
+     
     moneyPrinterMock = await ethers.deployContract("NumaPrinterMock",
-    [numa_address, minterAddress, NUMA_ETH_POOL_ADDRESS, oracleAddress, await VaultManager.getAddress()]);
+    [numa_address, minterAddress, NUMA_USDC_POOL_ADDRESS,converterAddress, oracleAddress, VMMOCK_ADDRESS]);
     await moneyPrinterMock.waitForDeployment();
   
     let printFee = 500;
@@ -81,7 +99,12 @@ describe('NUMA NUASSET PRINTER', function () {
     // add moneyPrinter as a minter
     const Minter = await ethers.getContractFactory('NumaMinter');
     let theMinter = await Minter.attach(minterAddress);
-    theMinter.addToMinters(await moneyPrinterMock.getAddress());
+    await theMinter.addToMinters(await moneyPrinterMock.getAddress());
+
+      
+
+
+    snapshot = await takeSnapshot();
 
   });
   
@@ -100,7 +123,8 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfNuAsset(
       numaAmount - fees,
       NUUSD_ADDRESS,
-      NUMA_ETH_POOL_ADDRESS
+      NUMA_USDC_POOL_ADDRESS,
+      converterAddress
     );
 
 
@@ -125,7 +149,8 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfNumaNeeded(
       nuassetAmount,
       NUUSD_ADDRESS,
-      NUMA_ETH_POOL_ADDRESS
+      NUMA_USDC_POOL_ADDRESS,
+      converterAddress
     );
     amountFromOracle = (BigInt(10000)*amountFromOracle)/(BigInt(10000) - feesPc);
     console.log(amountFromOracle);
@@ -156,7 +181,8 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfAssetneeded(
       numaAmountInflated,
       NUUSD_ADDRESS,
-      NUMA_ETH_POOL_ADDRESS
+      NUMA_USDC_POOL_ADDRESS,
+      converterAddress
     );
     console.log(amountFromOracle);
      
@@ -197,7 +223,8 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfNumaFromAsset(
       nuassetAmount,
       NUUSD_ADDRESS,
-      NUMA_ETH_POOL_ADDRESS
+      NUMA_USDC_POOL_ADDRESS,
+      converterAddress
     );
     console.log(amountFromOracle);
      
@@ -257,7 +284,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     // check that when < warning, we block minting
     // change parameters so that warning_cf is reached
-    await moneyPrinter.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0);
+    await VaultManager.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0);
     //console.log(await moneyPrinter.cf_warning());
     // then should revert
     await expect(moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,nuassetAmount,
@@ -302,7 +329,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     // check that when < warning, we block minting
     // change parameters so that warning_cf is reached
-    await moneyPrinter.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0);
+    await VaultManager.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0);
     //console.log(await moneyPrinter.cf_warning());
     // then should revert
     await expect(moneyPrinter.mintAssetFromNumaInput(NUUSD_ADDRESS,numaAmount,
@@ -371,6 +398,8 @@ describe('NUMA NUASSET PRINTER', function () {
     let maxAmountReached = BigInt(nuAssetAmount[0]) - BigInt(1);
     await nuUSD.approve(MONEY_PRINTER_ADDRESS,BigInt(10)*nuAssetAmount[0]);
 
+
+
     await expect(moneyPrinter.burnAssetToNumaOutput(NUUSD_ADDRESS,numaAmount,
       maxAmountReached,await signer2.getAddress())).to.be.reverted;
 
@@ -394,6 +423,9 @@ describe('NUMA NUASSET PRINTER', function () {
     nuUSDBefore = await nuUSD.balanceOf(await signer.getAddress());
 
     await nuUSD.approve(await moneyPrinterMock.getAddress(),BigInt(10)*nuAssetAmount[0]);
+
+
+
     await moneyPrinterMock.burnAssetToNumaOutput(NUUSD_ADDRESS,numaAmount,
       nuAssetAmount[0],await signer2.getAddress());
 
@@ -467,7 +499,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
   it('synth scaling', async function () 
   {
-    await moneyPrinter.setScalingParameters(15000,
+    await VaultManager.setScalingParameters(15000,
       1700,
       20,
       10,
@@ -491,7 +523,7 @@ describe('NUMA NUASSET PRINTER', function () {
     console.log('ETHUSD price ',price);
 
     // base scaling
-    let synthScalingBase = await moneyPrinter.getSynthScaling();
+    let synthScalingBase = await VaultManager.getSynthScaling();
     expect(synthScalingBase[0]).to.equal(1000);
 
     let globCF = await VaultManager.getGlobalCF();
@@ -522,29 +554,29 @@ describe('NUMA NUASSET PRINTER', function () {
 
 
     // start debasing
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
     expect(synthScalingBase[0]).to.equal(BigInt(1000));
 
 
     // continue debasing
     await time.increase(600*10);
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
-    expect(synthScalingBase[0]).to.equal(BigInt(1000) - BigInt(10)*await moneyPrinter.debaseValue());
+    expect(synthScalingBase[0]).to.equal(BigInt(1000) - BigInt(10)*await VaultManager.debaseValue());
 
 
     // reach minimum check that we don't debase anymore
 
     await time.increase(600*10);
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
-    expect(synthScalingBase[0]).to.equal(BigInt(1000) - BigInt(20)*await moneyPrinter.debaseValue());
+    expect(synthScalingBase[0]).to.equal(BigInt(1000) - BigInt(20)*await VaultManager.debaseValue());
 
     await time.increase(600*10);
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
-    expect(synthScalingBase[0]).to.equal(await moneyPrinter.minimumScale());
+    expect(synthScalingBase[0]).to.equal(await VaultManager.minimumScale());
 
 
     // start rebasing
@@ -555,37 +587,26 @@ describe('NUMA NUASSET PRINTER', function () {
     await moneyPrinter.burnAssetInputToNuma(NUUSD_ADDRESS,mintUSDAmount,
       numaAmountAndFee[0] - numaAmountAndFee[1],await signer.getAddress());
 
-      // globCF = await VaultManager.getGlobalCF();
-      // totalbalanceEth = await VaultManager.getTotalBalanceEth();
-      // totalSynthValue = await nuAM.getTotalSynthValueEth();
-  
-      // console.log(globCF);
-      // console.log(ethers.formatEther(totalbalanceEth));
-      // console.log(ethers.formatEther(totalSynthValue));
+
   
     await time.increase(600*10);
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
-    expect(synthScalingBase[0]).to.equal(await moneyPrinter.minimumScale() + BigInt(10)*await moneyPrinter.rebaseValue());
+    expect(synthScalingBase[0]).to.equal(await VaultManager.minimumScale() + BigInt(10)*await VaultManager.rebaseValue());
 
     // continue rebasing
     await time.increase(600*10);
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
-    expect(synthScalingBase[0]).to.equal(await moneyPrinter.minimumScale() + BigInt(20)*await moneyPrinter.rebaseValue());
+    expect(synthScalingBase[0]).to.equal(await VaultManager.minimumScale() + BigInt(20)*await VaultManager.rebaseValue());
 
     // reach max rebase check that we don't rebase anymore
     await time.increase(600*50);
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
     expect(synthScalingBase[0]).to.equal(BigInt(1000));
 
-    // security debase
-    // mint some
-    // numaCostAndFee = await moneyPrinter.getNbOfNumaNeededAndFee(NUUSD_ADDRESS,mintUSDAmount);
-    // await numa.approve(MONEY_PRINTER_ADDRESS,numaCostAndFee[0]);
-    // await moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,mintUSDAmount,
-    //   numaCostAndFee[0],await signer.getAddress());
+
 
     let mintUSDAmount2 = (totalbalanceEth * BigInt(price))/BigInt(10 ** Number(decimals));
     mintUSDAmount2 = BigInt(3)*mintUSDAmount2 / BigInt(2);
@@ -606,13 +627,33 @@ describe('NUMA NUASSET PRINTER', function () {
     console.log(ethers.formatEther(totalbalanceEth));
     console.log(ethers.formatEther(totalSynthValue));
 
-    synthScalingBase = await moneyPrinter.getSynthScaling();
+    synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
     expect(synthScalingBase[0]).to.equal(BigInt(globCF));
 
 
   });
+  it('USDC pool tests', async function () 
+  {
 
+    let _numaPerUSDCmulAmount = ethers.parseEther("2");
+    const Converter = await ethers.getContractFactory('USDCToEthConverter');
+    let theConverter = await Converter.attach(converterAddress);
+  
+  
+    let res = await theConverter.convertNumaPerTokenToNumaPerEth(_numaPerUSDCmulAmount) ;
+  
+  
+    console.log(res);
+  
+    let _USDCPerNumamulAmount = ethers.parseEther("0.5");
+    let res2 = await theConverter.convertTokenPerNumaToEthPerNuma(_USDCPerNumamulAmount) ;
+  
+  
+    console.log(res2);
+
+    
+  });
 
 });
 

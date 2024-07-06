@@ -698,6 +698,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         /* We fetch the amount the borrower owes, with accumulated interest */
         uint accountBorrowsPrev = borrowBalanceStoredInternal(borrower);
 
+        console.log("balance before repay");
+        console.logUint(accountBorrowsPrev);
         /* If repayAmount == -1, repayAmount = accountBorrows */
         uint repayAmountFinal = repayAmount == type(uint).max ? accountBorrowsPrev : repayAmount;
 
@@ -727,6 +729,10 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         accountBorrows[borrower].interestIndex = borrowIndex;
         totalBorrows = totalBorrowsNew;
 
+
+          console.log("balance after repay");
+        console.logUint(accountBorrowsNew);
+
         /* We emit a RepayBorrow event */
         emit RepayBorrow(payer, borrower, actualRepayAmount, accountBorrowsNew, totalBorrowsNew);
 
@@ -754,7 +760,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
     }
 
   
-    function liquidateBadDebtInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal nonReentrant {
+    function liquidateBadDebtInternal(address borrower, uint repayAmount,uint percentageToTake, CTokenInterface cTokenCollateral) internal nonReentrant {
         accrueInterest();
 
         uint error = cTokenCollateral.accrueInterest();
@@ -764,7 +770,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         }
 
         // liquidateBorrowFresh emits borrow-specific logs on errors, so we don't need to
-        liquidateBadDebtFresh(msg.sender, borrower, repayAmount, cTokenCollateral);
+        liquidateBadDebtFresh(msg.sender, borrower, repayAmount,percentageToTake, cTokenCollateral);
     }
 
 
@@ -837,12 +843,12 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
     }
 
 
-    function liquidateBadDebtFresh(address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal {
+    function liquidateBadDebtFresh(address liquidator, address borrower, uint repayAmount,uint percentageToTake, CTokenInterface cTokenCollateral) internal {
 
         /* Fail if liquidate not allowed */
         uint allowed = comptroller.liquidateBadDebtAllowed(address(this), address(cTokenCollateral), liquidator, borrower, repayAmount);
         if (allowed != 0) {
-            console.log("LiquidateComptrollerRejection");
+            console.log("BA DEBT LiquidateComptrollerRejection");
             revert LiquidateComptrollerRejection(allowed);
         }
 
@@ -862,32 +868,47 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
             revert LiquidateLiquidatorIsBorrower();
         }
 
-        /* Fail if repayAmount = 0 */
-        if (repayAmount == 0) {
-            revert LiquidateCloseAmountIsZero();
-        }
+        // we might liquidate with 0 amount if no borrow with that position
+        // /* Fail if repayAmount = 0 */
+        // if (repayAmount == 0) {
+        //     revert LiquidateCloseAmountIsZero();
+        // }
 
-        /* Fail if repayAmount = -1 */
-        if (repayAmount == type(uint).max) {
-            revert LiquidateCloseAmountIsUintMax();
-        }
+        // /* Fail if repayAmount = -1 */
+        // if (repayAmount == type(uint).max) {
+        //     revert LiquidateCloseAmountIsUintMax();
+        // }
 
+
+        // This is moved after evaluating seize tokens as we need to use borrow balance
         /* Fail if repayBorrow fails */
-        uint actualRepayAmount = repayBorrowFresh(liquidator, borrower, repayAmount);
+
+        uint actualRepayAmount;
+        if (repayAmount > 0)
+            actualRepayAmount = repayBorrowFresh(liquidator, borrower, repayAmount);
+
+
+        console.log("COMPARING REPAY");
+                console.logUint(actualRepayAmount);
+                        console.logUint(repayAmount);
 
         /////////////////////////
         // EFFECTS & INTERACTIONS
         // (No safe failures beyond this point)
 
         /* We calculate the number of collateral tokens that will be seized */
-        (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateBadDebtCalculateSeizeTokens(address(this), address(cTokenCollateral), actualRepayAmount);
+        (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateBadDebtCalculateSeizeTokensAfterRepay(address(this), address(cTokenCollateral),borrower, actualRepayAmount,percentageToTake);
         require(amountSeizeError == NO_ERROR, "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
 
+ 
         console.log("WE HERE");
         /* Revert if borrower collateral token balance < seizeTokens */
+        console.logUint(cTokenCollateral.balanceOf(borrower));
+        console.logUint(seizeTokens);
         require(cTokenCollateral.balanceOf(borrower) >= seizeTokens, "LIQUIDATE_SEIZE_TOO_MUCH");
 
-        // If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
+
+        //If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
         if (address(cTokenCollateral) == address(this)) {
             seizeBadDebtInternal(address(this), liquidator, borrower, seizeTokens);
         } else {
@@ -912,6 +933,14 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         return NO_ERROR;
     }
+
+
+    function seizeBadDebt(address liquidator, address borrower, uint seizeTokens) override external nonReentrant returns (uint) {
+        seizeBadDebtInternal(msg.sender, liquidator, borrower, seizeTokens);
+
+        return NO_ERROR;
+    }
+
 
     /**
      * @notice Transfers collateral tokens (this market) to the liquidator.
@@ -961,6 +990,52 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         emit Transfer(borrower, liquidator, liquidatorSeizeTokens);
         emit Transfer(borrower, address(this), protocolSeizeTokens);
         emit ReservesAdded(address(this), protocolSeizeAmount, totalReservesNew);
+    }
+
+
+    function seizeBadDebtInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal {
+        /* Fail if seize not allowed */
+        uint allowed = comptroller.seizeAllowed(address(this), seizerToken, liquidator, borrower, seizeTokens);
+        if (allowed != 0) {
+            revert LiquidateSeizeComptrollerRejection(allowed);
+        }
+
+        /* Fail if borrower = liquidator */
+        if (borrower == liquidator) {
+            revert LiquidateSeizeLiquidatorIsBorrower();
+        }
+
+        /*
+         * We calculate the new borrower and liquidator token balances, failing on underflow/overflow:
+         *  borrowerTokensNew = accountTokens[borrower] - seizeTokens
+         *  liquidatorTokensNew = accountTokens[liquidator] + seizeTokens
+         */
+        // uint protocolSeizeTokens = mul_(seizeTokens, Exp({mantissa: protocolSeizeShareMantissa}));
+        // uint liquidatorSeizeTokens = seizeTokens - protocolSeizeTokens;
+        // Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
+        // uint protocolSeizeAmount = mul_ScalarTruncate(exchangeRate, protocolSeizeTokens);
+        // uint totalReservesNew = totalReserves + protocolSeizeAmount;
+
+        uint liquidatorSeizeTokens = seizeTokens;
+        //Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
+
+
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        /* We write the calculated values into storage */
+
+        //totalReserves = totalReservesNew;
+        //totalSupply = totalSupply - protocolSeizeTokens;
+        accountTokens[borrower] = accountTokens[borrower] - seizeTokens;
+        accountTokens[liquidator] = accountTokens[liquidator] + liquidatorSeizeTokens;
+
+        /* Emit a Transfer event */
+        emit Transfer(borrower, liquidator, liquidatorSeizeTokens);
+        //emit Transfer(borrower, address(this), protocolSeizeTokens);
+        //emit ReservesAdded(address(this), protocolSeizeAmount, totalReservesNew);
     }
 
 

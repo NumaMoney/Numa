@@ -1,7 +1,7 @@
-const { getPoolData, initPoolETH, initPool, addLiquidity, weth9, artifacts, linkLibraries } = require("../scripts/Utils.js");
-const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("./fixtures/NumaTestFixtureNew.js");
+const { getPoolData, initPoolETH, initPool, addLiquidity, weth9, artifacts, linkLibraries } = require("../../scripts/Utils.js");
+const { deployNumaNumaPoolnuAssetsPrinters, configArbi } = require("../fixtures/NumaTestFixtureNew.js");
 
-const { time, loadFixture,takeSnapshot } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { time, loadFixture, } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 const { upgrades } = require("hardhat");
@@ -29,19 +29,11 @@ describe('NUMA NUASSET PRINTER', function () {
   let numaAmount;
   let testData;
   let numa_address;
-  let NUMA_USDC_POOL_ADDRESS;
-  let converterAddress;
-  let snapshot;
+  let NUMA_ETH_POOL_ADDRESS;
   let snapshotGlobal;
   let minterAddress;
   let VaultManager;
   let moneyPrinterMock;
-
-  afterEach(async function () {
-    await snapshot.restore();
-    snapshot = await takeSnapshot();
-  })
-
   after(async function () {
     await snapshotGlobal.restore();
   });
@@ -68,8 +60,7 @@ describe('NUMA NUASSET PRINTER', function () {
     oracleAddress = testData.oracleAddress;
     numaAmount = testData.numaAmount;
     numa_address = await numa.getAddress();
-    NUMA_USDC_POOL_ADDRESS = testData.NUMA_USDC_POOL_ADDRESS;
-    converterAddress = testData.USDCtoETHConverter_address;
+    NUMA_ETH_POOL_ADDRESS = testData.NUMA_ETH_POOL_ADDRESS;
     minterAddress = testData.MINTER_ADDRESS;
     VaultManager = testData.VM;
     // deploy vault, vaultmanager
@@ -78,8 +69,9 @@ describe('NUMA NUASSET PRINTER', function () {
 
 
     // SCALING
+
     moneyPrinterMock = await ethers.deployContract("NumaPrinterMock",
-    [numa_address, minterAddress, NUMA_USDC_POOL_ADDRESS,converterAddress, oracleAddress, await VaultManager.getAddress()]);
+    [numa_address, minterAddress, NUMA_ETH_POOL_ADDRESS, oracleAddress, await VaultManager.getAddress()]);
     await moneyPrinterMock.waitForDeployment();
   
     let printFee = 500;
@@ -90,12 +82,7 @@ describe('NUMA NUASSET PRINTER', function () {
     // add moneyPrinter as a minter
     const Minter = await ethers.getContractFactory('NumaMinter');
     let theMinter = await Minter.attach(minterAddress);
-    await theMinter.addToMinters(await moneyPrinterMock.getAddress());
-
-      
-
-
-    snapshot = await takeSnapshot();
+    theMinter.addToMinters(await moneyPrinterMock.getAddress());
 
   });
   
@@ -114,8 +101,7 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfNuAsset(
       numaAmount - fees,
       NUUSD_ADDRESS,
-      NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      NUMA_ETH_POOL_ADDRESS
     );
 
 
@@ -140,8 +126,7 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfNumaNeeded(
       nuassetAmount,
       NUUSD_ADDRESS,
-      NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      NUMA_ETH_POOL_ADDRESS
     );
     amountFromOracle = (BigInt(10000)*amountFromOracle)/(BigInt(10000) - feesPc);
     console.log(amountFromOracle);
@@ -172,8 +157,7 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfAssetneeded(
       numaAmountInflated,
       NUUSD_ADDRESS,
-      NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      NUMA_ETH_POOL_ADDRESS
     );
     console.log(amountFromOracle);
      
@@ -214,8 +198,7 @@ describe('NUMA NUASSET PRINTER', function () {
     let amountFromOracle = await oracle.getNbOfNumaFromAsset(
       nuassetAmount,
       NUUSD_ADDRESS,
-      NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      NUMA_ETH_POOL_ADDRESS
     );
     console.log(amountFromOracle);
      
@@ -389,8 +372,6 @@ describe('NUMA NUASSET PRINTER', function () {
     let maxAmountReached = BigInt(nuAssetAmount[0]) - BigInt(1);
     await nuUSD.approve(MONEY_PRINTER_ADDRESS,BigInt(10)*nuAssetAmount[0]);
 
-
-
     await expect(moneyPrinter.burnAssetToNumaOutput(NUUSD_ADDRESS,numaAmount,
       maxAmountReached,await signer2.getAddress())).to.be.reverted;
 
@@ -414,9 +395,6 @@ describe('NUMA NUASSET PRINTER', function () {
     nuUSDBefore = await nuUSD.balanceOf(await signer.getAddress());
 
     await nuUSD.approve(await moneyPrinterMock.getAddress(),BigInt(10)*nuAssetAmount[0]);
-
-
-
     await moneyPrinterMock.burnAssetToNumaOutput(NUUSD_ADDRESS,numaAmount,
       nuAssetAmount[0],await signer2.getAddress());
 
@@ -635,27 +613,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
 
   });
-  it('USDC pool tests', async function () 
-  {
 
-    let _numaPerUSDCmulAmount = ethers.parseEther("2");
-    const Converter = await ethers.getContractFactory('USDCToEthConverter');
-    let theConverter = await Converter.attach(converterAddress);
-  
-  
-    let res = await theConverter.convertNumaPerTokenToNumaPerEth(_numaPerUSDCmulAmount) ;
-  
-  
-    console.log(res);
-  
-    let _USDCPerNumamulAmount = ethers.parseEther("0.5");
-    let res2 = await theConverter.convertTokenPerNumaToEthPerNuma(_USDCPerNumamulAmount) ;
-  
-  
-    console.log(res2);
-
-    
-  });
 
 });
 
