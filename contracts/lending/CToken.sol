@@ -7,7 +7,6 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
-import "hardhat/console.sol";
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -275,8 +274,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
          *  recentBorrowBalance = borrower.borrowBalance * market.borrowIndex / borrower.borrowIndex
          */
         uint principalTimesIndex = borrowSnapshot.principal * borrowIndex;
-        console.log("CHECK");
-        console.logUint(borrowSnapshot.interestIndex);
         return principalTimesIndex / borrowSnapshot.interestIndex;
     }
 
@@ -503,8 +500,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         uint redeemTokens;
         uint redeemAmount;
-        console.log("*****redeemFresh ***********");
-        console.logUint(redeemAmountIn);
+
         /* If redeemTokensIn > 0: */
         if (redeemTokensIn > 0) {
             /*
@@ -521,16 +517,12 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
              *  redeemTokens = redeemAmountIn / exchangeRate
              *  redeemAmount = redeemAmountIn
              */
-            redeemTokens = div_(redeemAmountIn, exchangeRate);
-             
-             console.logUint(exchangeRateStoredInternal());
-           console.logUint(redeemTokens);
+            redeemTokens = div_(redeemAmountIn, exchangeRate);            
             redeemAmount = redeemAmountIn;
         }
 
         /* Fail if redeem not allowed */
         uint allowed = comptroller.redeemAllowed(address(this), redeemer, redeemTokens);
-        console.log("coucou");
         if (allowed != 0) {
             revert RedeemComptrollerRejection(allowed);
         }
@@ -563,9 +555,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
          *  On success, the cToken has redeemAmount less of cash.
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
-         console.log("doTransferOut redeem");
         doTransferOut(redeemer, redeemAmount);
- console.logUint(redeemAmount);
         /* We emit a Transfer event, and a Redeem event */
         emit Transfer(redeemer, address(this), redeemTokens);
         emit Redeem(redeemer, redeemAmount, redeemTokens);
@@ -698,8 +688,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         /* We fetch the amount the borrower owes, with accumulated interest */
         uint accountBorrowsPrev = borrowBalanceStoredInternal(borrower);
 
-        console.log("balance before repay");
-        console.logUint(accountBorrowsPrev);
         /* If repayAmount == -1, repayAmount = accountBorrows */
         uint repayAmountFinal = repayAmount == type(uint).max ? accountBorrowsPrev : repayAmount;
 
@@ -729,9 +717,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         accountBorrows[borrower].interestIndex = borrowIndex;
         totalBorrows = totalBorrowsNew;
 
-
-          console.log("balance after repay");
-        console.logUint(accountBorrowsNew);
 
         /* We emit a RepayBorrow event */
         emit RepayBorrow(payer, borrower, actualRepayAmount, accountBorrowsNew, totalBorrowsNew);
@@ -769,7 +754,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
             revert LiquidateAccrueCollateralInterestFailed(error);
         }
 
-        // liquidateBorrowFresh emits borrow-specific logs on errors, so we don't need to
         liquidateBadDebtFresh(msg.sender, borrower, repayAmount,percentageToTake, cTokenCollateral);
     }
 
@@ -787,7 +771,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         /* Fail if liquidate not allowed */
         uint allowed = comptroller.liquidateBorrowAllowed(address(this), address(cTokenCollateral), liquidator, borrower, repayAmount);
         if (allowed != 0) {
-            console.log("LiquidateComptrollerRejection");
             revert LiquidateComptrollerRejection(allowed);
         }
 
@@ -827,7 +810,6 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateCalculateSeizeTokens(address(this), address(cTokenCollateral), actualRepayAmount);
         require(amountSeizeError == NO_ERROR, "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
 
-        console.log("WE HERE");
         /* Revert if borrower collateral token balance < seizeTokens */
         require(cTokenCollateral.balanceOf(borrower) >= seizeTokens, "LIQUIDATE_SEIZE_TOO_MUCH");
 
@@ -847,8 +829,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /* Fail if liquidate not allowed */
         uint allowed = comptroller.liquidateBadDebtAllowed(address(this), address(cTokenCollateral), liquidator, borrower, repayAmount);
-        if (allowed != 0) {
-            console.log("BA DEBT LiquidateComptrollerRejection");
+        if (allowed != 0) {         
             revert LiquidateComptrollerRejection(allowed);
         }
 
@@ -868,11 +849,10 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
             revert LiquidateLiquidatorIsBorrower();
         }
 
-        // we might liquidate with 0 amount if no borrow with that position
-        // /* Fail if repayAmount = 0 */
-        // if (repayAmount == 0) {
-        //     revert LiquidateCloseAmountIsZero();
-        // }
+        /* Fail if repayAmount = 0 */
+        if (repayAmount == 0) {
+            revert LiquidateCloseAmountIsZero();
+        }
 
         // /* Fail if repayAmount = -1 */
         // if (repayAmount == type(uint).max) {
@@ -887,24 +867,15 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         if (repayAmount > 0)
             actualRepayAmount = repayBorrowFresh(liquidator, borrower, repayAmount);
 
-
-        console.log("COMPARING REPAY");
-                console.logUint(actualRepayAmount);
-                        console.logUint(repayAmount);
-
         /////////////////////////
         // EFFECTS & INTERACTIONS
         // (No safe failures beyond this point)
 
         /* We calculate the number of collateral tokens that will be seized */
-        (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateBadDebtCalculateSeizeTokensAfterRepay(address(this), address(cTokenCollateral),borrower, actualRepayAmount,percentageToTake);
+        (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateBadDebtCalculateSeizeTokensAfterRepay(address(cTokenCollateral),borrower, percentageToTake);
         require(amountSeizeError == NO_ERROR, "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
 
- 
-        console.log("WE HERE");
         /* Revert if borrower collateral token balance < seizeTokens */
-        console.logUint(cTokenCollateral.balanceOf(borrower));
-        console.logUint(seizeTokens);
         require(cTokenCollateral.balanceOf(borrower) >= seizeTokens, "LIQUIDATE_SEIZE_TOO_MUCH");
 
 
@@ -1010,15 +981,8 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
          *  borrowerTokensNew = accountTokens[borrower] - seizeTokens
          *  liquidatorTokensNew = accountTokens[liquidator] + seizeTokens
          */
-        // uint protocolSeizeTokens = mul_(seizeTokens, Exp({mantissa: protocolSeizeShareMantissa}));
-        // uint liquidatorSeizeTokens = seizeTokens - protocolSeizeTokens;
-        // Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
-        // uint protocolSeizeAmount = mul_ScalarTruncate(exchangeRate, protocolSeizeTokens);
-        // uint totalReservesNew = totalReserves + protocolSeizeAmount;
-
+        // everything goes to liquidator 
         uint liquidatorSeizeTokens = seizeTokens;
-        //Exp memory exchangeRate = Exp({mantissa: exchangeRateStoredInternal()});
-
 
 
         /////////////////////////
@@ -1026,16 +990,12 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
         // (No safe failures beyond this point)
 
         /* We write the calculated values into storage */
-
-        //totalReserves = totalReservesNew;
-        //totalSupply = totalSupply - protocolSeizeTokens;
         accountTokens[borrower] = accountTokens[borrower] - seizeTokens;
         accountTokens[liquidator] = accountTokens[liquidator] + liquidatorSeizeTokens;
 
         /* Emit a Transfer event */
         emit Transfer(borrower, liquidator, liquidatorSeizeTokens);
-        //emit Transfer(borrower, address(this), protocolSeizeTokens);
-        //emit ReservesAdded(address(this), protocolSeizeAmount, totalReservesNew);
+        
     }
 
 

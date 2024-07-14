@@ -9,7 +9,6 @@ import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 import "../nuAssets/nuAssetManager.sol";
-import "hardhat/console.sol";
 
 import "../interfaces/INumaTokenToEthConverter.sol";
 
@@ -427,33 +426,13 @@ contract NumaOracle is Ownable2Step {
         }
 
 
-        // // check that numa price is within vault's price bounds to prevent price manipulation
-        // if (address(numaPrice) != address(0)) {
-        //     // do it only if we specified a contract that can give us numa price
-        //     uint256 EthPerNumaVault = numaPrice.GetNumaPriceEth(
-        //         _numaAmount
-        //     );
-        //     EthPerNumaVault =
-        //         EthPerNumaVault +
-        //         (EthPerNumaVault * (1000-numaPrice.getBuyFee())) /
-        //         1000;
-
-        //     if (EthPerNuma > EthPerNumaVault) 
-        //     {
-        //         // clip price
-        //         EthPerNuma = EthPerNumaVault;
-        //         //revert("numa price out of vault's bounds");
-        //     }
-        // }
 
         if (EthPerNuma > _EthPerNumaVault)
         {
             EthPerNuma = _EthPerNumaVault;
         }
 
-        console.logUint(EthPerNuma);
         uint256 tokensForAmount = nuAManager.getTokenPerEth(_nuAsset,EthPerNuma);
-console.logUint(tokensForAmount);
         return tokensForAmount;
     }
 

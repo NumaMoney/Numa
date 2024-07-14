@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../Numa.sol";
 
-import "hardhat/console.sol";
 interface INuma {
     function mint(address to, uint256 amount) external;
 }
@@ -50,8 +49,6 @@ contract NumaMinter is Ownable2Step
 
     function mint(address to, uint256 amount) external onlyMinters
     {
-                console.logAddress((msg.sender));
-        console.logBool(isMinter(msg.sender));
         require(address(numa) != address(0),"token address invalid");
         numa.mint(to,amount);
 

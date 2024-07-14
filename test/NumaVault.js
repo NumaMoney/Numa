@@ -1263,6 +1263,87 @@ describe('NUMA VAULT', function () {
 
   // });
 
+
+  it('sell fee scaling', async function () 
+  {
+    // 
+    // evaluate sell fee and sell price
+    let sellFee = await VM.getSellFeeOriginal();
+    let sellFeeScaling = await VM.getSellFeeScaling();
+    
+    expect(sellFee).to.equal(sellFeeScaling[0]);
+
+    // we will check that output increases/decreases
+    let output = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("100"));
+
+      
+  
+
+    // set sell fee scaling parameters
+    await VM.setSellFeeParameters(21000,
+      10,
+      30,
+     600,
+     1200,      
+     500);
+
+    
+
+
+    // time debase
+    await time.increase(600*10);
+    // should debase by 100
+    let sellFeeScaling2 = await VM.getSellFeeScaling();
+    expect(sellFeeScaling2[0]).to.equal(sellFeeScaling[0] - BigInt(100));
+    let output2 = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("100"));
+    expect(output2).to.be.below(output);
+    console.log(output);
+    console.log(output2);
+
+    // time debase
+    await time.increase(600*20);
+    // should debase by 200
+    sellFeeScaling2 = await VM.getSellFeeScaling();
+    expect(sellFeeScaling2[0]).to.equal(sellFeeScaling[0] - BigInt(300));
+    let output3 = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("100"));
+    expect(output3).to.be.below(output2);
+
+    // reach min 
+     // time debase
+     await time.increase(600*20);
+     // should debase by 200
+     sellFeeScaling2 = await VM.getSellFeeScaling();
+     expect(sellFeeScaling2[0]).to.equal(BigInt(500));
+     let output4 = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("100"));
+     expect(output4).to.be.below(output3);
+
+    // time rebase
+    // set sell fee scaling parameters
+    await VM.setSellFeeParameters(19000,
+      10,
+      30,
+     600,
+     1200,      
+     500);
+     await time.increase(1200*10);
+     // should rebase by 300
+     let sellFeeScaling3 = await VM.getSellFeeScaling();
+     expect(sellFeeScaling3[0]).to.equal(sellFeeScaling2[0] + BigInt(300));
+     let output5 = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("100"));
+     expect(output5).to.be.above(output4);
+    // time rebase
+    await time.increase(1200*10);
+    // should rebase by 300
+    let sellFeeScaling4 = await VM.getSellFeeScaling();
+    expect(sellFeeScaling4[0]).to.equal(sellFee);
+    let output6 = await Vault1.getSellNumaSimulateExtract(ethers.parseEther("100"));
+    expect(output6).to.be.above(output5);
+
+
+
+  });
+
+
   it('nuAssetManager', async function () {
 
     let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, RETH_FEED);

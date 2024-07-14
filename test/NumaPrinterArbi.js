@@ -120,11 +120,17 @@ describe('NUMA NUASSET PRINTER', function () {
     let fees = (feesPc * numaAmount)/BigInt(10000);
 
 
+    let EthPerNumaVault = await VaultManager.GetNumaPriceEth(numaAmount - fees);
+    let buyFee = await VaultManager.getBuyFee();
+    EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (BigInt(1000)-buyFee)) /BigInt(1000);
+
+
     let amountFromOracle = await oracle.getNbOfNuAsset(
       numaAmount - fees,
       NUUSD_ADDRESS,
       NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      converterAddress,
+      EthPerNumaVault
     );
 
 
@@ -145,12 +151,16 @@ describe('NUMA NUASSET PRINTER', function () {
     let feesPc = await moneyPrinter.printAssetFeeBps();
    
 
+    let numaPerEthVault = await VaultManager.GetNumaPerEth(nuassetAmount);
+    let buyfee = await VaultManager.getBuyFee();
+    numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (BigInt(1000) + (BigInt(1000)-buyfee));
 
     let amountFromOracle = await oracle.getNbOfNumaNeeded(
       nuassetAmount,
       NUUSD_ADDRESS,
       NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      converterAddress,
+      numaPerEthVault
     );
     amountFromOracle = (BigInt(10000)*amountFromOracle)/(BigInt(10000) - feesPc);
     console.log(amountFromOracle);
@@ -178,11 +188,17 @@ describe('NUMA NUASSET PRINTER', function () {
     let numaAmountInflated = (BigInt(10000)*numaAmount)/(BigInt(10000) - feesPc);
 
     console.log(numaAmountInflated);
+
+    let EthPerNumaVault = await VaultManager.GetNumaPriceEth(numaAmountInflated);        
+    let [sellfee,] = await VaultManager.getSellFeeScaling();
+    EthPerNumaVault = (EthPerNumaVault * sellfee) /BigInt(1000);
+
     let amountFromOracle = await oracle.getNbOfAssetneeded(
       numaAmountInflated,
       NUUSD_ADDRESS,
       NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      converterAddress,
+      EthPerNumaVault
     );
     console.log(amountFromOracle);
      
@@ -219,12 +235,16 @@ describe('NUMA NUASSET PRINTER', function () {
     let feesPc = await moneyPrinter.burnAssetFeeBps();
     let fees = (BigInt(feesPc) * amountNuma[0])/BigInt(10000);
 
+    let numaPerEthVault = await VaultManager.GetNumaPerEth(nuassetAmount);
+    let [sellfee,] = await VaultManager.getSellFeeScaling();
+    numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (sellfee);
 
     let amountFromOracle = await oracle.getNbOfNumaFromAsset(
       nuassetAmount,
       NUUSD_ADDRESS,
       NUMA_USDC_POOL_ADDRESS,
-      converterAddress
+      converterAddress,
+      numaPerEthVault
     );
     console.log(amountFromOracle);
      
@@ -284,7 +304,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     // check that when < warning, we block minting
     // change parameters so that warning_cf is reached
-    await VaultManager.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0);
+    await VaultManager.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0,0);
     //console.log(await moneyPrinter.cf_warning());
     // then should revert
     await expect(moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,nuassetAmount,
@@ -329,7 +349,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     // check that when < warning, we block minting
     // change parameters so that warning_cf is reached
-    await VaultManager.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0);
+    await VaultManager.setScalingParameters(0,globalCF1 + BigInt(1),0,0,0,0,0,0);
     //console.log(await moneyPrinter.cf_warning());
     // then should revert
     await expect(moneyPrinter.mintAssetFromNumaInput(NUUSD_ADDRESS,numaAmount,
@@ -499,8 +519,9 @@ describe('NUMA NUASSET PRINTER', function () {
 
   it('synth scaling', async function () 
   {
-    await VaultManager.setScalingParameters(15000,
-      1700,
+    let critical_cf = BigInt(11000);
+    await VaultManager.setScalingParameters(critical_cf,12000,
+      15000,
       20,
       10,
       600,
@@ -607,13 +628,25 @@ describe('NUMA NUASSET PRINTER', function () {
     expect(synthScalingBase[0]).to.equal(BigInt(1000));
 
 
+    // critical_CF
 
     let mintUSDAmount2 = (totalbalanceEth * BigInt(price))/BigInt(10 ** Number(decimals));
-    mintUSDAmount2 = BigInt(3)*mintUSDAmount2 / BigInt(2);
-    //await nuUSD.mint(await signer.getAddress(),mintUSDAmount2);
-    await numa.mint(await signer.getAddress(),mintUSDAmount2*BigInt(10));
+    mintUSDAmount2 = mintUSDAmount2 / BigInt(10);// should be enough to reach critical_cf
+   
+   
     numaCostAndFee = await moneyPrinter.getNbOfNumaNeededAndFee(NUUSD_ADDRESS,mintUSDAmount2);
+
+
+    //await numa.mint(await signer.getAddress(),numaCostAndFee[0]);
     await numa.approve(MONEY_PRINTER_ADDRESS,numaCostAndFee[0]);
+
+
+    
+    let bal = await numa.balanceOf(await signer.getAddress());
+    console.log(numaCostAndFee);
+    console.log(bal);
+
+
     await moneyPrinter.mintAssetOutputFromNuma(NUUSD_ADDRESS,mintUSDAmount2,
       numaCostAndFee[0],await signer.getAddress());
 
@@ -629,7 +662,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     synthScalingBase = await VaultManager.getSynthScaling();
     console.log(synthScalingBase);
-    expect(synthScalingBase[0]).to.equal(BigInt(globCF));
+    expect(synthScalingBase[0]).to.equal((BigInt(globCF) * BigInt(1000))/critical_cf);
 
 
   });

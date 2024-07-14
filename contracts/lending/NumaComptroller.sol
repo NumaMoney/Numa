@@ -7,7 +7,7 @@ import "./PriceOracleCollateralBorrow.sol";
 import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
-
+import "hardhat/console.sol";
 
 /**
  * @title Numa's Comptroller Contract (forked from compound)
@@ -268,8 +268,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
      * @return 0 if the redeem is allowed, otherwise a semi-opaque error code (See ErrorReporter.sol)
      */
     function redeemAllowed(address cToken, address redeemer, uint redeemTokens) override view external returns (uint) {
-        console.log("redeemAllowed");
-
+     
         uint allowed = redeemAllowedInternal(cToken, redeemer, redeemTokens);
         if (allowed != uint(Error.NO_ERROR)) {
             return allowed;
@@ -279,8 +278,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
     }
 
     function redeemAllowedInternal(address cToken, address redeemer, uint redeemTokens) internal view returns (uint) {
-
-         console.log("redeemAllowedInternal");
 
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
@@ -294,11 +291,9 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         /* Otherwise, perform a hypothetical liquidity check to guard against shortfall */
         (Error err, , uint shortfall,) = getHypotheticalAccountLiquidityIsolateInternal(redeemer, CToken(cToken), redeemTokens, 0);
         if (err != Error.NO_ERROR) {
-            console.log("KO");
             return uint(err);
         }
         if (shortfall > 0) {
-            console.log("INSUFFICIENT_LIQUIDITY");
             return uint(Error.INSUFFICIENT_LIQUIDITY);
         }
 
@@ -407,7 +402,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         address cToken,
         address payer,
         address borrower,
-        uint repayAmount) override external returns (uint) {
+        uint repayAmount) override external view returns (uint) {
         // Shh - currently unused
         payer;
         borrower;
@@ -462,8 +457,6 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         uint repayAmount) override view external returns (uint) {
         // Shh - currently unused
         liquidator;
-        console.logAddress(cTokenBorrowed);
-        console.logAddress(cTokenCollateral);
         require((cTokenBorrowed) != (cTokenCollateral),"not isolate");
         if (!markets[cTokenBorrowed].isListed || !markets[cTokenCollateral].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
@@ -478,12 +471,10 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             /* The borrower must have shortfall in order to be liquidatable */
             (Error err, , uint shortfall,uint badDebt) = getAccountLiquidityIsolateInternal(borrower,CToken(cTokenCollateral),CToken(cTokenBorrowed));
             if (err != Error.NO_ERROR) {
-                console.log("ici");
                 return uint(err);
             }
 
             if (shortfall == 0) {
-                console.log("la");
                 return uint(Error.INSUFFICIENT_SHORTFALL);
             }
 
@@ -491,13 +482,11 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             uint maxClose = mul_ScalarTruncate(Exp({mantissa: closeFactorMantissa}), borrowBalance);
             if (repayAmount > maxClose) 
             {
-console.log("la2");
                 return uint(Error.TOO_MUCH_REPAY);
             }
+            /* revert if there is bad debt, specific bad debt liquidations functions should be called */
             if (badDebt > 0)
             {
-                console.log("bad debt");
-                console.logUint(badDebt);
                 return uint(Error.BAD_DEBT);
             }
         }
@@ -537,7 +526,6 @@ console.log("la2");
    
             if (badDebt == 0)
             {
-
                 return uint(Error.INSUFFICIENT_BADDEBT);
             }
 
@@ -643,14 +631,12 @@ console.log("la2");
         // Pausing is a very serious situation - we revert to sound the alarms
         require(!transferGuardianPaused, "transfer is paused");
 
-console.log("fifou");
         // Currently the only consideration is whether or not
         //  the src is allowed to redeem this many tokens
         uint allowed = redeemAllowedInternal(cToken, src, transferTokens);
         if (allowed != uint(Error.NO_ERROR)) {
             return allowed;
         }
-console.log("fifou2");
 
         return uint(Error.NO_ERROR);
     }
@@ -700,27 +686,24 @@ console.log("fifou2");
         Exp tokensToDenomBorrowed;
     }
 
-    /**
-     * @notice Determine the current account liquidity wrt collateral requirements
-     * @return (possible error code (semi-opaque),
-                account liquidity in excess of collateral requirements,
-     *          account shortfall below collateral requirements)
-     */
-    function getAccountLiquidity(address account) public view returns (uint, uint, uint,uint) {
-        (Error err, uint liquidity, uint shortfall,uint badDebt) = getHypotheticalAccountLiquidityInternal(account, CToken(address(0)), 0, 0);
-
-        return (uint(err), liquidity, shortfall,badDebt);
-    }
-
     // /**
     //  * @notice Determine the current account liquidity wrt collateral requirements
-    //  * @return (possible error code,
+    //  * @return (possible error code (semi-opaque),
     //             account liquidity in excess of collateral requirements,
     //  *          account shortfall below collateral requirements)
     //  */
-    // function getAccountLiquidityInternal(address account) internal view returns (Error, uint, uint,uint) {
-    //     return getHypotheticalAccountLiquidityInternal(account, CToken(address(0)), 0, 0);
+    // function getAccountLiquidity(address account) public view returns (uint, uint, uint,uint) {
+    //     (Error err, uint liquidity, uint shortfall,uint badDebt) = getHypotheticalAccountLiquidityInternal(account, CToken(address(0)), 0, 0);
+
+    //     return (uint(err), liquidity, shortfall,badDebt);
     // }
+
+    function getAccountLiquidityIsolate(address account,CToken collateral,CToken borrow) public view returns (uint, uint, uint,uint) 
+    {
+        (Error err, uint liquidity, uint shortfall,uint badDebt) = getAccountLiquidityIsolateInternal(account, collateral,borrow);
+        return (uint(err), liquidity, shortfall,badDebt);
+    }
+
 
     /**
      * @notice Determine the current account liquidity wrt collateral requirements
@@ -732,6 +715,8 @@ console.log("fifou2");
         AccountLiquidityLocalVars memory vars; // Holds all our calculation results
         uint oErr;
 
+
+        // Here we only consider only 2 tokens: collateral token and borrow token which should be different 
         // collateral
         // Read the balances and exchange rate from the cToken
         (oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = collateral.getAccountSnapshot(account);
@@ -767,11 +752,7 @@ console.log("fifou2");
             // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
             return (Error.SNAPSHOT_ERROR, 0, 0,0);
         }
-        // vars.collateralFactor = Exp({mantissa: markets[address(asset)].collateralFactorMantissa});
-        // vars.exchangeRate = Exp({mantissa: vars.exchangeRateMantissa});
-
-        // // Get the normalized price of the asset
-        // vars.oraclePriceMantissaCollateral = oracle.getUnderlyingPriceAsCollateral(asset);
+        // Get the normalized price of the asset
         vars.oraclePriceMantissaBorrowed = oracle.getUnderlyingPriceAsBorrowed(borrow);
 
         if (vars.oraclePriceMantissaBorrowed == 0) {
@@ -780,20 +761,8 @@ console.log("fifou2");
         //vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
         vars.oraclePriceBorrowed = Exp({mantissa: vars.oraclePriceMantissaBorrowed});
 
-        // Pre-compute a conversion factor from tokens -> ether (normalized price value)
-        // vars.tokensToDenomCollateral = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceCollateral);
-        // vars.tokensToDenomBorrowed = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceBorrowed);
-        // vars.tokensToDenomCollateralNoCollateralFactor = mul_(vars.exchangeRate, vars.oraclePriceCollateral);
-        // // sumCollateral += tokensToDenom * cTokenBalance
-
-        // NUMALENDING: use collateral price
-        // vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, vars.cTokenBalance, vars.sumCollateral);
-        // vars.sumCollateralNoCollateralFactor = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateralNoCollateralFactor, vars.cTokenBalance, vars.sumCollateralNoCollateralFactor);
-
-
 
         // sumBorrowPlusEffects += oraclePrice * borrowBalance
-
         // NUMALENDING: use borrow price
         vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, vars.borrowBalance, vars.sumBorrowPlusEffects);
          
@@ -822,14 +791,14 @@ console.log("fifou2");
                 hypothetical account liquidity in excess of collateral requirements,
      *          hypothetical account shortfall below collateral requirements)
      */
-    function getHypotheticalAccountLiquidity(
-        address account,
-        address cTokenModify,
-        uint redeemTokens,
-        uint borrowAmount) public view returns (uint, uint, uint) {
-        (Error err, uint liquidity, uint shortfall,) = getHypotheticalAccountLiquidityInternal(account, CToken(cTokenModify), redeemTokens, borrowAmount);
-        return (uint(err), liquidity, shortfall);
-    }
+    // function getHypotheticalAccountLiquidity(
+    //     address account,
+    //     address cTokenModify,
+    //     uint redeemTokens,
+    //     uint borrowAmount) public view returns (uint, uint, uint) {
+    //     (Error err, uint liquidity, uint shortfall,) = getHypotheticalAccountLiquidityInternal(account, CToken(cTokenModify), redeemTokens, borrowAmount);
+    //     return (uint(err), liquidity, shortfall);
+    // }
 
     /**
      * @notice Determine what the account liquidity would be if the given amounts were redeemed/borrowed
@@ -843,87 +812,85 @@ console.log("fifou2");
                 hypothetical account liquidity in excess of collateral requirements,
      *          hypothetical account shortfall below collateral requirements)
      */
-    function getHypotheticalAccountLiquidityInternal(
-        address account,
-        CToken cTokenModify,
-        uint redeemTokens,
-        uint borrowAmount) internal view returns (Error, uint, uint,uint) {
+    // function getHypotheticalAccountLiquidityInternal(
+    //     address account,
+    //     CToken cTokenModify,
+    //     uint redeemTokens,
+    //     uint borrowAmount) internal view returns (Error, uint, uint,uint) {
 
-        AccountLiquidityLocalVars memory vars; // Holds all our calculation results
-        uint oErr;
+    //     AccountLiquidityLocalVars memory vars; // Holds all our calculation results
+    //     uint oErr;
 
-        // For each asset the account is in
-        CToken[] memory assets = accountAssets[account];
-        for (uint i = 0; i < assets.length; i++) {
-            CToken asset = assets[i];
+    //     // For each asset the account is in
+    //     CToken[] memory assets = accountAssets[account];
+    //     for (uint i = 0; i < assets.length; i++) {
+    //         CToken asset = assets[i];
 
-            // Read the balances and exchange rate from the cToken
-            (oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = asset.getAccountSnapshot(account);
-            if (oErr != 0) 
-            { 
-                // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
-                return (Error.SNAPSHOT_ERROR, 0, 0,0);
-            }
-            vars.collateralFactor = Exp({mantissa: markets[address(asset)].collateralFactorMantissa});
-            vars.exchangeRate = Exp({mantissa: vars.exchangeRateMantissa});
+    //         // Read the balances and exchange rate from the cToken
+    //         (oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = asset.getAccountSnapshot(account);
+    //         if (oErr != 0) 
+    //         { 
+    //             // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
+    //             return (Error.SNAPSHOT_ERROR, 0, 0,0);
+    //         }
+    //         vars.collateralFactor = Exp({mantissa: markets[address(asset)].collateralFactorMantissa});
+    //         vars.exchangeRate = Exp({mantissa: vars.exchangeRateMantissa});
 
-            // Get the normalized price of the asset
-            vars.oraclePriceMantissaCollateral = oracle.getUnderlyingPriceAsCollateral(asset);
-            vars.oraclePriceMantissaBorrowed = oracle.getUnderlyingPriceAsBorrowed(asset);
+    //         // Get the normalized price of the asset
+    //         vars.oraclePriceMantissaCollateral = oracle.getUnderlyingPriceAsCollateral(asset);
+    //         vars.oraclePriceMantissaBorrowed = oracle.getUnderlyingPriceAsBorrowed(asset);
 
-            if (vars.oraclePriceMantissaCollateral == 0) {
-                return (Error.PRICE_ERROR, 0, 0,0);
-            }
-            vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
-            vars.oraclePriceBorrowed = Exp({mantissa: vars.oraclePriceMantissaBorrowed});
+    //         if (vars.oraclePriceMantissaCollateral == 0) {
+    //             return (Error.PRICE_ERROR, 0, 0,0);
+    //         }
+    //         vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
+    //         vars.oraclePriceBorrowed = Exp({mantissa: vars.oraclePriceMantissaBorrowed});
 
-            // Pre-compute a conversion factor from tokens -> ether (normalized price value)
-            vars.tokensToDenomCollateral = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceCollateral);
-            vars.tokensToDenomBorrowed = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceBorrowed);
-            vars.tokensToDenomCollateralNoCollateralFactor = mul_(vars.exchangeRate, vars.oraclePriceCollateral);
-            // sumCollateral += tokensToDenom * cTokenBalance
+    //         // Pre-compute a conversion factor from tokens -> ether (normalized price value)
+    //         vars.tokensToDenomCollateral = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceCollateral);
+    //         vars.tokensToDenomBorrowed = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceBorrowed);
+    //         vars.tokensToDenomCollateralNoCollateralFactor = mul_(vars.exchangeRate, vars.oraclePriceCollateral);
+    //         // sumCollateral += tokensToDenom * cTokenBalance
 
-            // NUMALENDING: use collateral price
-            vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, vars.cTokenBalance, vars.sumCollateral);
-            vars.sumCollateralNoCollateralFactor = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateralNoCollateralFactor, vars.cTokenBalance, vars.sumCollateralNoCollateralFactor);
+    //         // NUMALENDING: use collateral price
+    //         vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, vars.cTokenBalance, vars.sumCollateral);
+    //         vars.sumCollateralNoCollateralFactor = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateralNoCollateralFactor, vars.cTokenBalance, vars.sumCollateralNoCollateralFactor);
 
 
 
-            // sumBorrowPlusEffects += oraclePrice * borrowBalance
+    //         // sumBorrowPlusEffects += oraclePrice * borrowBalance
 
-            // NUMALENDING: use borrow price
-            vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, vars.borrowBalance, vars.sumBorrowPlusEffects);
+    //         // NUMALENDING: use borrow price
+    //         vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, vars.borrowBalance, vars.sumBorrowPlusEffects);
                        
 
-            // Calculate effects of interacting with cTokenModify
-            if (asset == cTokenModify) {
-                // redeem effect
-                // sumBorrowPlusEffects += tokensToDenom * redeemTokens   
-                // NUMALENDING: use numa as collateral price                   
-                vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, redeemTokens, vars.sumBorrowPlusEffects);
+    //         // Calculate effects of interacting with cTokenModify
+    //         if (asset == cTokenModify) {
+    //             // redeem effect
+    //             // sumBorrowPlusEffects += tokensToDenom * redeemTokens   
+    //             // NUMALENDING: use numa as collateral price                   
+    //             vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, redeemTokens, vars.sumBorrowPlusEffects);
 
-                // borrow effect
-                // sumBorrowPlusEffects += oraclePrice * borrowAmount
-                // NUMALENDING: use numa as borrowed price  
-                vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, borrowAmount, vars.sumBorrowPlusEffects);
-            }
-        }
-        console.log("vars.sumBorrowPlusEffects");
-        console.logUint(vars.sumBorrowPlusEffects);
+    //             // borrow effect
+    //             // sumBorrowPlusEffects += oraclePrice * borrowAmount
+    //             // NUMALENDING: use numa as borrowed price  
+    //             vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, borrowAmount, vars.sumBorrowPlusEffects);
+    //         }
+    //     }
 
-        // These are safe, as the underflow condition is checked first
-        if (vars.sumCollateral > vars.sumBorrowPlusEffects) 
-        {
-            return (Error.NO_ERROR, vars.sumCollateral - vars.sumBorrowPlusEffects, 0,0);
-        }
-        else 
-        {
-            if (vars.sumCollateralNoCollateralFactor > vars.sumBorrowPlusEffects) 
-                return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,0);
-            else// returning bad debt
-                return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,vars.sumBorrowPlusEffects - vars.sumCollateralNoCollateralFactor);
-        }
-    }
+    //     // These are safe, as the underflow condition is checked first
+    //     if (vars.sumCollateral > vars.sumBorrowPlusEffects) 
+    //     {
+    //         return (Error.NO_ERROR, vars.sumCollateral - vars.sumBorrowPlusEffects, 0,0);
+    //     }
+    //     else 
+    //     {
+    //         if (vars.sumCollateralNoCollateralFactor > vars.sumBorrowPlusEffects) 
+    //             return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,0);
+    //         else// returning bad debt
+    //             return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,vars.sumBorrowPlusEffects - vars.sumCollateralNoCollateralFactor);
+    //     }
+    // }
 
 
  function getHypotheticalAccountLiquidityIsolateInternal(
@@ -935,14 +902,13 @@ console.log("fifou2");
         AccountLiquidityLocalVars memory vars; // Holds all our calculation results
         uint oErr;
 
-        console.log("coucou1");
+
         // this function is called from borrowallowed or redeemallowed so we should either have reddemTokens = 0 or 
         // borrowAmount = 0
         require(((redeemTokens == 0) || (borrowAmount == 0)),"redeem and borrow");
 
         // cTokenModify = redeemed --> other token = borrowed
         // cTokenModify = borrowed --> other token = collateral
-        console.log("couco2");
         CToken otherToken;
         CToken[] memory assets = accountAssets[account];
         for (uint i = 0; i < assets.length; i++) {
@@ -954,7 +920,7 @@ console.log("fifou2");
             }
 
         }
-          console.logAddress(address(otherToken));
+
         CToken collateral = cTokenModify;
         CToken borrow = otherToken;
 
@@ -1067,10 +1033,6 @@ console.log("fifou2");
         // // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
         // // seizeTokens = (repayAmount / borrowBalance) * collateralAmount
         // seizeTokens = ratio.mantissa;
-        console.logUint(actualRepayAmount);
-        console.logUint(tokensHeld);
-        console.logUint(amountOwed);
-        console.logUint(exchangeRateMantissa);
 
         // seizeTokens = (actualRepayAmount * exchangeRateMantissa*tokensHeld)/(amountOwed*expScale);
         // in CToken
@@ -1086,13 +1048,11 @@ console.log("fifou2");
         // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
 
 
-        console.logUint(seizeTokens);
-
 
         return (uint(Error.NO_ERROR), seizeTokens);
     }
 
-function liquidateBadDebtCalculateSeizeTokensAfterRepay(address cTokenBorrowed, address cTokenCollateral,address borrower, uint actualRepayAmount,uint percentageToTake) external override view returns (uint, uint) 
+function liquidateBadDebtCalculateSeizeTokensAfterRepay(address cTokenCollateral,address borrower,uint percentageToTake) external override view returns (uint, uint) 
     {
         /*
          * Get the exchange rate and calculate the number of collateral tokens to seize:
@@ -1101,58 +1061,9 @@ function liquidateBadDebtCalculateSeizeTokensAfterRepay(address cTokenBorrowed, 
          *  seizeTokens = seizeAmount / exchangeRate
          *   
          */
-        uint exchangeRateMantissa = CToken(cTokenCollateral).exchangeRateStored(); // Note: reverts on error
-        uint seizeTokens;
-        Exp memory numerator;
-        Exp memory denominator;
-        Exp memory ratio;
 
-
-        // uint borrowBalance = CToken(cTokenBorrowed).borrowBalanceStored(borrower);
-
-        // uint collateralBalance = accountTokens[borrower];
-
-        // Read the balances and exchange rate from the cToken
-        //(oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = CToken(cTokenBorrowed).getAccountSnapshot(borrower);
-        //(uint oErr,, uint amountOwed,) = CToken(cTokenBorrowed).getAccountSnapshot(borrower);
-        (uint oErr2, uint tokensHeld,,) = CToken(cTokenCollateral).getAccountSnapshot(borrower);
-
-         console.log("liquidateBadDebtCalculateSeizeTokensAfterRepay");
-        //console.logUint(amountOwed);
-        //amountOwed += actualRepayAmount;
-        //numerator = mul_(Exp({mantissa: liquidationIncentiveMantissa}), Exp({mantissa: priceBorrowedMantissa}));
-        // denominator = mul_(Exp({mantissa: priceCollateralMantissa}), Exp({mantissa: exchangeRateMantissa}));
-        // ratio = div_(numerator, denominator);
-
-
-      
-        // ratio = div_(numerator, denominator);
-        // // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
-        // // seizeTokens = (repayAmount / borrowBalance) * collateralAmount
-        // seizeTokens = ratio.mantissa;
-        // console.logUint(actualRepayAmount);
-        // console.logUint(tokensHeld);
-       // console.logUint(amountOwed);
-        console.logUint(exchangeRateMantissa);
-
-        // seizeTokens = (actualRepayAmount * exchangeRateMantissa*tokensHeld)/(amountOwed*expScale);
-        // in CToken
-        //seizeTokens = (actualRepayAmount*tokensHeld)/(amountOwed);
-        seizeTokens = (percentageToTake*tokensHeld)/(1000);
-
-
-        // TODO: should I use Exp to get more precision or not to overflow???
-        // numerator = mul_(Exp({mantissa: exchangeRateMantissa}), Exp({mantissa: tokensHeld}));
-        // denominator = mul_(Exp({mantissa: amountOwed}), Exp({mantissa: expScale}));
-        
-
-        // ratio = div_(numerator, denominator);
-        // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
-
-
-        console.logUint(seizeTokens);
-
-
+        (, uint tokensHeld,,) = CToken(cTokenCollateral).getAccountSnapshot(borrower);
+        uint seizeTokens = (percentageToTake*tokensHeld)/(1000);
         return (uint(Error.NO_ERROR), seizeTokens);
     }
 
@@ -1191,8 +1102,20 @@ function liquidateBadDebtCalculateSeizeTokensAfterRepay(address cTokenBorrowed, 
         denominator = mul_(Exp({mantissa: priceCollateralMantissa}), Exp({mantissa: exchangeRateMantissa}));
         ratio = div_(numerator, denominator);
 
-        seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
+        console.log("check seize rETh amount");
+         Exp memory numerator2;
+        Exp memory denominator2;
+        Exp memory ratio2;
 
+        numerator2 = mul_(Exp({mantissa: liquidationIncentiveMantissa}), Exp({mantissa: priceBorrowedMantissa}));
+        denominator2 = mul_(Exp({mantissa: priceCollateralMantissa}), Exp({mantissa: 1e18}));
+        ratio2 = div_(numerator2, denominator2);
+
+
+        console.logUint(mul_ScalarTruncate(ratio2, actualRepayAmount));
+        seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
+ console.logUint(seizeTokens);
+ console.logUint(exchangeRateMantissa);
         return (uint(Error.NO_ERROR), seizeTokens);
     }
 

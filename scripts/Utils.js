@@ -107,12 +107,6 @@ let addLiquidity = async function (
           amount1ToMint = amount1ToMint_;
           amount0Min = amount0Min_;
           amount1Min = amount1Min_;
-
-          console.log("add here");
-          console.log(amount0ToMint);
-          console.log(amount1ToMint);
-          console.log(amount0Min);
-          console.log(amount1Min);
       }
       else 
       {
@@ -122,11 +116,6 @@ let addLiquidity = async function (
           amount1ToMint = amount0ToMint_;
           amount0Min = amount1Min_;
           amount1Min = amount0Min_;
-          console.log("add here 2");
-          console.log(amount0ToMint);
-          console.log(amount1ToMint);
-          console.log(amount0Min);
-          console.log(amount1Min);
       }
       let mintParams = [
         await token0.getAddress(), 

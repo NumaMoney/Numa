@@ -10,7 +10,8 @@ import "../EIP20Interface.sol";
 interface ComptrollerLensInterface {
     function markets(address) external view returns (bool, uint);
     function oracle() external view returns (PriceOracleCollateralBorrow);
-    function getAccountLiquidity(address) external view returns (uint, uint, uint);
+    //function getAccountLiquidity(address) external view returns (uint, uint, uint,uint);
+    function getAccountLiquidityIsolate(address,CToken,CToken) external view returns (uint, uint, uint,uint);
     function getAssetsIn(address) external view returns (CToken[] memory);  
     function borrowCaps(address) external view returns (uint);
 }
@@ -169,16 +170,30 @@ contract CompoundLens {
         CToken[] markets;
         uint liquidity;
         uint shortfall;
+        uint badDebt;
     }
 
-    function getAccountLimits(ComptrollerLensInterface comptroller, address account) public returns (AccountLimits memory) {
-        (uint errorCode, uint liquidity, uint shortfall) = comptroller.getAccountLiquidity(account);
+    // function getAccountLimits(ComptrollerLensInterface comptroller, address account) public view returns (AccountLimits memory) {
+    //     (uint errorCode, uint liquidity, uint shortfall,uint badDebt) = comptroller.getAccountLiquidity(account);
+    //     require(errorCode == 0);
+
+    //     return AccountLimits({
+    //         markets: comptroller.getAssetsIn(account),
+    //         liquidity: liquidity,
+    //         shortfall: shortfall,
+    //         badDebt: badDebt
+    //     });
+    // }
+
+    function getAccountLimits(ComptrollerLensInterface comptroller, address account,CToken collateral,CToken borrow) public view returns (AccountLimits memory) {
+        (uint errorCode, uint liquidity, uint shortfall,uint badDebt) = comptroller.getAccountLiquidityIsolate(account,collateral,borrow);
         require(errorCode == 0);
 
         return AccountLimits({
             markets: comptroller.getAssetsIn(account),
             liquidity: liquidity,
-            shortfall: shortfall
+            shortfall: shortfall,
+            badDebt: badDebt
         });
     }
 

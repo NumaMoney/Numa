@@ -11,6 +11,7 @@ import "../interfaces/IVaultManager.sol";
 import "../utils/constants.sol";
 import "hardhat/console.sol";
 
+
 /// @title NumaPrinter
 /// @notice Responsible for minting/burning Numa for nuAsset
 /// @dev
@@ -167,10 +168,10 @@ contract NumaPrinter is Pausable, Ownable2Step {
         vaultManager.accrueInterests();
 
         // for same reasons, we need to update our synth scaling snapshot because synth supplies changes      
-        vaultManager.getSynthScalingUpdate();
-        // and 
-        // should already be called 
+        // vaultManager.getSynthScalingUpdate();
+        // // and 
         // vaultManager.getSellFeeScalingUpdate();
+        vaultManager.updateAll();
 
         // mint
         _asset.mint(_recipient, _amount);
@@ -184,9 +185,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @notice Call accrueInterests on lending contracts as it will impact vault max borrowable amount
      */
     function burnNuAssetFrom(INuAsset _asset,address _sender,uint _amount) internal
-    {   
-        // accrue interest on lending because synth supply has changed so utilization rates also
-        vaultManager.accrueInterests();
+    {           
         // burn
         _asset.burnFrom(_sender, _amount);
         emit AssetBurn(address(_asset), _amount);
@@ -293,7 +292,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
         uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);        
-        (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
+        // (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
+        // (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
+
+         vaultManager.accrueInterests();
+        (uint scaleOverride,uint16 sellfee) = vaultManager.updateAll();
+       
+
         EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
 
         uint256 nuAssetIn = oracle.getNbOfAssetneeded(
@@ -304,7 +309,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
             EthPerNumaVault
         );
 
-        (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
+       
         // apply scale
         nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
         return (nuAssetIn,amountWithFee - _numaAmount);
@@ -352,12 +357,16 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
     function getNbOfNumaFromAssetWithFee(address _nuAsset,
-        uint256 _nuAssetAmount,uint scaleOverride
-    ) public returns (uint256, uint256) 
+        uint256 _nuAssetAmount
+    ) internal returns (uint256, uint256) 
     {
 
         uint256 numaPerEthVault = vaultManager.GetNumaPerEth(_nuAssetAmount);
-        (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
+        // (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
+        // (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
+         vaultManager.accrueInterests();
+        (uint scaleOverride,uint16 sellfee) = vaultManager.updateAll();
+
         numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
 
 
@@ -467,6 +476,10 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 numaFee;
         (numaCost, numaFee) = getNbOfNumaNeededAndFee(_nuAsset,_nuAssetamount);
 
+        console.log("cost and fee");
+        console.logUint(numaCost);
+        console.logUint(numaFee);
+
         // slippage check
         require (numaCost <= _maxNumaAmount,"max numa");
 
@@ -491,10 +504,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
       
         INuAsset nuAsset = INuAsset(_nuAsset);
       
-        (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
         uint256 _output;
         uint256 amountToBurn;
-        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount,scaleOverride);
+        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount);
 
       
         // burn fee

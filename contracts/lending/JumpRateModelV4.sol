@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import "./InterestRateModel.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "hardhat/console.sol";
+
 /**
   * @title Compound's JumpRateModel Contract V3
   * @author Compound (modified by Dharma Labs)
@@ -133,8 +133,6 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
         uint oneMinusReserveFactor = 1e18 - reserveFactorMantissa;
         (uint borrowRate,) = getBorrowRate(cash, borrows, reserves,deltaTime,fullUtilizationRate);
         uint rateToPool = borrowRate * oneMinusReserveFactor / 1e18;
-        console.log("supply rate");
-        console.logUint(rateToPool);
         return utilizationRate(cash, borrows, reserves) * rateToPool / 1e18;
     }
 
@@ -151,11 +149,6 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
         multiplierPerBlock = (multiplierPerYear * 1e18) / (blocksPerYear * kink_);
         jumpMultiplierPerBlock = jumpMultiplierPerYear / blocksPerYear;
         kink = kink_;
-
-        console.log("update parameter model");
-        console.logUint(multiplierPerBlock);
-        console.logUint(jumpMultiplierPerBlock);
-        
 
         emit NewInterestParams(baseRatePerBlock, multiplierPerBlock, jumpMultiplierPerBlock, kink);
 

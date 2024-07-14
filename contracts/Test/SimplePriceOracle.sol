@@ -19,7 +19,7 @@ contract SimplePriceOracle is PriceOracleCollateralBorrow {
     }
 
     function getUnderlyingPrice(CToken cToken) public view returns (uint) {
-        console.log("fake oracle called");
+        
         return prices[_getUnderlyingAddress(cToken)];
     }
 

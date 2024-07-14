@@ -805,11 +805,18 @@ describe('NUMA ORACLE', function () {
       let inputAmount = BigInt(100);
       let amountEstimate = (inputAmount*numaPriceUsd);///BigInt(10**decimals);
       // price from oracle
+
+
+      let EthPerNumaVault = await VaultManager.GetNumaPriceEth(ethers.parseEther(inputAmount.toString()));
+      let buyFee = await VaultManager.getBuyFee();
+      EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (BigInt(1000)-buyFee)) /BigInt(1000);
+
       let amountFromOracle = await oracle.getNbOfNuAsset(
         ethers.parseEther(inputAmount.toString()),
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        EthPerNumaVault
       );
       console.log(amountFromOracle);
       console.log(amountEstimate);
@@ -849,11 +856,15 @@ describe('NUMA ORACLE', function () {
       
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
+      let EthPerNumaVault = await VaultManager.GetNumaPriceEth(ethers.parseEther(inputAmount.toString()));
+      let buyFee = await VaultManager.getBuyFee();
+      EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (BigInt(1000)-buyFee)) /BigInt(1000);
       let amountFromOracle = await oracle.getNbOfNuAsset(
         ethers.parseEther(inputAmount.toString()),
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        EthPerNumaVault
       );
       //console.log(amountFromOracle);
       let vaultPrice = await VaultManager.GetNumaPriceEth(ethers.parseEther(inputAmount.toString()));
@@ -870,12 +881,17 @@ describe('NUMA ORACLE', function () {
       vaultPrice = await VaultManager.GetNumaPriceEth(ethers.parseEther(inputAmount.toString()));
       console.log(vaultPrice);
 
+      EthPerNumaVault = await VaultManager.GetNumaPriceEth(ethers.parseEther(inputAmount.toString()));
+      buyFee = await VaultManager.getBuyFee();
+      EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (BigInt(1000)-buyFee)) /BigInt(1000);
+
       // 4. validate that we clipped by vault price
       amountFromOracle = await oracle.getNbOfNuAsset(
         ethers.parseEther(inputAmount.toString()),
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        EthPerNumaVault
       );
 
       numaPriceUsd = (vaultPrice *BigInt(105)* BigInt(price))/BigInt(100);
@@ -896,7 +912,7 @@ describe('NUMA ORACLE', function () {
     it('should use lowest price from pool 0', async () => {
       let getV3SqrtPrice0 = await oracle.getV3SqrtLowestPrice(NUMA_USDC_POOL_ADDRESS, intervalShort, intervalLong);
       let uniPrice0 = BigInt(getV3SqrtPrice0.toString()) * BigInt(getV3SqrtPrice0.toString()) * BigInt(1e18) / BigInt(2 ** 192);
-      console.log("BEFORE");
+     
       console.log(uniPrice0);
       if (numa_address > USDC_ADDRESS) {
         // token0 = usdc
@@ -904,17 +920,13 @@ describe('NUMA ORACLE', function () {
 
         // change numerator/denominator
         uniPrice0 = BigInt(Math.pow(10, 36)) / (uniPrice0 * BigInt(1e12));
-        console.log("HERE");
        
       }
       else {
         // token0 = numa
         // token1 = usdc
         // const buyOneOfToken0 = ((sqrtPriceX96 / 2**96)**2) / (10**Decimal1 / 10**Decimal0).toFixed(Decimal1);
-        uniPrice0 = uniPrice0 * BigInt(1e12);
-        console.log("THERE");
-     
-        
+        uniPrice0 = uniPrice0 * BigInt(1e12);                   
       }
       console.log(uniPrice0);
        // 3 different price spot/low/high
@@ -980,11 +992,17 @@ describe('NUMA ORACLE', function () {
 
 
        // price from oracle
+       let numaPerEthVault = await VaultManager.GetNumaPerEth(outputAmount);
+       let buyfee = await VaultManager.getBuyFee();
+       numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (BigInt(1000) + (BigInt(1000)-buyfee));
+
+
        let amountFromOracle = await oracle.getNbOfNumaNeeded(
         outputAmount,
          NUUSD_ADDRESS,
          NUMA_USDC_POOL_ADDRESS,
-         converterAddress
+         converterAddress,
+         numaPerEthVault
        );
        console.log(amountFromOracle);
        console.log(amountEstimate);
@@ -1028,11 +1046,17 @@ describe('NUMA ORACLE', function () {
       
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
+      let numaPerEthVault = await VaultManager.GetNumaPerEth(outputAmount);
+      let buyfee = await VaultManager.getBuyFee();
+      numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (BigInt(1000) + (BigInt(1000)-buyfee));
+
+
       let amountFromOracle = await oracle.getNbOfNumaNeeded(
         outputAmount,
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        numaPerEthVault
       );
       console.log(amountFromOracle);
       console.log(amountEstimate);
@@ -1048,11 +1072,16 @@ describe('NUMA ORACLE', function () {
       );
 
       // 4. validate that we clipped by vault price
+      numaPerEthVault = await VaultManager.GetNumaPerEth(outputAmount);
+      buyfee = await VaultManager.getBuyFee();
+      numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (BigInt(1000) + (BigInt(1000)-buyfee));
+
       amountFromOracle = await oracle.getNbOfNumaNeeded(
         outputAmount,
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        numaPerEthVault
       );
       console.log(amountFromOracle);
       console.log(amountEstimate);
@@ -1130,12 +1159,20 @@ describe('NUMA ORACLE', function () {
        
         //let amountEstimate = (ethers.parseEther(inputAmount.toString())*BigInt(10**decimals)*ethers.parseEther("1"))/numaPriceUsd;
         let amountEstimate = (ethers.parseEther(inputAmount.toString())*ethers.parseEther("1"))/numaPriceUsd;
+
+
+        let numaPerEthVault = await VaultManager.GetNumaPerEth(ethers.parseEther(inputAmount.toString()));
+        let [sellfee,] = await VaultManager.getSellFeeScaling();
+        numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (sellfee);
+
+
         // price from oracle
         let amountFromOracle = await oracle.getNbOfNumaFromAsset(
           ethers.parseEther(inputAmount.toString()),
           NUUSD_ADDRESS,
           NUMA_USDC_POOL_ADDRESS,
-          converterAddress
+          converterAddress,
+          numaPerEthVault
         );
         console.log(amountFromOracle);
         console.log(amountEstimate);
@@ -1176,11 +1213,16 @@ describe('NUMA ORACLE', function () {
       
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
+      let numaPerEthVault = await VaultManager.GetNumaPerEth(ethers.parseEther(inputAmount.toString()));
+      let [sellfee,] = await VaultManager.getSellFeeScaling();
+      numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (sellfee);
+
       let amountFromOracle = await oracle.getNbOfNumaFromAsset(
         ethers.parseEther(inputAmount.toString()),
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        numaPerEthVault
       );
       console.log(amountFromOracle);
       console.log(amountEstimate);
@@ -1194,11 +1236,16 @@ describe('NUMA ORACLE', function () {
       );
 
       // 4. validate that we clipped by vault price
+      numaPerEthVault = await VaultManager.GetNumaPerEth(ethers.parseEther(inputAmount.toString()));
+      [sellfee,] = await VaultManager.getSellFeeScaling();
+      numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (sellfee);
+
       amountFromOracle = await oracle.getNbOfNumaFromAsset(
         ethers.parseEther(inputAmount.toString()),
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        numaPerEthVault
       );
       console.log(amountFromOracle);
       console.log(amountEstimate);
@@ -1282,11 +1329,17 @@ describe('NUMA ORACLE', function () {
        //let amountEstimate = (outputAmount*numaPriceUsd)/BigInt(10**decimals);
        let amountEstimate = (outputAmount*numaPriceUsd);
        // price from oracle
+       let EthPerNumaVault = await VaultManager.GetNumaPriceEth(ethers.parseEther(outputAmount.toString()));        
+       let [sellfee,] = await VaultManager.getSellFeeScaling();
+       EthPerNumaVault = (EthPerNumaVault * sellfee) /BigInt(1000);
+
+
        let amountFromOracle = await oracle.getNbOfAssetneeded(
          ethers.parseEther(outputAmount.toString()),
          NUUSD_ADDRESS,
          NUMA_USDC_POOL_ADDRESS,
-         converterAddress
+         converterAddress,
+         EthPerNumaVault
        );
        console.log(amountFromOracle);
        console.log(amountEstimate);
@@ -1327,11 +1380,16 @@ describe('NUMA ORACLE', function () {
       //let amountEstimate = (inputAmount*numaPriceUsd)/BigInt(10**decimals);
       // price from oracle
 
+      let EthPerNumaVault = await VaultManager.GetNumaPriceEth(ethers.parseEther(outputAmount.toString()));        
+      let [sellfee,] = await VaultManager.getSellFeeScaling();
+      EthPerNumaVault = (EthPerNumaVault * sellfee) /BigInt(1000);
+
       let amountFromOracle = await oracle.getNbOfAssetneeded(  
         ethers.parseEther(outputAmount.toString()),
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        EthPerNumaVault
       );
       console.log(amountFromOracle);
       console.log(amountEstimate);
@@ -1344,12 +1402,18 @@ describe('NUMA ORACLE', function () {
         ethers.parseEther("5000000.0")
       );
 
+
+      EthPerNumaVault = await VaultManager.GetNumaPriceEth(ethers.parseEther(outputAmount.toString()));        
+      [sellfee,] = await VaultManager.getSellFeeScaling();
+      EthPerNumaVault = (EthPerNumaVault * sellfee) /BigInt(1000);
+
       // 4. validate that we clipped by vault price
       amountFromOracle = await oracle.getNbOfAssetneeded(
         ethers.parseEther(outputAmount.toString()),
         NUUSD_ADDRESS,
         NUMA_USDC_POOL_ADDRESS,
-        converterAddress
+        converterAddress,
+        EthPerNumaVault
       );
       console.log(amountFromOracle);
       console.log(amountEstimate);

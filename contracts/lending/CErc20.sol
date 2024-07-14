@@ -105,18 +105,6 @@ abstract contract CErc20 is CToken, CErc20Interface {
         return NO_ERROR;
     }
 
-    // /**
-    //  * @notice The sender liquidates the borrowers collateral.
-    //  *  The collateral seized is transferred to the liquidator.
-    //  * @param borrower The borrower of this cToken to be liquidated
-    //  * @param repayAmount The amount of the underlying borrowed asset to repay
-    //  * @param cTokenCollateral The market in which to seize collateral from the borrower
-    //  * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
-    //  */
-    // function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) override external returns (uint) {
-    //     liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
-    //     return NO_ERROR;
-    // }
 
     /**
      * @notice A public function to sweep accidental ERC-20 transfers to this contract. Tokens are sent to admin (timelock)
@@ -215,10 +203,6 @@ abstract contract CErc20 is CToken, CErc20Interface {
                     revert(0, 0)
                 }
         }
-        if (success)
-            console.log("transfer success");
-        else
-            console.log("transfer KO");
 
         require(success, "TOKEN_TRANSFER_OUT_FAILED");
     }

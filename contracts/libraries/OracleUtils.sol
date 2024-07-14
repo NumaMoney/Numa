@@ -7,7 +7,7 @@ import {IChainlinkPriceFeed} from "../interfaces/IChainlinkPriceFeed.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
 
-import "hardhat/console.sol";
+
 
 contract OracleUtils {
 
@@ -90,9 +90,7 @@ contract OracleUtils {
                 uint256(price)
             );
         }
-        console.log("oracleUtils");
-        console.logUint(_amount);
-                console.logInt(price);
+
         // audit fix
         EthValue = EthValue * 10**(18 - _decimals);
     }

@@ -75,8 +75,6 @@ contract CNumaLst is CNumaToken
         uint timestampPrior = accrualBlockTimestamp;
         uint deltaTime = currentTimestamp - timestampPrior;
 
-        console.log("reserve factor");
-        console.logUint(reserveFactorMantissa);
         return interestRateModel.getSupplyRate(getCashPrior()+maxBorrowableAmountFromVault, totalBorrows, totalReserves, reserveFactorMantissa,deltaTime,fullUtilizationRate);
     }
 
@@ -128,16 +126,12 @@ contract CNumaLst is CNumaToken
         uint totalBorrowsNew = interestAccumulated + borrowsPrior;
         uint totalReservesNew = mul_ScalarTruncateAddUInt(Exp({mantissa: reserveFactorMantissa}), interestAccumulated, reservesPrior);
         uint borrowIndexNew = mul_ScalarTruncateAddUInt(simpleInterestFactor, borrowIndexPrior, borrowIndexPrior);
-        console.log("borrowIndexNew");
-        console.logUint(borrowIndexNew);
-               console.logUint(borrowIndexPrior);
+
         /////////////////////////
         // EFFECTS & INTERACTIONS
         // (No safe failures beyond this point)
 
         /* We write the previously calculated values into storage */
-        console.logUint(currentBlockNumber);
-        console.logUint(accrualBlockNumber);
         accrualBlockNumber = currentBlockNumber;
         accrualBlockTimestamp = block.timestamp;
         borrowIndex = borrowIndexNew;

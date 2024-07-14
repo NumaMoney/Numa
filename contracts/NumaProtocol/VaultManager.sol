@@ -43,6 +43,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     // sell fee
     uint16 public sell_fee = 950; // 5%
+    uint16 last_sell_fee = 950;
+
     // buy fee
     uint16 public buy_fee = 950; // 5%
     // min numa price in Eth
@@ -56,7 +58,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint16 public sell_fee_minimum = 500;
     uint public sell_fee_deltaRebase = 24 hours;
     uint public sell_fee_deltaDebase = 24 hours;
-    uint16 last_sell_fee = 950;
+  
     uint lastBlockTime_sell_fee;   
     uint public sell_fee_update_blocknumber;
 
@@ -108,6 +110,14 @@ contract VaultManager is IVaultManager, Ownable2Step {
     ) Ownable(msg.sender) {
         numa = NUMA(_numaAddress);       
         nuAssetManager = INuAssetManager(_nuAssetManagerAddress);
+        
+        uint blocktime = block.timestamp;
+        uint blocknumber = block.number;
+        lastBlockTime_sell_fee = blocktime;
+        lastBlockTime = blocktime;
+        sell_fee_update_blocknumber = blocknumber;
+        synth_scaling_update_blocknumber = blocknumber;
+
     }
 
     function getNuAssetManager() external view returns (INuAssetManager)
@@ -199,6 +209,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
     function setSellFee(uint16 _fee) external onlyOwner {
         require(_fee <= BASE_1000, "fee above 1000");
         sell_fee = _fee;
+
+        // careful
+        // changing sell fee will reset sell_fee scaling
+        last_sell_fee = sell_fee;
+        lastBlockTime_sell_fee = block.timestamp;   
+        sell_fee_update_blocknumber = block.number;
+
         emit SellFeeUpdated(_fee);
     }
 
@@ -216,7 +233,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return buy_fee;
     }
 
-    function getSellFee() external view returns (uint16)
+    function getSellFeeOriginal() external view returns (uint16)
     {
         return sell_fee;
     }
@@ -295,6 +312,12 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return (uint16(lastSellFee),blockTime);
     }
  
+    function updateAll() public returns (uint scale,uint16 sell_fee_res)
+    {
+        (scale,,) = getSynthScalingUpdate();
+        (sell_fee_res,) = getSellFeeScalingUpdate();
+    }
+
     function getSynthScalingUpdate() public returns (uint scaleOverride, uint scaleMemory,uint blockTime)
     {  
         uint currentBlock = block.number;
@@ -383,6 +406,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
         if (currentCF < cf_critical)
         {
             // scale such that currentCF = cf_critical
+            // DBG
+            console.logUint(currentCF);
+                        console.logUint(cf_critical);
+            console.log("critical reached");
             
             uint scaleSecure = (currentCF*BASE_1000)/cf_critical;
             if (scaleSecure < scale1000)

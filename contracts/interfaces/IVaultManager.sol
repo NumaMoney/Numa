@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 interface IVaultManager {
 
     function getBuyFee() external view returns (uint16);
-    function getSellFee() external view returns (uint16);
+    function getSellFeeOriginal() external view returns (uint16);
     function getSellFeeScaling() external view returns (uint16,uint);
     function getSellFeeScalingUpdate() external returns (uint16,uint);
     function getTotalBalanceEth() external view returns (uint256);
@@ -43,7 +43,9 @@ interface IVaultManager {
     function getGlobalCF() external view returns (uint);
     function accrueInterests() external;
 
-    function getSynthScalingUpdate() external returns (uint,uint,uint);
+    //function getSynthScalingUpdate() external returns (uint,uint,uint);
+    function updateAll() external returns (uint,uint16);
+
 
     function getSynthScaling() external view returns (uint,uint,uint);
     function getWarningCF() external view returns (uint);
