@@ -951,7 +951,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
           
             // Pre-compute a conversion factor from tokens -> ether (normalized price value)
-           vars.tokensToDenomCollateral = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceCollateral);
+            vars.tokensToDenomCollateral = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePriceCollateral);
             vars.tokensToDenomCollateralNoCollateralFactor = mul_(vars.exchangeRate, vars.oraclePriceCollateral);
             // sumCollateral += tokensToDenom * cTokenBalance
 
@@ -971,16 +971,18 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             }
        
             vars.oraclePriceMantissaBorrowed = oracle.getUnderlyingPriceAsBorrowed(borrow);
+            
+
+            // AUDITV2FIX: missing current borrow balance update
+            vars.oraclePriceBorrowed = Exp({mantissa: vars.oraclePriceMantissaBorrowed});
+            vars.sumBorrowPlusEffects =mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, vars.borrowBalance, vars.sumBorrowPlusEffects);
 
             if (vars.oraclePriceMantissaBorrowed == 0) {
                 return (Error.PRICE_ERROR, 0, 0,0);
             }
         }
-        //vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
-        vars.oraclePriceBorrowed = Exp({mantissa: vars.oraclePriceMantissaBorrowed});
 
-        // Calculate effects of interacting with cTokenModify
-        
+        // Calculate effects of interacting with cTokenModify        
         vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, redeemTokens, vars.sumBorrowPlusEffects);
         vars.sumBorrowPlusEffects = mul_ScalarTruncateAddUInt(vars.oraclePriceBorrowed, borrowAmount, vars.sumBorrowPlusEffects);
          

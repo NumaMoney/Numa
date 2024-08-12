@@ -235,8 +235,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 amountToBurn = (_numaAmount * printAssetFeeBps) / 10000;
 
         // this function applies fees (amount = amount - fee)
-        uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);
-        EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (1000-vaultManager.getBuyFee())) /1000;
+        // AUDITV2FIX: need to use same amount as in oracle.getNbOfNuAsset
+        // uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);
+        uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount - amountToBurn);
+
+        // AUDITV2FIX: formula for fees is incorrect
+        //EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (1000-vaultManager.getBuyFee())) /1000;
+        EthPerNumaVault = (EthPerNumaVault*1000)/vaultManager.getBuyFee();
 
         uint256 output = oracle.getNbOfNuAsset(
             _numaAmount - amountToBurn,

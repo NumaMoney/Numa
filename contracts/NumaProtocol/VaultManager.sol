@@ -283,7 +283,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     }
                     else
                         lastSellFee = sell_fee_minimum;
-                } 
+            } 
 
         }
         else
