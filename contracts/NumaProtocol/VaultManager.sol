@@ -265,16 +265,21 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint lastSellFee = last_sell_fee;
         // synth scaling
         uint currentLiquidCF = getGlobalLiquidCF();
-        uint blockTime = block.timestamp;
+        uint blockTime =  block.timestamp;
         if (currentLiquidCF < cf_liquid_severe)
         {        
-            // we need to debase
-            if (blockTime > (lastBlockTime_sell_fee + sell_fee_deltaDebase))
-            {
-                // debase again
-                uint ndebase = (blockTime - lastBlockTime_sell_fee)/(sell_fee_deltaDebase);
-                ndebase = ndebase * sell_fee_debaseValue;
+                // we need to debase
 
+                // debase linearly
+                
+                uint ndebase = ((blockTime - lastBlockTime_sell_fee)*sell_fee_debaseValue)/(sell_fee_deltaDebase);
+                if (ndebase <= 0)
+                {
+                    // not enough time has passed to get some debase, so we reset our time reference
+                    blockTime = lastBlockTime_sell_fee;
+                }
+                else
+                {
                     if (lastSellFee > ndebase)
                     {
                         lastSellFee = lastSellFee - ndebase;
@@ -283,29 +288,27 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     }
                     else
                         lastSellFee = sell_fee_minimum;
-            } 
+                }
+
 
         }
         else
         {
             if (last_sell_fee < sell_fee)
-            {
-
-                // need to rebase
-                if (blockTime > (lastBlockTime_sell_fee + sell_fee_deltaRebase))
+            {     
+                // rebase
+                uint nrebase = ((blockTime - lastBlockTime_sell_fee)*sell_fee_rebaseValue)/(sell_fee_deltaRebase);
+                if (nrebase <= 0)
                 {
-                    // rebase
-                    uint nrebase = (blockTime - lastBlockTime_sell_fee)/(sell_fee_deltaRebase);
-                  
-                    nrebase = nrebase * sell_fee_rebaseValue;
-                  
-                    lastSellFee = lastSellFee + nrebase;
-                  
+                    // not enough time has passed to get some rebase, so we reset our time reference
+                    blockTime = lastBlockTime_sell_fee;
+                }
+                else
+                {         
+                    lastSellFee = lastSellFee + nrebase;            
                     if (lastSellFee > sell_fee)
                         lastSellFee = sell_fee;
-                } 
-               
-
+                }
             }
         }
 
@@ -352,13 +355,16 @@ contract VaultManager is IVaultManager, Ownable2Step {
             {
                 // we are currently in debase/rebase mode
 
-                if (blockTime > (lastBlockTime + deltaDebase))
+                // debase linearly
+                uint ndebase = ((blockTime - lastBlockTime)*debaseValue)/(deltaDebase);
+                if (ndebase <= 0)
                 {
-                    // debase again
-                    uint ndebase = (blockTime - lastBlockTime)/(deltaDebase);
+                    // not enough time has passed to get some debase, so we reset our time reference
+                    blockTime = lastBlockTime;
 
-                    ndebase = ndebase * debaseValue;
-
+                }
+                else
+                {
                     if (lastScaleMemory > ndebase)
                     {
                         lastScaleMemory = lastScaleMemory - ndebase;
@@ -366,35 +372,33 @@ contract VaultManager is IVaultManager, Ownable2Step {
                             lastScaleMemory = minimumScale;
                     }
                     else
-                        lastScaleMemory = minimumScale;
-                } 
+                        lastScaleMemory = minimumScale;                
+                }
+
 
             }
-            // else
-            // {
-            //     // start debase
-            //     lastScaleMemory = lastScaleMemory - debaseValue;
-            // }
         }
         else
         {
             if (lastScaleMemory < BASE_1000)
             {
-
-                // need to rebase
-                if (blockTime > (lastBlockTime + deltaRebase))
-                {
-                    // rebase
-                    uint nrebase = (blockTime - lastBlockTime)/(deltaRebase);
+               // rebase linearly
+               uint nrebase = ((blockTime - lastBlockTime)*rebaseValue)/(deltaRebase);
                   
-                    nrebase = nrebase * rebaseValue;
+               if (nrebase <= 0)
+               {
+                    // not enough time has passed to get some rebase, so we reset our time reference
+                    blockTime = lastBlockTime;
+
+                }
+                else
+                {
                   
                     lastScaleMemory = lastScaleMemory + nrebase;
                   
                     if (lastScaleMemory > BASE_1000)
                         lastScaleMemory = BASE_1000;
-                } 
-               
+                }
 
             }
         }
