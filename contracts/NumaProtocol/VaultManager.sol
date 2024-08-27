@@ -264,10 +264,16 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     function getSellFeeScaling() public view returns (uint16,uint)
     {  
+        uint blockTime =  block.timestamp;
+        // if it has already been updated in that block, no need to compute, we can use what's stored
+        if (blockTime == sell_fee_update_blocknumber)
+        {
+            return (last_sell_fee,lastBlockTime_sell_fee);         
+        }
+
         uint lastSellFee = last_sell_fee;
         // synth scaling
-        uint currentLiquidCF = getGlobalLiquidCF();
-        uint blockTime =  block.timestamp;
+        uint currentLiquidCF = getGlobalLiquidCF();       
         if (currentLiquidCF < cf_liquid_severe)
         {        
                 // we need to debase
@@ -358,11 +364,16 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     function getSynthScaling() public virtual view returns (uint,uint,uint,uint)// virtual for test&overrides
     {
-      
+        uint blockTime = block.timestamp;
+        // if it has already been updated in that block, no need to compute, we can use what's stored
+        if (blockTime == synth_scaling_update_blocknumber)
+        {
+            return (lastScaleOverride,lastScale,lastScaleForPrice,lastBlockTime);         
+        }
         uint lastScaleMemory = lastScale;
         // synth scaling
         uint currentCF = getGlobalCF();
-        uint blockTime = block.timestamp;
+       
         if (currentCF < cf_severe)
         {        
             // we need to debase
