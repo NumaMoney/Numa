@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "../interfaces/IVaultOracleSingle.sol";
+import "../../interfaces/IVaultOracleSingle.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 contract VaultMockOracle is IVaultOracleSingle {
     uint price = 1 ether;

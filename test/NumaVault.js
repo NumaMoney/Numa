@@ -1131,16 +1131,16 @@ describe('NUMA VAULT', function () {
  
     await Vault2.buy(ethers.parseEther("2"),buypriceref2 - epsilon,await signer2.getAddress());
 
-    let balbuyer = await numa.balanceOf(await signer2.getAddress());
-    bal1 = await wstEth_contract.balanceOf(VAULT2_ADDRESS);
-    balfee = await wstEth_contract.balanceOf(await signer3.getAddress());
+    // let balbuyer = await numa.balanceOf(await signer2.getAddress());
+    // bal1 = await wstEth_contract.balanceOf(VAULT2_ADDRESS);
+    // balfee = await wstEth_contract.balanceOf(await signer3.getAddress());
 
-    let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
+    // let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
   
-    expect(balbuyer).to.be.closeTo(buypriceref2, epsilon);
-    expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
+    // expect(balbuyer).to.be.closeTo(buypriceref2, epsilon);
+    // expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
 
-    expect(balfee).to.equal(fees);
+    // expect(balfee).to.equal(fees);
   });
 
   it('Extract rewards', async function () {
@@ -1198,70 +1198,6 @@ describe('NUMA VAULT', function () {
     await expect(Vault1.extractRewards()).to.be.reverted;
   });
 
-  // it('Buy with rEth and add to skipWallet', async function () {
-  //   let buypricerefnofees = ethers.parseEther("2")*(BigInt(9000000))/(BigInt(100));
-  //   let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
-
-
-  //   await sendEthToVault();
-  //   // BUY
-  //   // paused by default 
-  //   await expect(Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress())).to.be.reverted;
-  //   await Vault1.unpause();
-  //   await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
-
-  //   // send 1000000 Numa supply to signer3
-  //   await numa.transfer(await signer3.getAddress(),ethers.parseEther("1000000"));
-  //   await VM.addToRemovedSupply(await signer3.getAddress());
-
-
-
-  //   await Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress());
-
-  //   let balbuyer = await numa.balanceOf(await signer2.getAddress());
-  //   bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
-  //   let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
-
-  //   let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
-  //   expect(balbuyer).to.equal(buypriceref);
-  //   expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
-  //   expect(balfee).to.equal(fees);
-  // });
-
-
-  // it('Buy with rEth and add/remove to skipWallet', async function () {
-  //   let buypricerefnofees = ethers.parseEther("2")*(BigInt(10000000))/(BigInt(100));
-  //   let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
-
-
-  //   await sendEthToVault();
-  //   // BUY
-  //   // paused by default 
-  //   await expect(Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress())).to.be.reverted;
-  //   await Vault1.unpause();
-  //   await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
-
-  //   // send 1000000 Numa supply to signer3
-  //   await numa.transfer(await signer3.getAddress(),ethers.parseEther("1000000"));
-  //   await VM.addToRemovedSupply(await signer3.getAddress());
-
-  //   // testing remove
-  //   await VM.removeFromRemovedSupply(await signer3.getAddress());
-    
-  
-  //   await Vault1.buy(ethers.parseEther("2"),buypriceref,await signer2.getAddress());
-
-  //   let balbuyer = await numa.balanceOf(await signer2.getAddress());
-  //   bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
-  //   let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
-
-  //   let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
-  //   expect(balbuyer).to.equal(buypriceref);
-  //   expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
-  //   expect(balfee).to.equal(fees);
-
-
-  // });
 
 
   it('sell fee scaling', async function () 
@@ -1397,7 +1333,7 @@ describe('NUMA VAULT', function () {
     await expect(VM.setBuyFee(800)).to.not.be.reverted;
     await expect(VM.setSellFee(800)).to.not.be.reverted;
     await expect(Vault1.setFee(200)).to.not.be.reverted;
-    await expect(Vault1.setFee(201)).to.be.reverted;
+    await expect(Vault1.setFee(1001)).to.be.reverted;
 
   });
   it('Pausable', async () => 

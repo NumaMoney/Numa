@@ -12,6 +12,7 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.2",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-foundry": "^1.1.2",
     "@nomicfoundation/hardhat-ledger": "^1.0.1",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.9",
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
@@ -30,7 +31,8 @@
   "dependencies": {
     "@chainlink/contracts": "^0.8.0",
     "@ethereum-artifacts/weth9": "^1.1.0",
-    "@openzeppelin/contracts": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts_5.0.2": "npm:@openzeppelin/contracts@^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "@openzeppelin/hardhat-upgrades": "^2.2.1",
     "@uniswap/router-sdk": "^1.7.1",
@@ -38,10 +40,11 @@
     "@uniswap/universal-router-sdk": "^2.0.1",
     "@uniswap/v2-sdk": "^3.2.3",
     "@uniswap/v3-core": "^1.0.2-solc-0.8-simulate",
-    "@uniswap/v3-periphery": "^1.4.4",
+    "@uniswap/v3-periphery": "github:Uniswap/v3-periphery#0.8",
     "@uniswap/v3-sdk": "^3.10.0",
     "bignumber.js": "^4.0.4",
     "hardhat-gas-reporter": "^1.0.9",
-    "jsbi": "^3.2.5"
+    "jsbi": "^3.2.5",
+    "uniswap-v3-periphery-0.8": "^1.0.0"
   }
 }

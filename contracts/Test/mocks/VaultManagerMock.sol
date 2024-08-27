@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 
-import "../NumaProtocol/VaultManager.sol";
+import "../../NumaProtocol/VaultManager.sol";
 
 
 contract VaultManagerMock is VaultManager {
@@ -17,10 +17,10 @@ contract VaultManagerMock is VaultManager {
         
     }
 
-    function getSynthScaling() public override view returns (uint,uint,uint)// virtual for test&overrides
+    function getSynthScaling() public override view returns (uint,uint,uint,uint)// virtual for test&overrides
     {
        
-        return (250,250,0);
+        return (250,250,1000,0);
 
     }
   

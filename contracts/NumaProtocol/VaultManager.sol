@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts_5.0.2/access/Ownable2Step.sol";
+import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
@@ -72,8 +72,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint public minimumScale = 500;
     uint public deltaRebase = 24 hours;
     uint public deltaDebase = 24 hours;
-    uint lastScale = 1000;
-    uint lastScaleOverride = 1000;
+    uint lastScale = BASE_1000;
+    uint lastScaleOverride = BASE_1000;
+    uint lastScaleForPrice = BASE_1000;
     uint lastBlockTime;
     uint public synth_scaling_update_blocknumber;
 
@@ -258,6 +259,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
             lastBlockTime_sell_fee = blockTime;
             sell_fee_update_blocknumber = currentBlock;
         }
+       
     }
 
     function getSellFeeScaling() public view returns (uint16,uint)
@@ -269,9 +271,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         if (currentLiquidCF < cf_liquid_severe)
         {        
                 // we need to debase
-
-                // debase linearly
-                
+                // debase linearly               
                 uint ndebase = ((blockTime - lastBlockTime_sell_fee)*sell_fee_debaseValue)/(sell_fee_deltaDebase);
                 if (ndebase <= 0)
                 {
@@ -312,37 +312,53 @@ contract VaultManager is IVaultManager, Ownable2Step {
             }
         }
 
+        // Sell fee increase also considers synthetics debasing.
+        // So, if synthetics are debased 4%, then the sell fee should be 9% (5% + 4%)
+        // Whichever sell fee is greater should be used at any given time
+        (uint scaleOverride, uint scaleMemory,uint scaleForPrice,uint blockTimeSC) = getSynthScaling();
+
+        uint sell_fee_update_synth = sell_fee - (BASE_1000 - scaleOverride);// using scaleOverride or scaleMemory
+        // Whichever sell fee is greater should be used at any given time
+        if (sell_fee_update_synth < lastSellFee)
+            lastSellFee = sell_fee_update_synth;
+        
+        // clip it by min value
+        if (lastSellFee < sell_fee_minimum)
+            lastSellFee = sell_fee_minimum;
+
         return (uint16(lastSellFee),blockTime);
     }
  
-    function updateAll() public returns (uint scale,uint16 sell_fee_res)
+    function updateAll() public returns (uint scale,uint scaleForPrice,uint16 sell_fee_res)
     {
-        (scale,,) = getSynthScalingUpdate();
+        (scale,,scaleForPrice,) = getSynthScalingUpdate();
         (sell_fee_res,) = getSellFeeScalingUpdate();
     }
 
-    function getSynthScalingUpdate() public returns (uint scaleOverride, uint scaleMemory,uint blockTime)
+    function getSynthScalingUpdate() public returns (uint scaleOverride, uint scaleMemory,uint scaleForPrice,uint blockTime)
     {  
         uint currentBlock = block.number;
         if (currentBlock == synth_scaling_update_blocknumber)
         {
-            (scaleOverride, scaleMemory,blockTime) = (lastScaleOverride,lastScale,lastBlockTime);
+            (scaleOverride, scaleMemory,scaleForPrice,blockTime) = (lastScaleOverride,lastScale,lastScaleForPrice,lastBlockTime);
          
         }
         else {
-            (scaleOverride, scaleMemory,blockTime) = getSynthScaling();
+            (scaleOverride, scaleMemory,scaleForPrice,blockTime) = getSynthScaling();
             // save 
             lastScaleOverride = scaleOverride;
             lastScale = scaleMemory;
+            lastScaleForPrice = scaleForPrice;
             lastBlockTime = blockTime;
             synth_scaling_update_blocknumber = currentBlock;
             
         }
+
     }
 
-    function getSynthScaling() public virtual view returns (uint,uint,uint)// virtual for test&overrides
+    function getSynthScaling() public virtual view returns (uint,uint,uint,uint)// virtual for test&overrides
     {
-        
+      
         uint lastScaleMemory = lastScale;
         // synth scaling
         uint currentCF = getGlobalCF();
@@ -405,21 +421,17 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
         // apply scale to synth burn price
         uint scale1000 = lastScaleMemory;
-
+        uint scaleForPrice = BASE_1000;
         // CRITICAL_CF
         if (currentCF < cf_critical)
         {
             // scale such that currentCF = cf_critical
-            // DBG
-            console.logUint(currentCF);
-                        console.logUint(cf_critical);
-            console.log("critical reached");
-            
             uint scaleSecure = (currentCF*BASE_1000)/cf_critical;
             if (scaleSecure < scale1000)
                 scale1000 = scaleSecure;
+            scaleForPrice = scaleSecure;
         }
-        return (scale1000,lastScaleMemory,blockTime);
+        return (scale1000,lastScaleMemory,scaleForPrice,blockTime);
 
     }
 
@@ -485,7 +497,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
 
         uint synthValueInEth = getTotalSynthValueEth();
-        synthValueInEth = (synthValueInEth*BASE_1000)/_synthScaling;
+        synthValueInEth = (synthValueInEth*_synthScaling)/BASE_1000;
         uint circulatingNuma = getNumaSupply();
 
       
@@ -542,7 +554,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
         uint synthValueInEth = getTotalSynthValueEth();
 
-        synthValueInEth = (synthValueInEth*BASE_1000)/_synthScaling;
+        synthValueInEth = (synthValueInEth*_synthScaling)/BASE_1000;
 
 
         uint circulatingNuma = getNumaSupply();
@@ -615,8 +627,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         require(EthBalance > 0,"empty vaults");
 
         uint synthValueInEth = getTotalSynthValueEth();
-        (uint scaling,,) = getSynthScaling();  
-        synthValueInEth = (synthValueInEth*BASE_1000)/scaling;
+        (,,uint scaling,) = getSynthScaling();  
+       synthValueInEth = (synthValueInEth*scaling)/BASE_1000;
+        
         uint circulatingNuma = getNumaSupply();
 
         require(circulatingNuma > 0, "no numa in circulation");
@@ -666,8 +679,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         require(EthBalance > 0,"empty vaults");
 
         uint synthValueInEth = getTotalSynthValueEth();
-        (uint scaling,,) = getSynthScaling();  
-        synthValueInEth = (synthValueInEth*BASE_1000)/scaling;
+        (,,uint scaling,) = getSynthScaling();  
+        synthValueInEth = (synthValueInEth*scaling)/BASE_1000;
+
         uint circulatingNuma = getNumaSupply();
 
         require(circulatingNuma > 0, "no numa in circulation");

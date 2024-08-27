@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 import "./PriceOracleCollateralBorrow.sol";
 import "./CErc20.sol";
 import "../interfaces/INumaVault.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts_5.0.2/access/Ownable.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
 contract NumaPriceOracleNew is PriceOracleCollateralBorrow,Ownable {

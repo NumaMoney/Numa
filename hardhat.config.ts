@@ -8,6 +8,7 @@
 import "@openzeppelin/hardhat-upgrades";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@onmychain/hardhat-uniswap-v2-deploy-plugin";
+import "@nomicfoundation/hardhat-foundry";
 import '@typechain/hardhat'
 import 'dotenv/config';
 import { HardhatUserConfig } from "hardhat/config";
@@ -52,6 +53,16 @@ const config: HardhatUserConfig = {
       },
       {
         version: "0.8.20",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+          viaIR: true,
+        },
+      },
+      {
+        version: "0.8.15",
         settings: {
           optimizer: {
             enabled: true,

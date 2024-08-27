@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 
-import "../NumaProtocol/NumaPrinter.sol";
+import "../../NumaProtocol/NumaPrinter.sol";
 
 
 /// @title NumaPrinter

@@ -1,24 +1,24 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts_5.0.2/access/Ownable2Step.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts_5.0.2/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts_5.0.2/utils/Pausable.sol";
+import "@openzeppelin/contracts_5.0.2/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
-import "../Numa.sol";
-import "../interfaces/IVaultOracleSingle.sol";
-import "../interfaces/INuAssetManager.sol";
-import "../interfaces/IVaultManager.sol";
-import "../interfaces/INumaVault.sol";
-import "../interfaces/IRewardFeeReceiver.sol";
+import "../../Numa.sol";
+import "../../interfaces/IVaultOracleSingle.sol";
+import "../../interfaces/INuAssetManager.sol";
+import "../../interfaces/IVaultManager.sol";
+import "../../interfaces/INumaVault.sol";
+import "../../interfaces/IRewardFeeReceiver.sol";
 
-import "../lending/CTokenInterfaces.sol";
-import "../lending/NumaComptroller.sol";
-import "../lending/CNumaToken.sol";
+import "../../lending/CTokenInterfaces.sol";
+import "../../lending/NumaComptroller.sol";
+import "../../lending/CNumaToken.sol";
 
-import "../NumaProtocol/NumaVault.sol";
+import "../../NumaProtocol/NumaVault.sol";
 
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVaultMock is NumaVault

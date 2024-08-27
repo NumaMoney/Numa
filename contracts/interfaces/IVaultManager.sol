@@ -43,11 +43,10 @@ interface IVaultManager {
     function getGlobalCF() external view returns (uint);
     function accrueInterests() external;
 
-    //function getSynthScalingUpdate() external returns (uint,uint,uint);
-    function updateAll() external returns (uint,uint16);
+    function updateAll() external returns (uint,uint,uint16);
 
 
-    function getSynthScaling() external view returns (uint,uint,uint);
+    function getSynthScaling() external view returns (uint,uint,uint,uint);
     function getWarningCF() external view returns (uint);
   
 }

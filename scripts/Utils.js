@@ -68,11 +68,15 @@ let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePosi
   if (token0 === wethAddress) 
   {
       price = BigInt(sqrtPrice*2**96);
+      console.log("****************");
+
   }
   else 
   {
       price = BigInt(2**96/sqrtPrice);
+      console.log("++++++++");
   }
+  console.log("price");
 
   await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee_, price)
 }

@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 import "./InterestRateModel.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts_5.0.2/access/Ownable.sol";
 
 /**
   * @title Compound's JumpRateModel Contract V3

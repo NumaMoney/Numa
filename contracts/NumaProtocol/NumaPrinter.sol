@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts_5.0.2/utils/Pausable.sol";
+import "@openzeppelin/contracts_5.0.2/access/Ownable2Step.sol";
 import "../Numa.sol";
 import "./NumaMinter.sol";
 import "../interfaces/INuAsset.sol";
@@ -168,9 +168,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
         vaultManager.accrueInterests();
 
         // for same reasons, we need to update our synth scaling snapshot because synth supplies changes      
-        // vaultManager.getSynthScalingUpdate();
-        // // and 
-        // vaultManager.getSellFeeScalingUpdate();
         vaultManager.updateAll();
 
         // mint
@@ -193,6 +190,17 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
 
 
+    function computeFeeAmountIn(uint _amountIn,uint _fee) public pure returns (uint)
+    {
+        uint256 feeAmount = (_amountIn * _fee) / 10000;
+        return feeAmount;
+    }
+
+    function computeFeeAmountOut(uint _amountIn,uint _fee) public pure returns (uint)
+    {
+        uint256 feeAmount = (  _amountIn* _fee)/(10000 - _fee);
+        return feeAmount;
+    }
 
     // NUASSET --> NUASSET
     
@@ -200,7 +208,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     ) public view returns (uint256, uint256) {
 
         // print fee
-        uint256 amountToBurn = (_amountIn * swapAssetFeeBps) / 10000;
+        uint256 amountToBurn = computeFeeAmountIn(_amountIn, swapAssetFeeBps);
 
         uint256 output = oracle.getNbOfNuAssetFromNuAsset(
             _amountIn - amountToBurn,
@@ -221,9 +229,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
             _nuAssetIn
         );
         // need more assetIn to pay the fee
-        uint256 nuAssetInWithFee = (nuAssetIn*10000) / (10000 - swapAssetFeeBps);
+        // uint256 nuAssetInWithFee = (nuAssetIn*10000) / (10000 - swapAssetFeeBps);
+        //return (nuAssetInWithFee,(nuAssetInWithFee - nuAssetIn));
+        uint256 feeAMount = computeFeeAmountOut(nuAssetIn,swapAssetFeeBps);
+        return (nuAssetIn+feeAMount,feeAMount);
 
-        return (nuAssetInWithFee,(nuAssetInWithFee - nuAssetIn));
+
     }
 
 
@@ -297,11 +308,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
         uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);        
-        // (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
-        // (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
-
-         vaultManager.accrueInterests();
-        (uint scaleOverride,uint16 sellfee) = vaultManager.updateAll();
+ 
+        vaultManager.accrueInterests();
+        (uint scaleOverride,,uint16 sellfee) = vaultManager.updateAll();
        
 
         EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
@@ -344,7 +353,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
             EthPerNumaVault
         );
 
-        (uint scaleOverride,,) = vaultManager.getSynthScaling();
+        (uint scaleOverride,,,) = vaultManager.getSynthScaling();
         // apply scale
         nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
         
@@ -367,10 +376,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
     {
 
         uint256 numaPerEthVault = vaultManager.GetNumaPerEth(_nuAssetAmount);
-        // (uint16 sellfee,) = vaultManager.getSellFeeScalingUpdate();
-        // (uint scaleOverride, ,) = vaultManager.getSynthScalingUpdate();
-         vaultManager.accrueInterests();
-        (uint scaleOverride,uint16 sellfee) = vaultManager.updateAll();
+
+        vaultManager.accrueInterests();
+        (uint scaleOverride,,uint16 sellfee) = vaultManager.updateAll();
 
         numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
 
@@ -417,7 +425,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
             numaPerEthVault
         );
 
-        (uint scaleOverride, ,) = vaultManager.getSynthScaling();
+        (uint scaleOverride,,,) = vaultManager.getSynthScaling();
         // apply scale
         _output = (_output*scaleOverride)/BASE_1000;         
 
@@ -481,9 +489,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 numaFee;
         (numaCost, numaFee) = getNbOfNumaNeededAndFee(_nuAsset,_nuAssetamount);
 
-        console.log("cost and fee");
-        console.logUint(numaCost);
-        console.logUint(numaFee);
+
 
         // slippage check
         require (numaCost <= _maxNumaAmount,"max numa");

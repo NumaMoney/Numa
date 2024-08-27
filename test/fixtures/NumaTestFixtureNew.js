@@ -178,6 +178,7 @@ async function deployNumaNumaPoolnuAssetsPrinters() {
   await initPoolETH(WETH_ADDRESS, numa_address, _fee, EthPriceInNuma, nonfungiblePositionManager, WETH_ADDRESS);
 
   // create numa/USDC univ3 pool
+  console.log("usdc pool**********************");
   await initPoolETH(USDC_ADDRESS, numa_address, _fee, USDCPriceInNuma, nonfungiblePositionManager, USDC_ADDRESS);
 
   // 10 ethers

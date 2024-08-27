@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import "../interfaces/IVaultOracleSingle.sol";
 import "../libraries/OracleUtils.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts_5.0.2/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract VaultOracleSingle is IVaultOracleSingle, OracleUtils {
     address public feed;

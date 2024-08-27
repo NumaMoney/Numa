@@ -6,17 +6,18 @@ import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts_5.0.2/access/Ownable2Step.sol";
 
 import "../nuAssets/nuAssetManager.sol";
-
+import "../interfaces/INumaOracle.sol";
 import "../interfaces/INumaTokenToEthConverter.sol";
 
-
+import "forge-std/console.sol";
+import "forge-std/console2.sol";
 /// @title NumaOracle
 /// @notice Responsible for getting prices from chainlink and uniswap V3 pools
 /// @dev
-contract NumaOracle is Ownable2Step {
+contract NumaOracle is Ownable2Step, INumaOracle {
     address public immutable token;
     uint32 public intervalShort;
     uint32 public intervalLong;
@@ -225,6 +226,7 @@ contract NumaOracle is Ownable2Step {
         address _converter,
         uint _numaPerEthVault
     ) external view returns (uint256) {
+         console.log("****getV3SqrtLowestPrice***");
        uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
             _numaPool,
             intervalShort,
@@ -238,13 +240,15 @@ contract NumaOracle is Ownable2Step {
                 : FixedPoint96.Q96
         );
 
+        console.log(numerator);
+
 
 
         uint256 denominator = (
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
 
-
+        console.log(denominator);
 
         uint256 numaPerETHmulAmount = (
             numerator == sqrtPriceX96 ?
@@ -264,22 +268,9 @@ contract NumaOracle is Ownable2Step {
         {
             numaPerETHmulAmount = INumaTokenToEthConverter(_converter).convertNumaPerTokenToNumaPerEth(numaPerETHmulAmount);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
         }
+        console.log(numaPerETHmulAmount);
 
-        // // check that numa price is within vault's price bounds to prevent price manipulation
-        // if (address(numaPrice) != address(0)) {
-        //     // do it only if we specified a contract that can give us numa price
-        //     uint256 numaPerEthVault = numaPrice.GetNumaPerEth(
-        //         _nuAssetAmount
-        //     );
-            
-        //     numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-numaPrice.getBuyFee()));
-
-        //     if (numaPerETHmulAmount < numaPerEthVault) {
-        //         // clip price
-        //         //revert("numa price out of vault's bounds");
-        //         numaPerETHmulAmount = numaPerEthVault;
-        //     }
-        // }
+     
         if (numaPerETHmulAmount < _numaPerEthVault)
         {
             numaPerETHmulAmount = _numaPerEthVault;

@@ -1010,11 +1010,11 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
          *  seizeTokens = seizeAmount / exchangeRate
          *   
          */
-        uint exchangeRateMantissa = CToken(cTokenCollateral).exchangeRateStored(); // Note: reverts on error
+        //uint exchangeRateMantissa = CToken(cTokenCollateral).exchangeRateStored(); // Note: reverts on error
         uint seizeTokens;
-        Exp memory numerator;
-        Exp memory denominator;
-        Exp memory ratio;
+        // Exp memory numerator;
+        // Exp memory denominator;
+        // Exp memory ratio;
 
 
         // uint borrowBalance = CToken(cTokenBorrowed).borrowBalanceStored(borrower);
@@ -1023,8 +1023,8 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
 
         // Read the balances and exchange rate from the cToken
         //(oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = CToken(cTokenBorrowed).getAccountSnapshot(borrower);
-        (uint oErr,uint dummy0, uint amountOwed,) = CToken(cTokenBorrowed).getAccountSnapshot(borrower);
-        (uint oErr2, uint tokensHeld,uint dummy2,) = CToken(cTokenCollateral).getAccountSnapshot(borrower);
+        (,, uint amountOwed,) = CToken(cTokenBorrowed).getAccountSnapshot(borrower);
+        (, uint tokensHeld,,) = CToken(cTokenCollateral).getAccountSnapshot(borrower);
         //numerator = mul_(Exp({mantissa: liquidationIncentiveMantissa}), Exp({mantissa: priceBorrowedMantissa}));
         // denominator = mul_(Exp({mantissa: priceCollateralMantissa}), Exp({mantissa: exchangeRateMantissa}));
         // ratio = div_(numerator, denominator);

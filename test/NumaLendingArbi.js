@@ -938,7 +938,6 @@ describe('NUMA LENDING', function () {
             expect(debt2).to.equal(debtAfterBorrow2 - repaidTovault);   
 
         });
-
     });
 
     describe('#Redeem', () => 
@@ -1067,7 +1066,7 @@ describe('NUMA LENDING', function () {
         expect(maxBorrow).to.equal(vaultInitialBalance); 
       });
 
-      it('Mint synth, change maxCF', async () => 
+      it('Mint synth, change cf_liquid_warning', async () => 
       {
         
         let nuUSDamount = ethers.parseEther("50000");
@@ -1086,7 +1085,7 @@ describe('NUMA LENDING', function () {
         console.log("vault CF: "+vaultCF);
 
         let maxBorrow = await Vault1.GetMaxBorrow();
-        let maxcf = await Vault1.maxCF();
+        let maxcf = await Vault1.cf_liquid_warning();
         expect(maxcf).to.equal(2000); 
         let estimateMaxBorrowEth = vaultvalueEth - (maxcf * synthValueEth)/BigInt(1000);
         console.log("estimateMaxBorrowEth: "+estimateMaxBorrowEth);
@@ -1098,10 +1097,10 @@ describe('NUMA LENDING', function () {
 
         expect(maxBorrow).to.equal(estimateMaxBorrowrEth); 
 
-        await Vault1.setMaxCF(4000);
+        await Vault1.setCFLiquidWarning(4000);
         maxBorrow = await Vault1.GetMaxBorrow();
 
-        let maxcfnew = await Vault1.maxCF();
+        let maxcfnew = await Vault1.cf_liquid_warning();
 
         expect(maxcfnew).to.equal(4000); 
 
@@ -1800,21 +1799,124 @@ describe('NUMA LENDING', function () {
         debtAfter = await Vault1.getDebt();
         console.log("repdebt after repay");
         console.log(debtAfter);
-        // TODOTEST5 KO?
-        //expect(debtAfter).to.equal(debtBefore - halfBorrow);
-        // TODO check reward from dbt
-        // TODO check total reward balance
 
-
-
-      //   rewardsFromDebt = await Vault1.rewardsFromDebt();
-      //   console.log("rewards from debt after repay");
-      //   console.log(rewardsFromDebt);
-
-      //   debt = await Vault1.getDebt();
-      //   console.log("vault debt");
-      //   console.log(debt);
       });
+
+
+      // it('Extract from debt repro H11 + fix TODO', async () => 
+      // {
+      //   // set a mock rEth oracle to simulate rebase
+      //   let VMO = await ethers.deployContract("VaultMockOracle",[]);
+      //   await VMO.waitForDeployment();
+      //   let VMO_ADDRESS= await VMO.getAddress();
+      //   await Vault1.setOracle(VMO_ADDRESS);
+        
+      //   // set new price, simulate a 100% rebase
+      //   let lastprice = await Vault1.last_lsttokenvalueWei();    
+      //   await Vault1.setRwdAddress(await userC.getAddress(),false);
+  
+      //   //
+      //   let numasupplyamount = ethers.parseEther("200000");
+      //   // userB supply numa      
+      //   await supplyNuma(userB,numasupplyamount);
+  
+       
+                
+  
+      //   // max borrow
+      //   let collateralValueInrEthWei = await getMaxBorrowReth(numasupplyamount);
+  
+      //   // compute how much should be borrowable from vault
+      //   let maxBorrow = await Vault1.GetMaxBorrow();
+      //   console.log("max rEth borrow from vault "+ethers.formatEther(maxBorrow));
+  
+      //   // verify toomuch/nottoomuch (x2: collat and available from vault)
+      //   let borrowrEth = collateralValueInrEthWei;
+  
+      //   await cReth.connect(userB).borrow(borrowrEth);
+      //   let vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS); 
+      //   expect(vaultBalance).to.equal(vaultInitialBalance - borrowrEth);         
+  
+  
+      //   let newprice = (BigInt(2)*lastprice);
+      //   await VMO.setPrice(newprice);
+      
+      //   // debt & rewards from debt before extraction
+      //   let debtBefore = await Vault1.getDebt();
+      //   expect(debtBefore).to.equal(borrowrEth);  
+      //   let rewardsFromDebt = await Vault1.rewardsFromDebt();
+      //   expect(rewardsFromDebt).to.equal(0);  
+  
+      //   //
+      //   await Vault1.extractRewards();
+       
+      //   rewardsFromDebt = await Vault1.rewardsFromDebt();  
+      //   expect(rewardsFromDebt).to.equal(debtBefore/BigInt(2));       
+      //   let debtAfter = await Vault1.getDebt();
+      //   expect(debtAfter).to.equal(debtBefore);
+      
+
+      //   console.log("vault debt");
+      //   console.log(debtAfter);
+  
+      //   let balanceUserB = await rEth_contract.balanceOf(await userB.getAddress());
+      //   expect(balanceUserB).to.equal(usersInitialBalance+borrowrEth);
+      //   vaultBalance = await rEth_contract.balanceOf(await VAULT1_ADDRESS); 
+  
+  
+  
+      //   // repay, check that remaining rewards are extracted and that total reward is ok
+      //   let halfBorrow = borrowrEth/BigInt(2);
+  
+      //   await rEth_contract.connect(userB).approve(await cReth.getAddress(),halfBorrow*BigInt(2));// x2 so that I need to call it only once
+      //   await cReth.connect(userB).repayBorrow(halfBorrow);
+      //   console.log("repaying");
+      //   console.log(halfBorrow);
+  
+      //   debtAfter = await Vault1.getDebt();
+      //   console.log("debt after repay");
+      //   console.log(debtAfter);
+       
+      //   expect(debtAfter).to.equal(debtBefore - halfBorrow);
+      //   // check reward from dbt
+      //   rewardsFromDebt = await Vault1.rewardsFromDebt();
+      //   expect(rewardsFromDebt).to.equal(debtBefore/BigInt(4));  
+
+
+      //   console.log(rewardsFromDebt);
+      //   // repro H11
+
+      //   // repay debt - 2
+      //   await cReth.connect(userB).repayBorrow(debtAfter - BigInt(2));
+      //   debtAfter = await Vault1.getDebt();             
+      //   expect(debtAfter).to.equal(2);
+      //   rewardsFromDebt = await Vault1.rewardsFromDebt();
+      //   expect(rewardsFromDebt).to.equal(1);  
+
+      //   // BUY OK
+
+      //   // repay 1
+      //   await cReth.connect(userB).repayBorrow(1);
+      //   debtAfter = await Vault1.getDebt();             
+      //   expect(debtAfter).to.equal(1);
+      //   rewardsFromDebt = await Vault1.rewardsFromDebt();
+      //   expect(rewardsFromDebt).to.equal(1);
+
+      //   // repay 1 again
+      //   await cReth.connect(userB).repayBorrow(1);
+      //   debtAfter = await Vault1.getDebt();             
+      //   expect(debtAfter).to.equal(0);
+      //   rewardsFromDebt = await Vault1.rewardsFromDebt();
+      //   expect(rewardsFromDebt).to.equal(1);
+
+
+      //   // buy KO
+
+      //   // TODO check total reward balance
+  
+  
+ 
+      // });
 
     });
 

@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity 0.8.20;
+contract ConstantsTest
+{
+    // ARBITRUM ADDRESSES    
+    address constant UPTIME_FEED_ARBI = 0xFdB631F5EE196F0ed6FAa767959853A9F217697D;    
+    
+    address constant NUMA_ADDRESS_ARBI = 0x7FB7EDe54259Cb3D4E1EaF230C7e2b1FfC951E9A;
+    address constant RETH_ADDRESS_ARBI = 0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8;
+    address constant POSITION_MANAGER_ARBI = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    address constant FACTORY_ARBI = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address constant USDC_ARBI = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+
+    address constant PRICEFEEDRETHETH_ARBI = 0xF3272CAfe65b190e76caAF483db13424a3e23dD2;
+    address constant PRICEFEEDETHUSD_ARBI = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
+    address constant PRICEFEEDBTCETH_ARBI = 0xc5a90A6d7e4Af242dA238FFe279e9f2BA0c64B2e;
+    address constant PRICEFEEDUSDCUDC_ARBI = 0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3;
+    // SEPOLIA
+    // no uptime feed
+    address constant UPTIME_FEED_NULL = 0x0000000000000000000000000000000000000000;
+    // roles
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    // parameters
+    uint numaSupply = 10000000 ether;
+    uint USDTONUMA = 2;
+    uint32 INTERVAL_SHORT = 180;
+    uint32 INTERVAL_LONG = 1800;
+    uint128 HEART_BEAT = 86400;
+    uint128 HEART_BEAT_CUSTOM = 86400 * 1000;
+    uint printFee = 500;//5%
+    uint burnFee = 800;// 8%
+    uint swapFee = 300;// 3%
+
+
+
+
+
+}
