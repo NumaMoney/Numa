@@ -56,7 +56,7 @@ contract OracleUtils {
     /**
      * @dev chainlink call to a pricefeed with any amount
      */  
-    function getTokenPerEth(uint256 _amount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 EthValue) 
+    function getTokenPerEth(uint256 _ethAmount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 tokenAmount) 
     {
 
         (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
@@ -78,27 +78,27 @@ contract OracleUtils {
 
         //if ETH is on the left side of the fraction in the price feed
         if (ethLeftSide(_pricefeed)) {
-            EthValue = FullMath.mulDiv(
-                _amount,
+            tokenAmount = FullMath.mulDiv(
+                _ethAmount,
                 uint256(price),
                 10 ** AggregatorV3Interface(_pricefeed).decimals()
             );
         } else {
-            EthValue = FullMath.mulDiv(
-                _amount,
+            tokenAmount = FullMath.mulDiv(
+                _ethAmount,
                 10 ** AggregatorV3Interface(_pricefeed).decimals(),
                 uint256(price)
             );
         }
 
         // audit fix
-        EthValue = EthValue * 10**(18 - _decimals);
+        tokenAmount = tokenAmount * 10**(18 - _decimals);
     }
 
     /**
      * @dev chainlink call to a pricefeed with any amount
      */  
-    function getTokenPerEthRoundUp(uint256 _amount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 EthValue) 
+    function getTokenPerEthRoundUp(uint256 _ethAmount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 tokenAmount) 
     {
 
         (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
@@ -120,20 +120,20 @@ contract OracleUtils {
 
         //if ETH is on the left side of the fraction in the price feed
         if (ethLeftSide(_pricefeed)) {
-            EthValue = FullMath.mulDivRoundingUp(
-                _amount,
+            tokenAmount = FullMath.mulDivRoundingUp(
+                _ethAmount,
                 uint256(price),
                 10 ** AggregatorV3Interface(_pricefeed).decimals()
             );
         } else {
-            EthValue = FullMath.mulDivRoundingUp(
-                _amount,
+            tokenAmount = FullMath.mulDivRoundingUp(
+                _ethAmount,
                 10 ** AggregatorV3Interface(_pricefeed).decimals(),
                 uint256(price)
             );
         }
         // audit fix
-        EthValue = EthValue * 10**(18 - _decimals);
+        tokenAmount = tokenAmount * 10**(18 - _decimals);
     }
 
     /**

@@ -170,7 +170,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     /**
      * @dev burns a newAsset
-     * @notice Call accrueInterests on lending contracts as it will impact vault max borrowable amount
+     * @notice 
      */
     function burnNuAssetFrom(INuAsset _asset,address _sender,uint _amount) internal
     {           
@@ -248,11 +248,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // this function applies fees (amount = amount - fee)
         // AUDITV2FIX: need to use same amount as in oracle.getNbOfNuAsset
         // uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);
-        uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount - amountToBurn);
+        uint256 EthPerNumaVault = vaultManager.numaToEth(_numaAmount - amountToBurn,IVaultManager.PriceType.BuyPrice);
 
         // AUDITV2FIX: formula for fees is incorrect
         //EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (1000-vaultManager.getBuyFee())) /1000;
-        EthPerNumaVault = (EthPerNumaVault*1000)/vaultManager.getBuyFee();
+        // computed in numaToEth
+        //EthPerNumaVault = (EthPerNumaVault*1000)/vaultManager.getBuyFee();
 
         uint256 output = oracle.getNbOfNuAsset(
             _numaAmount - amountToBurn,
@@ -274,8 +275,10 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _nuAssetAmount
     ) public view returns (uint256, uint256) 
     {
-        uint256 numaPerEthVault = vaultManager.GetNumaPerEth(_nuAssetAmount);
-        numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-vaultManager.getBuyFee()));
+        uint256 numaPerEthVault = vaultManager.ethToNuma(_nuAssetAmount,IVaultManager.PriceType.BuyPrice);
+        //numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-vaultManager.getBuyFee()));
+        //numaPerEthVault = (numaPerEthVault * vaultManager.getBuyFee()) /1000 ;
+        // TODO formula look incorrect, audit missed?
 
 
         uint256 costWithoutFee = oracle.getNbOfNumaNeeded(
@@ -316,9 +319,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 feeAmount = computeFeeAmountOut(_numaAmount,burnAssetFeeBps);
         uint256 amountWithFee = _numaAmount+feeAmount;
 
-        uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(amountWithFee); // TODO this one was using _numaAmount, audit missed?
-        (uint16 sellfee,) = vaultManager.getSellFeeScaling();
-        EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
+        uint256 EthPerNumaVault = vaultManager.numaToEth(amountWithFee,IVaultManager.PriceType.SellPrice); // TODO this one was using _numaAmount, audit missed?
+
+
+        // (uint16 sellfee,) = vaultManager.getSellFeeScaling();
+        // EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
 
         uint256 nuAssetIn = oracle.getNbOfAssetneeded(
             amountWithFee,
@@ -347,9 +352,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
     ) public view returns (uint256, uint256) 
     {
 
-        uint256 numaPerEthVault = vaultManager.GetNumaPerEth(_nuAssetAmount);
-        (uint16 sellfee,) = vaultManager.getSellFeeScaling();
-        numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
+        uint256 ethToNumaMulAmount = vaultManager.ethToNuma(_nuAssetAmount,IVaultManager.PriceType.SellPrice);
+        // (uint16 sellfee,) = vaultManager.getSellFeeScaling();
+        // numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
 
 
         uint256 _output = oracle.getNbOfNumaFromAsset(
@@ -357,7 +362,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
             _nuAsset,
             numaPool,
             tokenToEthConverter,
-            numaPerEthVault
+            ethToNumaMulAmount
         );
 
         (uint scaleOverride,,,) = vaultManager.getSynthScaling();

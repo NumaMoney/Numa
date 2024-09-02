@@ -229,7 +229,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         emit BuyFeeUpdated(_fee);
     }
 
-    function getBuyFee() external view returns (uint16)
+    function getBuyFee() public view returns (uint16)
     {
         return buy_fee;
     }
@@ -321,7 +321,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         // Sell fee increase also considers synthetics debasing.
         // So, if synthetics are debased 4%, then the sell fee should be 9% (5% + 4%)
         // Whichever sell fee is greater should be used at any given time
-        (uint scaleOverride, uint scaleMemory,uint scaleForPrice,uint blockTimeSC) = getSynthScaling();
+        (uint scaleOverride, ,,) = getSynthScaling();
 
         uint sell_fee_update_synth = sell_fee - (BASE_1000 - scaleOverride);// using scaleOverride or scaleMemory
         // Whichever sell fee is greater should be used at any given time
@@ -335,10 +335,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return (uint16(lastSellFee),blockTime);
     }
  
-    function updateAll() public returns (uint scale,uint scaleForPrice,uint16 sell_fee_res)
+    function updateAll() public returns (uint scale,uint scaleForPrice,uint16 sell_fee_result)
     {
         (scale,,scaleForPrice,) = getSynthScalingUpdate();
-        (sell_fee_res,) = getSellFeeScalingUpdate();
+        (sell_fee_result,) = getSellFeeScalingUpdate();
     }
 
     function getSynthScalingUpdate() public returns (uint scaleOverride, uint scaleMemory,uint scaleForPrice,uint blockTime)
@@ -496,7 +496,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _refValueWei,
         uint _decimals,
         uint _synthScaling
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         uint EthBalance = getTotalBalanceEth();
         require(EthBalance > 0,"empty vaults");
         uint256 EthValue = FullMath.mulDiv(
@@ -559,7 +559,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _refValueWei,
         uint _decimals,
         uint _synthScaling
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         uint EthBalance = getTotalBalanceEth();
         require(EthBalance > 0,"empty vaults");
 
@@ -632,110 +632,41 @@ contract VaultManager is IVaultManager, Ownable2Step {
    
 
 
-    function GetNumaPriceEth(uint _inputAmount) external view returns (uint256)
+    function numaToEth(uint _inputAmount,PriceType _t) external view returns (uint256)
     {
-        uint EthBalance = getTotalBalanceEth();
-        require(EthBalance > 0,"empty vaults");
-
-        uint synthValueInEth = getTotalSynthValueEth();
-        (,,uint scaling,) = getSynthScaling();  
-       synthValueInEth = (synthValueInEth*scaling)/BASE_1000;
-        
-        uint circulatingNuma = getNumaSupply();
-
-        require(circulatingNuma > 0, "no numa in circulation");
-        uint result;
-       
-        if (EthBalance <= synthValueInEth)
+        (,,uint scaleForPrice,) = getSynthScaling();  
+        uint result = numaToToken(_inputAmount, 1 ether, 1 ether,scaleForPrice);
+        if (_t == PriceType.BuyPrice)
         {
-            result = FullMath.mulDiv(
-                        _inputAmount,
-                        minNumaPriceEth,
-                        1 ether// 1 ether because numa has 18 decimals
-                    );
+            result = (result*1000)/getBuyFee();
         }
-        else
+        else if (_t == PriceType.SellPrice)
         {
-            uint numaPrice = FullMath.mulDiv(
-                1 ether,
-                EthBalance - synthValueInEth,
-                circulatingNuma
-                );
+            (uint16 sellfee,) = getSellFeeScaling();
+            result = (result * sellfee) /1000;
 
-            if (numaPrice < minNumaPriceEth)
-            {
-                result = FullMath.mulDiv(
-                        _inputAmount,
-                        minNumaPriceEth,
-                        1 ether// 1 ether because numa has 18 decimals
-                    );
-            }
-            else {                
-                result = FullMath.mulDiv(
-                    _inputAmount,
-                    EthBalance - synthValueInEth,
-                    circulatingNuma
-                );
-            }
         }
         return result;
 
     }
 
-    function GetNumaPerEth(
-        uint _inputAmount
+    function ethToNuma(
+        uint _inputAmount,PriceType _t
     ) external view returns (uint256)
     {
-        uint EthBalance = getTotalBalanceEth();
-        require(EthBalance > 0,"empty vaults");
-
-        uint synthValueInEth = getTotalSynthValueEth();
-        (,,uint scaling,) = getSynthScaling();  
-        synthValueInEth = (synthValueInEth*scaling)/BASE_1000;
-
-        uint circulatingNuma = getNumaSupply();
-
-        require(circulatingNuma > 0, "no numa in circulation");
-        uint result;
-        
-        if (EthBalance <= synthValueInEth)
+        (,,uint scaleForPrice,) = getSynthScaling();  
+        uint result = tokenToNuma(_inputAmount, 1 ether, 1 ether,scaleForPrice);
+         if (_t == PriceType.BuyPrice)
         {
-            // extreme case use minim numa price in Eth
-            result = FullMath.mulDiv(
-                _inputAmount,
-                 1 ether,// 1 ether because numa has 18 decimals
-                 minNumaPriceEth
-            );
-
-            
+            result = (result*getBuyFee())/1000;
         }
-        else
+        else if (_t == PriceType.SellPrice)
         {
-            uint numaPrice = FullMath.mulDiv(
-                1 ether,
-                EthBalance - synthValueInEth,
-                circulatingNuma
-                );
+            (uint16 sellfee,) = getSellFeeScaling();
+            result = (result * 1000) /sellfee;
 
-            if (numaPrice < minNumaPriceEth)
-            {
-                result = FullMath.mulDiv(
-                    _inputAmount,
-                     1 ether,// 1 ether because numa has 18 decimals
-                     minNumaPriceEth
-                     );
-            }
-            else 
-            {
-                    
-                // using snaphot price
-                result = FullMath.mulDiv(_inputAmount,circulatingNuma,
-                    EthBalance - synthValueInEth                
-                );
-            }
         }
         return result;
-
     }
 
 

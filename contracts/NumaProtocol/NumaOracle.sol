@@ -287,8 +287,8 @@ contract NumaOracle is Ownable2Step, INumaOracle {
     ) external view returns (uint256) 
     {
  
-        uint256 nuAssetOutPerETHmulAmount = nuAManager.getTokenPerEth(_nuAssetOut,_nuAssetAmountIn);
-        uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAssetIn,nuAssetOutPerETHmulAmount);
+        uint256 nuAssetOutPerETHmulAmountIn = nuAManager.getTokenPerEth(_nuAssetOut,_nuAssetAmountIn);
+        uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAssetIn,nuAssetOutPerETHmulAmountIn);
         return tokensForAmount;
     }
 
@@ -304,7 +304,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         address _nuAsset,
         address _numaPool,
         address _converter,
-        uint    _numaPerEthVault
+        uint    _ethToNumaMulAmountVault
     ) external view returns (uint256) {
          // highest price for numa to minimize amount to mint
         uint160 sqrtPriceX96 = getV3SqrtHighestPrice(
@@ -341,31 +341,10 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         }
 
 
-        // numaUSDC pool
-        //numaPerETHmulAmount = nuAManager.convertNumaPerUSDCToNumaPerEth(numaPerETHmulAmount,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
-
-
-
-        // check that numa price is within vault's price bounds to prevent price manipulation
-        // if (address(numaPrice) != address(0)) {
-        //     // do it only if we specified a contract that can give us numa price
-        //     uint256 numaPerEthVault = numaPrice.GetNumaPerEth(
-        //         _nuAssetAmount
-        //     );
-        //     (uint16 sellfee,) = numaPrice.getSellFee();
-        //     numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
-
-        //     if (numaPerETHmulAmount > numaPerEthVault) 
-        //     {
-        //         // clip price
-        //         numaPerETHmulAmount = numaPerEthVault;
-        //         //revert("numa price out of vault's bounds");
-        //     }
-        // }
-
-        if (numaPerETHmulAmount > _numaPerEthVault)
+    
+        if (numaPerETHmulAmount > _ethToNumaMulAmountVault)
         {
-            numaPerETHmulAmount = _numaPerEthVault;
+            numaPerETHmulAmount = _ethToNumaMulAmountVault;
         }
 
         uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAsset,numaPerETHmulAmount);
@@ -397,7 +376,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
 
-        uint256 EthPerNuma = (
+        uint256 TokenPerNumaMulAmount = (
             numerator == sqrtPriceX96 ?
                 FullMath.mulDivRoundingUp(
                     FullMath.mulDivRoundingUp(denominator, denominator*10**IERC20Metadata(token).decimals() , numerator),
@@ -411,19 +390,20 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             )
         );
 
+        uint256 EthPerNumaMulAmount = TokenPerNumaMulAmount;
         if (_converter != address(0))
         {
-            EthPerNuma = INumaTokenToEthConverter(_converter).convertTokenPerNumaToEthPerNuma(EthPerNuma);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+            EthPerNumaMulAmount = INumaTokenToEthConverter(_converter).convertTokenPerNumaToEthPerNuma(TokenPerNumaMulAmount);
         }
 
 
 
-        if (EthPerNuma > _EthPerNumaVault)
+        if (EthPerNumaMulAmount > _EthPerNumaVault)
         {
-            EthPerNuma = _EthPerNumaVault;
+            EthPerNumaMulAmount = _EthPerNumaVault;
         }
 
-        uint256 tokensForAmount = nuAManager.getTokenPerEth(_nuAsset,EthPerNuma);
+        uint256 tokensForAmount = nuAManager.getTokenPerEth(_nuAsset,EthPerNumaMulAmount);
         return tokensForAmount;
     }
 
@@ -473,26 +453,6 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             EthPerNuma = INumaTokenToEthConverter(_converter).convertTokenPerNumaToEthPerNuma(EthPerNuma);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
         }
 
-
- 
-        // check that numa price is within vault's price bounds to prevent price manipulation
-        // if (address(numaPrice) != address(0)) {
-        //     // do it only if we specified a contract that can give us numa price
-        //     uint256 EthPerNumaVault = numaPrice.GetNumaPriceEth(
-        //         _amountNumaOut
-        //     );
-
-
-        //     (uint16 sellfee,) = numaPrice.getSellFee();
-        //     EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
-
-        //     if (EthPerNuma < EthPerNumaVault) 
-        //     {
-        //          // clip price
-        //         EthPerNuma = EthPerNumaVault;
-        //         //revert("numa price out of vault's bounds");
-        //     }
-        // }
 
         if (EthPerNuma < _EthPerNumaVault)
         {

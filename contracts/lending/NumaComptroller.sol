@@ -9,6 +9,7 @@ import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
 import "hardhat/console.sol";
 
+import "forge-std/console2.sol";
 /**
  * @title Numa's Comptroller Contract (forked from compound)
  * @author 
@@ -76,7 +77,7 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
     uint internal constant closeFactorMaxMantissa = 0.9e18; // 0.9
 
     // No collateralFactorMantissa may exceed this value
-    uint internal constant collateralFactorMaxMantissa = 0.9e18; // 0.9
+    uint internal constant collateralFactorMaxMantissa = 0.99e18; // 0.99
 
     constructor() {
         admin = msg.sender;
@@ -104,6 +105,12 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
     function checkMembership(address account, CToken cToken) external view returns (bool) {
         return markets[address(cToken)].accountMembership[account];
     }
+
+     function collateralFactor(CToken cToken) external view returns (uint)
+     {
+        Market storage m = markets[address(cToken)];
+        return (m.collateralFactorMantissa);
+     }
 
     /**
      * @notice Add assets to be included in account liquidity calculation
@@ -332,13 +339,13 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
-
+        Error err;
         if (!markets[cToken].accountMembership[borrower]) {
             // only cTokens may call borrowAllowed if borrower not in market
             require(msg.sender == cToken, "sender must be cToken");
 
             // attempt to add borrower to the market
-            Error err = addToMarketInternal(CToken(msg.sender), borrower);
+            err = addToMarketInternal(CToken(msg.sender), borrower);
             if (err != Error.NO_ERROR) {
                 return uint(err);
             }
@@ -359,8 +366,8 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             uint nextTotalBorrows = add_(totalBorrows, borrowAmount);
             require(nextTotalBorrows < borrowCap, "market borrow cap reached");
         }
-
-        (Error err, , uint shortfall,) = getHypotheticalAccountLiquidityIsolateInternal(borrower, CToken(cToken), 0, borrowAmount);
+        uint shortfall;
+        (err,,shortfall,) = getHypotheticalAccountLiquidityIsolateInternal(borrower, CToken(cToken), 0, borrowAmount);
         if (err != Error.NO_ERROR) {
             return uint(err);
         }
@@ -929,6 +936,8 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             collateral = otherToken;
             borrow = cTokenModify;
         }
+        console2.log("collateral IS");
+        console2.log(address(collateral));
 
         // collateral
         if (address(collateral) != address(0))// might happen in borrow case without collateral
@@ -956,6 +965,13 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
             // sumCollateral += tokensToDenom * cTokenBalance
 
             // NUMALENDING: use collateral price
+                console2.log("collateral balance");
+            console2.log(vars.cTokenBalance);
+        console2.log(vars.collateralFactor.mantissa);
+        console2.log(vars.exchangeRate.mantissa);
+
+        console2.log(vars.oraclePriceCollateral.mantissa);
+
             vars.sumCollateral = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateral, vars.cTokenBalance, vars.sumCollateral);
             vars.sumCollateralNoCollateralFactor = mul_ScalarTruncateAddUInt(vars.tokensToDenomCollateralNoCollateralFactor, vars.cTokenBalance, vars.sumCollateralNoCollateralFactor);
         }
@@ -994,7 +1010,13 @@ contract NumaComptroller is ComptrollerV7Storage, ComptrollerInterface, Comptrol
         else 
         {
             if (vars.sumCollateralNoCollateralFactor > vars.sumBorrowPlusEffects) 
+            {
+                console2.log("underwater");
+                                console2.log( vars.sumBorrowPlusEffects);
+                                                console2.log( vars.sumCollateral);
+
                 return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,0);
+            }
             else// returning bad debt
                 return (Error.NO_ERROR, 0, vars.sumBorrowPlusEffects - vars.sumCollateral,vars.sumBorrowPlusEffects - vars.sumCollateralNoCollateralFactor);
         }

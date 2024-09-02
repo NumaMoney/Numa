@@ -14,7 +14,7 @@ interface INumaOracle {
         address _nuAsset,
         address _numaPool,
         address _converter,
-        uint    _numaPerEthVault
+        uint    _ethToNumaMulAmountVault
     ) external view returns (uint256);
     function getNbOfNuAsset(
         uint256 _amount,

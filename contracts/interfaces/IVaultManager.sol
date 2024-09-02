@@ -3,6 +3,13 @@ pragma solidity 0.8.20;
 
 interface IVaultManager {
 
+   // Enum representing shipping status
+    enum PriceType {
+        NoFeePrice,
+        BuyPrice,
+        SellPrice
+    }
+
     function getBuyFee() external view returns (uint16);
     function getSellFeeOriginal() external view returns (uint16);
     function getSellFeeScaling() external view returns (uint16,uint);
@@ -10,13 +17,13 @@ interface IVaultManager {
     function getTotalBalanceEth() external view returns (uint256);
     function getTotalBalanceEthNoDebt() external view returns (uint256);
 
-    function GetNumaPriceEth(
-        uint _amount
+    function numaToEth(
+        uint _amount,PriceType _t
     ) external view returns (uint256);
 
 
-    function GetNumaPerEth(
-        uint _amount
+    function ethToNuma(
+        uint _amount,PriceType _t
     ) external view returns (uint256);
 
 
