@@ -2,6 +2,7 @@
 pragma solidity 0.8.20;
 
 import "forge-std/console2.sol";
+import "../interfaces/IVaultManager.sol";
 import {Setup} from "./utils/SetupDeployNuma_Arbitrum.sol";
 
 contract PrinterTest is Setup 
@@ -13,7 +14,7 @@ contract PrinterTest is Setup
     function test_CheckSetup() public 
     {
         // numa price from vault should equal price from pool
-        uint numaPriceVault = vaultManager.GetNumaPriceEth(1 ether);
+        uint numaPriceVault = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.NoFeePrice);
         uint numaPriceVaultUSD = (numaPriceVault*uint(ethusd))/1e8;
                 console2.log(numaPriceVault);
          console2.log(numaPriceVaultUSD);
@@ -29,8 +30,8 @@ contract PrinterTest is Setup
         // and there is a 5% print fee, so max is 4750000
         vm.assume(nuAssetAmount <= 4750000 ether);
         //
-        uint256 numaPerEthVault = vaultManager.GetNumaPerEth(nuAssetAmount);
-        numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-vaultManager.getBuyFee()));
+        uint256 numaPerEthVault = vaultManager.ethToNuma(nuAssetAmount,IVaultManager.PriceType.BuyPrice);
+        //numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-vaultManager.getBuyFee()));
         (uint cost,uint fee) = moneyPrinter.getNbOfNumaNeededAndFee(address(nuUSD),nuAssetAmount);
 
         // check the numbers

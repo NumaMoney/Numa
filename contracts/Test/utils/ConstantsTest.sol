@@ -32,7 +32,27 @@ contract ConstantsTest
     uint burnFee = 800;// 8%
     uint swapFee = 300;// 3%
 
+    // lending protocol
+    uint blocksPerYear = 2102400;// TODO here eth values for test
+    uint maxUtilizationRatePerYear = 1000000000000000000;//100%
 
+    // Variable interest rate model
+    uint _vertexUtilization = 800000000000000000;// 80%
+    // no interest rate by default, tested specifically
+    //let _vertexRatePercentOfDelta = '500000000000000000';// 50%
+    uint _vertexRatePercentOfDelta = 0;
+    uint _minUtil = 400000000000000000;// 40%
+    uint _maxUtil =600000000000000000;// 60%
+    // no interest rate by default, tested specifically
+    //let _zeroUtilizationRate = '20000000000000000';//2%
+    uint _zeroUtilizationRate = 0;//2%
+    uint _minFullUtilizationRate = 1000000000000000000;//100%
+    uint _maxFullUtilizationRate = 5000000000000000000;//500%
+ 
+    uint _rateHalfLife = 12*3600;
+
+    uint rEthCollateralFactor = 0.95 ether;
+    uint numaCollateralFactor = 0.95 ether;
 
 
 

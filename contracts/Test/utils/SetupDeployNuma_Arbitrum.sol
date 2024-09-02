@@ -33,6 +33,14 @@ import {NumaPrinter} from "../../NumaProtocol/NumaPrinter.sol";
 import "../../interfaces/INumaTokenToEthConverter.sol";
 import "../../NumaProtocol/USDCToEthConverter.sol";
 
+import {NumaComptroller} from "../../lending/NumaComptroller.sol";
+import "../../lending/JumpRateModelVariable.sol";
+import "../../lending/CNumaLst.sol";
+import "../../lending/CNumaToken.sol";
+import "../../lending/NumaPriceOracleNew.sol";
+import "../../lending/ExponentialNoError.sol";
+import "../../lending/ComptrollerStorage.sol";
+
 
 // forge test --fork-url <your_rpc_url>
 contract Setup is ExtendedTest, ConstantsTest{//, IEvents {
@@ -55,10 +63,18 @@ contract Setup is ExtendedTest, ConstantsTest{//, IEvents {
 
     NuAsset2 nuUSD;
     NuAsset2 nuBTC;
+
+    // Lending
+    NumaComptroller comptroller;
+    NumaPriceOracleNew numaPriceOracle;
+    JumpRateModelVariable rateModel;
+    CNumaLst cReth;
+    CNumaToken cNuma;
+
   
     // Addresses for different roles we will use repeatedly.
     address public deployer = makeAddr("deployer");
-    address public numaWhale = makeAddr("numaWhale");
+    address public userA = makeAddr("userA");
     address public vaultFeeReceiver = makeAddr("vaultFeeReceiver");
    
     // uniswap
@@ -78,7 +94,8 @@ contract Setup is ExtendedTest, ConstantsTest{//, IEvents {
         _setupVaultAndAssetManager();
         _setupUniswapPool();
         _setupPrinter();
-           }
+        _setupLending();
+    }
 
     function _setUpTokens() internal 
     {
@@ -93,7 +110,7 @@ contract Setup is ExtendedTest, ConstantsTest{//, IEvents {
 
     function _setupVaultAndAssetManager() internal
     {
-        console.logString("setup vault");
+        
         // nuAssetManager
         nuAssetMgr = new nuAssetManager(UPTIME_FEED_ARBI);
 
@@ -125,15 +142,15 @@ contract Setup is ExtendedTest, ConstantsTest{//, IEvents {
         // ETHUSD
         AggregatorV2V3Interface dataFeedETHUSD = AggregatorV2V3Interface(PRICEFEEDETHUSD_ARBI);
         (,ethusd,,,) = dataFeedETHUSD.latestRoundData();
-        console.log(ethusd);
+        //console.log(ethusd);
         // RETHETH
         AggregatorV2V3Interface dataFeedRETHETH = AggregatorV2V3Interface(PRICEFEEDRETHETH_ARBI);
         (,int answerRETHETH,,,) = dataFeedRETHETH.latestRoundData();
-        console.log(answerRETHETH);
+        //console.log(answerRETHETH);
 
         // 1e8 to account for decimals in chainlink prices
         uint amountReth = (1 ether* numaSupply*1e8) / (USDTONUMA*uint(ethusd) * uint(answerRETHETH));
-        console.log(amountReth);
+        //console.log(amountReth);
 
         // transfer rEth to vault to initialize price
         rEth.transfer(address(vault),amountReth);
@@ -174,7 +191,7 @@ contract Setup is ExtendedTest, ConstantsTest{//, IEvents {
             _token0, _token1, FEE_LOW, getMinTick(TICK_MEDIUM), getMaxTick(TICK_MEDIUM), USDCAmountNumaPool, NumaAmountNumaPoolUSDC
         );
         NUMA_USDC_POOL_ADDRESS = factory.getPool(_token0,_token1,FEE_LOW);
-        console.log(NUMA_USDC_POOL_ADDRESS);
+        //console.log(NUMA_USDC_POOL_ADDRESS);
 
         // advance in time for avg prices to work
         skip(INTERVAL_LONG);
@@ -212,6 +229,63 @@ contract Setup is ExtendedTest, ConstantsTest{//, IEvents {
         // set printer as a NuUSD minter
         nuBTC.grantRole(MINTER_ROLE, address(moneyPrinter));// owner is NuUSD deployer
 
+
+    }
+
+    function _setupLending() internal
+    {
+        // COMPTROLLER
+        comptroller = new NumaComptroller();
+
+        // PRICE ORACLE 
+        numaPriceOracle = new NumaPriceOracleNew();
+        numaPriceOracle.setVault(address(vault));
+        comptroller._setPriceOracle((numaPriceOracle));
+        // INTEREST RATE MODEL
+        uint maxUtilizationRatePerBlock = maxUtilizationRatePerYear/blocksPerYear;
+
+          
+        // perblock
+        uint _zeroUtilizationRatePerBlock = (_zeroUtilizationRate/blocksPerYear);
+        uint _minFullUtilizationRatePerBlock = (_minFullUtilizationRate/blocksPerYear);
+        uint _maxFullUtilizationRatePerBlock = (_maxFullUtilizationRate/blocksPerYear);
+        
+        rateModel = new JumpRateModelVariable("numaRateModel",_vertexUtilization,_vertexRatePercentOfDelta,_minUtil,_maxUtil,
+          _zeroUtilizationRatePerBlock,_minFullUtilizationRatePerBlock,_maxFullUtilizationRatePerBlock,
+          _rateHalfLife,deployer);
+
+    
+        // CTOKENS
+        cReth = new CNumaLst(address(rEth),comptroller,rateModel,200000000000000000000000000,
+        'rEth CToken','crEth',8,maxUtilizationRatePerBlock,payable(deployer),address(vault));
+        
+        cNuma = new CNumaToken(address(numa),comptroller,rateModel,200000000000000000000000000,
+        'numa CToken','cNuma',8,maxUtilizationRatePerBlock,payable(deployer),address(vault));
+
+
+        vault.setMaxBorrow(1000 ether);
+        vault.setCTokens(address(cNuma),address(cReth));
+        vault.setMinLiquidationsPc(250);//25% min
+        // add markets (has to be done before _setcollateralFactor)
+        comptroller._supportMarket((cNuma));
+        comptroller._supportMarket((cReth));
+        
+        // collateral factors
+        comptroller._setCollateralFactor((cNuma), numaCollateralFactor);
+        comptroller._setCollateralFactor((cReth), rEthCollateralFactor);
+
+        // DBG
+                console2.log("**********************");
+
+
+
+
+        //ExponentialNoError.Exp memory collateralFactor = ExponentialNoError.Exp({mantissa: markets[address(cNuma)].collateralFactorMantissa});
+        uint collateralFactor = comptroller.collateralFactor(cNuma);
+        console2.log(collateralFactor);
+
+        // 50% liquidation close factor
+        comptroller._setCloseFactor(0.5 ether);
 
     }
 
