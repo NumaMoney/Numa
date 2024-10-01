@@ -9,7 +9,12 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 contract NuAsset2 is ERC20, ERC20Burnable, AccessControl {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor(string memory _name,string memory _symbol,address _defaultAdmin, address _minter) ERC20(_name, _symbol) {
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        address _defaultAdmin,
+        address _minter
+    ) ERC20(_name, _symbol) {
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
         _grantRole(MINTER_ROLE, _minter);
     }

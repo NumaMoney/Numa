@@ -11,8 +11,6 @@ import "../Numa.sol";
 
 import "./INuAssetManagerOld.sol";
 
-
-
 contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
@@ -26,7 +24,6 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
     uint public decayPeriod;
     uint public startTime;
     bool public isDecaying;
-   
 
     uint constant max_vault = 50;
     //uint constant max_addresses = 50;
@@ -35,49 +32,41 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
     event RemovedVault(address);
     event AddedVault(address);
 
-
     constructor(
         address _numaAddress,
-        address _nuAssetManagerAddress     
+        address _nuAssetManagerAddress
     ) Ownable(msg.sender) {
-        numa = NUMA(_numaAddress);       
+        numa = NUMA(_numaAddress);
         nuAssetManager = INuAssetManagerOld(_nuAssetManagerAddress);
     }
 
-
-
-    function startDecay() external onlyOwner
-    {
+    function startDecay() external onlyOwner {
         startTime = block.timestamp;
         isDecaying = true;
     }
 
-    function setConstantRemovedSupply(uint _constantRemovedSupply) external onlyOwner
-    {
+    function setConstantRemovedSupply(
+        uint _constantRemovedSupply
+    ) external onlyOwner {
         constantRemovedSupply = _constantRemovedSupply;
     }
 
-    function setDecayValues(uint _initialRemovedSupply, uint _decayPeriod,uint _constantRemovedSupply) external onlyOwner
-    {
+    function setDecayValues(
+        uint _initialRemovedSupply,
+        uint _decayPeriod,
+        uint _constantRemovedSupply
+    ) external onlyOwner {
         initialRemovedSupply = _initialRemovedSupply;
         constantRemovedSupply = _constantRemovedSupply;
         decayPeriod = _decayPeriod;
         // start decay will have to be called again
         // CAREFUL: IF DECAYING, ALL VAULTS HAVE TO BE PAUSED WHEN CHANGING THESE VALUES, UNTIL startDecay IS CALLED
         isDecaying = false;
-
     }
 
-
-    function isVault(address _addy) external view returns (bool)
-    {
+    function isVault(address _addy) external view returns (bool) {
         return (vaultsList.contains(_addy));
-
     }
-
-
-
-
 
     /**
      * @dev set the INuAssetManager address (used to compute synth value in Eth)
@@ -109,10 +98,10 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
             EthBalance > synthValueInEth,
             "vault is empty or synth value is too big"
         );
-       
+
         uint result = FullMath.mulDiv(
             EthValue,
-             circulatingNuma,
+            circulatingNuma,
             (EthBalance - synthValueInEth)
         );
 
@@ -137,7 +126,7 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
         );
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
-       
+
         // using snaphot price
         result = FullMath.mulDiv(
             FullMath.mulDiv(
@@ -151,9 +140,9 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
         return result;
     }
 
-
-    function GetPriceFromVaultWithoutFees(uint _inputAmount) external view returns (uint256)
-    {
+    function GetPriceFromVaultWithoutFees(
+        uint _inputAmount
+    ) external view returns (uint256) {
         uint synthValueInEth = getTotalSynthValueEth();
         uint circulatingNuma = getNumaSupply();
         uint EthBalance = getTotalBalanceEth();
@@ -164,17 +153,15 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
         );
         require(circulatingNuma > 0, "no numa in circulation");
         uint result;
-       
+
         // using snaphot price
         result = FullMath.mulDiv(
-                _inputAmount,
-                EthBalance - synthValueInEth,
-                circulatingNuma
-            );
+            _inputAmount,
+            EthBalance - synthValueInEth,
+            circulatingNuma
+        );
         return result;
-
     }
-
 
     /**
      * @dev Total synth value in Eth
@@ -196,26 +183,23 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
         uint currentRemovedSupply = initialRemovedSupply;
 
         uint currentTime = block.timestamp;
-        if (isDecaying && (currentTime > startTime) && (decayPeriod > 0))
-        {
-            
-            uint delta = ((currentTime - startTime) * initialRemovedSupply)/decayPeriod;
-            if (delta >= (initialRemovedSupply))
-            {
+        if (isDecaying && (currentTime > startTime) && (decayPeriod > 0)) {
+            uint delta = ((currentTime - startTime) * initialRemovedSupply) /
+                decayPeriod;
+            if (delta >= (initialRemovedSupply)) {
                 currentRemovedSupply = 0;
+            } else {
+                currentRemovedSupply -= (delta);
             }
-            else {
-                currentRemovedSupply -= (delta);                
-            }
-
         }
 
-
-        circulatingNuma = circulatingNuma - currentRemovedSupply - constantRemovedSupply;
+        circulatingNuma =
+            circulatingNuma -
+            currentRemovedSupply -
+            constantRemovedSupply;
 
         return circulatingNuma;
     }
-
 
     /**
      * @dev returns vaults list

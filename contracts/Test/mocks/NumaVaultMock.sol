@@ -21,32 +21,37 @@ import "../../lending/CNumaToken.sol";
 import "../../NumaProtocol/NumaVault.sol";
 
 /// @title Numa vault to mint/burn Numa to lst token
-contract NumaVaultMock is NumaVault
-{
-      constructor(
+contract NumaVaultMock is NumaVault {
+    constructor(
         address _numaAddress,
         address _tokenAddress,
         uint256 _decimals,
         address _oracleAddress,
-        address _minter)
-     NumaVault(_numaAddress,_tokenAddress,_decimals, _oracleAddress,_minter) 
-    {
-    }
-            /**
+        address _minter
+    )
+        NumaVault(
+            _numaAddress,
+            _tokenAddress,
+            _decimals,
+            _oracleAddress,
+            _minter
+        )
+    {}
+    /**
      * @dev transfers rewards to rwd_address and updates reference price
      */
-    function extractRewards() override external 
-    {    
+    function extractRewards() external override {
         // require(
         //     block.timestamp >= (last_extracttimestamp + 24 hours),
         //     "reward already extracted"
         // );
 
-        (uint256 rwd, uint256 currentvalueWei,uint256 rwdDebt) = rewardsValue();
+        (
+            uint256 rwd,
+            uint256 currentvalueWei,
+            uint256 rwdDebt
+        ) = rewardsValue();
         require(rwd > rwd_threshold, "not enough rewards to collect");
-        extractInternal(rwd, currentvalueWei,rwdDebt);
+        extractInternal(rwd, currentvalueWei, rwdDebt);
     }
-       
-
-    
 }

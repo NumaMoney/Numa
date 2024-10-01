@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-
 import "@openzeppelin/contracts_5.0.2/token/ERC20/utils/SafeERC20.sol";
 
 import "@openzeppelin/contracts_5.0.2/token/ERC20/extensions/IERC20Metadata.sol";
@@ -18,11 +17,9 @@ struct nuAssetInfo {
     uint index;
 }
 
-
 /// @title nuAssets manager
 /// @notice used to compute total synthetics value in Eth
 contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
-
     // nuAsset to nuAssetInfo mapping
     mapping(address => nuAssetInfo) public nuAssetInfos;
     // list of nuAssets
@@ -36,11 +33,9 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
     event AddedAsset(address _assetAddress, address _pricefeed);
     event UpdatedAsset(address _assetAddress, address _pricefeed);
     event RemovedAsset(address _assetAddress);
-    constructor(address _uptimeFeedAddress) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress)
-    {
-
-    }
-
+    constructor(
+        address _uptimeFeedAddress
+    ) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress) {}
 
     /**
      * @dev returns nuAssets list
@@ -49,16 +44,13 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         return nuAssetList;
     }
 
-    function getNuAssetInfo(address _nuAsset) public view returns (nuAssetInfo memory)
-    {
+    function getNuAssetInfo(
+        address _nuAsset
+    ) public view returns (nuAssetInfo memory) {
         return nuAssetInfos[_nuAsset];
-
     }
 
-
-
-    function renounceAddingRemoving() external onlyOwner
-    {
+    function renounceAddingRemoving() external onlyOwner {
         renounceAddingRemovingAssets = true;
     }
 
@@ -77,7 +69,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         address _pricefeed,
         uint128 _heartbeat
     ) external onlyOwner {
-        require(!renounceAddingRemovingAssets,"adding nuAsset renounced");
+        require(!renounceAddingRemovingAssets, "adding nuAsset renounced");
         require(_assetAddress != address(0), "invalid nuasset address");
         require(_pricefeed != address(0), "invalid price feed address");
         require(!contains(_assetAddress), "already added");
@@ -98,7 +90,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
      * @dev removes a newAsset from the list
      */
     function removeNuAsset(address _assetAddress) external onlyOwner {
-        require(!renounceAddingRemovingAssets,"adding nuAsset renounced");
+        require(!renounceAddingRemovingAssets, "adding nuAsset renounced");
         require(contains(_assetAddress), "not in list");
         // find out the index
         uint256 index = nuAssetInfos[_assetAddress].index;
@@ -116,12 +108,14 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         emit RemovedAsset(_assetAddress);
     }
 
-
     /**
      * @dev updates a newAsset from the list
      */
-    function updateNuAsset(address _assetAddress,address _pricefeed,uint128 _heartbeat) external onlyOwner {
-
+    function updateNuAsset(
+        address _assetAddress,
+        address _pricefeed,
+        uint128 _heartbeat
+    ) external onlyOwner {
         require(_assetAddress != address(0), "invalid nuasset address");
         require(_pricefeed != address(0), "invalid price feed address");
         require(contains(_assetAddress), "not in list");
@@ -133,7 +127,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
             index
         );
 
-        emit UpdatedAsset(_assetAddress,_pricefeed);
+        emit UpdatedAsset(_assetAddress, _pricefeed);
     }
 
     /**
@@ -151,61 +145,73 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
             (address priceFeed, uint128 heartbeat) = (
                 info.feed,
                 info.heartbeat
-            );         
-            uint256 EthValue = getPriceInEth(totalSupply, priceFeed, heartbeat,IERC20Metadata(nuAsset).decimals());
+            );
+            uint256 EthValue = getPriceInEth(
+                totalSupply,
+                priceFeed,
+                heartbeat,
+                IERC20Metadata(nuAsset).decimals()
+            );
             result += EthValue;
         }
         return result;
     }
 
-    function getPriceInEth(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
-    {
-        require(contains(_nuAsset),"bad nuAsset");
+    function getPriceInEth(
+        address _nuAsset,
+        uint256 _amount
+    ) public view returns (uint256 EthValue) {
+        require(contains(_nuAsset), "bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
-        (address priceFeed, uint128 heartbeat) = (
-                info.feed,
-                info.heartbeat
-            ); 
-        return getPriceInEth(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
+        (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
+        return
+            getPriceInEth(
+                _amount,
+                priceFeed,
+                heartbeat,
+                IERC20Metadata(_nuAsset).decimals()
+            );
     }
 
-    function getPriceInEthRoundUp(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
-    {
-        require(contains(_nuAsset),"bad nuAsset");
+    function getPriceInEthRoundUp(
+        address _nuAsset,
+        uint256 _amount
+    ) public view returns (uint256 EthValue) {
+        require(contains(_nuAsset), "bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
-        (address priceFeed, uint128 heartbeat) = (
-                info.feed,
-                info.heartbeat
-            ); 
-        return getPriceInEthRoundUp(_amount, priceFeed,heartbeat,IERC20Metadata(_nuAsset).decimals());
+        (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
+        return
+            getPriceInEthRoundUp(
+                _amount,
+                priceFeed,
+                heartbeat,
+                IERC20Metadata(_nuAsset).decimals()
+            );
     }
 
-    function getTokenPerEth(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
-    {
-        require(contains(_nuAsset),"bad nuAsset");
+    function getTokenPerEth(
+        address _nuAsset,
+        uint256 _amount
+    ) public view returns (uint256 EthValue) {
+        require(contains(_nuAsset), "bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
-        (address priceFeed, uint128 heartbeat) = (
-                info.feed,
-                info.heartbeat
-            ); 
-        return getTokenPerEth(_amount, priceFeed,heartbeat,18);
+        (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
+        return getTokenPerEth(_amount, priceFeed, heartbeat, 18);
     }
 
-    function getTokenPerEthRoundUp(address _nuAsset,uint256 _amount) public view returns (uint256 EthValue) 
-    {
-        require(contains(_nuAsset),"bad nuAsset");
+    function getTokenPerEthRoundUp(
+        address _nuAsset,
+        uint256 _amount
+    ) public view returns (uint256 EthValue) {
+        require(contains(_nuAsset), "bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
-        (address priceFeed, uint128 heartbeat) = (
-                info.feed,
-                info.heartbeat
-            ); 
-        return getTokenPerEthRoundUp(_amount, priceFeed,heartbeat,18);
+        (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
+        return getTokenPerEthRoundUp(_amount, priceFeed, heartbeat, 18);
     }
 
-
-    function changeSequencerUptimeFeedAddress(address _newaddress) external onlyOwner
-    {
+    function changeSequencerUptimeFeedAddress(
+        address _newaddress
+    ) external onlyOwner {
         sequencerUptimeFeed = _newaddress;
-
     }
 }

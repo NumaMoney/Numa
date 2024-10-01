@@ -11,7 +11,6 @@ import "../interfaces/IVaultManager.sol";
 import "../utils/constants.sol";
 import "hardhat/console.sol";
 
-
 /// @title NumaPrinter
 /// @notice Responsible for minting/burning Numa for nuAsset
 /// @dev
@@ -29,13 +28,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
     uint public burnAssetFeeBps;
     uint public swapAssetFeeBps;
 
-
-
-
-
-    event SetOracle(address oracle); 
+    event SetOracle(address oracle);
     event SetChainlinkFeed(address _chainlink);
-    event SetNumaPool(address _pool,address _convertAddress);
+    event SetNumaPool(address _pool, address _convertAddress);
     event AssetMint(address _asset, uint _amount);
     event AssetBurn(address _asset, uint _amount);
     event PrintAssetFeeBps(uint _newfee);
@@ -45,8 +40,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     event PrintFee(uint _fee);
     event SwapFee(uint _fee);
     event SetVaultManager(address _vaultManager);
-   
-  
+
     event SwapExactInput(
         address _nuAssetFrom,
         address _nuAssetTo,
@@ -71,7 +65,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _tokenToEthConverter,
         INumaOracle _oracle,
         address _vaultManagerAddress
-
     ) Ownable(msg.sender) {
         numa = NUMA(_numaAddress);
         minterContract = NumaMinter(_numaMinterAddress);
@@ -82,11 +75,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
             tokenToEthConverter = _tokenToEthConverter;
         oracle = _oracle;
         vaultManager = IVaultManager(_vaultManagerAddress);
-      
     }
-
-
-
 
     function pause() external onlyOwner {
         _pause();
@@ -96,13 +85,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
         _unpause();
     }
 
-    function setVaultManager(address _vaultManager) external onlyOwner
-    {
+    function setVaultManager(address _vaultManager) external onlyOwner {
         vaultManager = IVaultManager(_vaultManager);
         emit SetVaultManager(_vaultManager);
     }
 
-  
     /**
      * @notice not using whenNotPaused as we may want to pause contract to set these values
      */
@@ -114,10 +101,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
     /**
      * @notice not using whenNotPaused as we may want to pause contract to set these values
      */
-    function setNumaPoolAndConverter(address _numaPool,address _converterAddress) external onlyOwner {
+    function setNumaPoolAndConverter(
+        address _numaPool,
+        address _converterAddress
+    ) external onlyOwner {
         numaPool = _numaPool;
         tokenToEthConverter = _converterAddress;
-        emit SetNumaPool(_numaPool,_converterAddress);
+        emit SetNumaPool(_numaPool, _converterAddress);
     }
 
     /**
@@ -131,7 +121,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
         printAssetFeeBps = _printAssetFeeBps;
         emit PrintAssetFeeBps(_printAssetFeeBps);
     }
-
 
     function setSwapAssetFeeBps(uint _swapAssetFeeBps) external onlyOwner {
         require(
@@ -158,10 +147,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * @dev mints a newAsset
      * @notice block minting according to globalCF. Call accrueInterests on lending contracts as it will impact vault max borrowable amount
      */
-    function mintNuAsset(INuAsset _asset,address _recipient,uint _amount) internal
-    {    
+    function mintNuAsset(
+        INuAsset _asset,
+        address _recipient,
+        uint _amount
+    ) internal {
         uint currentCF = vaultManager.getGlobalCF();
-        require(currentCF > vaultManager.getWarningCF(),"minting forbidden");
+        require(currentCF > vaultManager.getWarningCF(), "minting forbidden");
 
         // mint
         _asset.mint(_recipient, _amount);
@@ -170,43 +162,53 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     /**
      * @dev burns a newAsset
-     * @notice 
+     * @notice
      */
-    function burnNuAssetFrom(INuAsset _asset,address _sender,uint _amount) internal
-    {           
+    function burnNuAssetFrom(
+        INuAsset _asset,
+        address _sender,
+        uint _amount
+    ) internal {
         // burn
         _asset.burnFrom(_sender, _amount);
         emit AssetBurn(address(_asset), _amount);
     }
 
- 
-    function updateVaultAndInterest() public returns (uint scale,uint scaleForPrice,uint16 sell_fee_res)
+    function updateVaultAndInterest()
+        public
+        returns (uint scale, uint scaleForPrice, uint16 sell_fee_res)
     {
         // accrue interest on lending because synth supply has changed so utilization rates also
         // as to be done before minting because we accrue interest from current parameters
         vaultManager.accrueInterests();
 
-        // for same reasons, we need to update our synth scaling snapshot because synth supplies changes      
-        (scale,scaleForPrice,sell_fee_res) = vaultManager.updateAll();
+        // for same reasons, we need to update our synth scaling snapshot because synth supplies changes
+        (scale, scaleForPrice, sell_fee_res) = vaultManager.updateAll();
     }
 
-    function computeFeeAmountIn(uint _amountIn,uint _fee) public pure returns (uint)
-    {
+    function computeFeeAmountIn(
+        uint _amountIn,
+        uint _fee
+    ) public pure returns (uint) {
         uint256 feeAmount = (_amountIn * _fee) / 10000;
         return feeAmount;
     }
 
-    function computeFeeAmountOut(uint _amountIn,uint _fee) public pure returns (uint)
-    {
-        uint256 feeAmount = (  _amountIn* _fee)/(10000 - _fee);
+    function computeFeeAmountOut(
+        uint _amountIn,
+        uint _fee
+    ) public pure returns (uint) {
+        uint256 feeAmount = (_amountIn * _fee) / (10000 - _fee);
         return feeAmount;
     }
 
     // NUASSET --> NUASSET
-    
-    function getNbOfNuAssetFromNuAsset(address _nuAssetIn,address _nuAssetOut,uint256 _amountIn
-    ) public view returns (uint256, uint256) {
 
+    function getNbOfNuAssetFromNuAsset(
+        address _nuAssetIn,
+        address _nuAssetOut,
+        uint256 _amountIn
+    ) public view returns (uint256, uint256) {
         // print fee
         uint256 amountToBurn = computeFeeAmountIn(_amountIn, swapAssetFeeBps);
 
@@ -218,10 +220,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return (output, amountToBurn);
     }
 
-
-    function getNbOfNuAssetNeededForNuAsset(address _nuAssetIn,address _nuAssetOut,uint256 _amountOut
-    ) public view returns (uint256, uint256)
-    {
+    function getNbOfNuAssetNeededForNuAsset(
+        address _nuAssetIn,
+        address _nuAssetOut,
+        uint256 _amountOut
+    ) public view returns (uint256, uint256) {
         // le /1-x% devrait être appliqué avant le call oracle?
         uint256 nuAssetIn = oracle.getNbOfNuAssetFromNuAsset(
             _amountOut,
@@ -231,24 +234,28 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // need more assetIn to pay the fee
         // uint256 nuAssetInWithFee = (nuAssetIn*10000) / (10000 - swapAssetFeeBps);
         //return (nuAssetInWithFee,(nuAssetInWithFee - nuAssetIn));
-        uint256 feeAMount = computeFeeAmountOut(nuAssetIn,swapAssetFeeBps);
-        return (nuAssetIn+feeAMount,feeAMount);
-
-
+        uint256 feeAMount = computeFeeAmountOut(nuAssetIn, swapAssetFeeBps);
+        return (nuAssetIn + feeAMount, feeAMount);
     }
 
-
     // NUMA --> NUASSET
-    function getNbOfNuAssetFromNuma(address _nuAsset,uint256 _numaAmount
+    function getNbOfNuAssetFromNuma(
+        address _nuAsset,
+        uint256 _numaAmount
     ) public view returns (uint256, uint256) {
-
         // print fee
-        uint256 amountToBurn = computeFeeAmountIn(_numaAmount,printAssetFeeBps);
+        uint256 amountToBurn = computeFeeAmountIn(
+            _numaAmount,
+            printAssetFeeBps
+        );
 
         // this function applies fees (amount = amount - fee)
         // AUDITV2FIX: need to use same amount as in oracle.getNbOfNuAsset
         // uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);
-        uint256 EthPerNumaVault = vaultManager.numaToEth(_numaAmount - amountToBurn,IVaultManager.PriceType.BuyPrice);
+        uint256 EthPerNumaVault = vaultManager.numaToEth(
+            _numaAmount - amountToBurn,
+            IVaultManager.PriceType.BuyPrice
+        );
 
         // AUDITV2FIX: formula for fees is incorrect
         //EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (1000-vaultManager.getBuyFee())) /1000;
@@ -265,21 +272,22 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return (output, amountToBurn);
     }
 
-
     /**
      * @dev returns amount of Numa needed and fee to mint an amount of nuAsset
      * @param {uint256} _nuAssetAmount amount we want to mint
      * @return {uint256,uint256} amount of Numa that will be needed and fee to be burnt
      */
-    function getNbOfNumaNeededAndFee(address _nuAsset,
+    function getNbOfNumaNeededAndFee(
+        address _nuAsset,
         uint256 _nuAssetAmount
-    ) public view returns (uint256, uint256) 
-    {
-        uint256 numaPerEthVault = vaultManager.ethToNuma(_nuAssetAmount,IVaultManager.PriceType.BuyPrice);
+    ) public view returns (uint256, uint256) {
+        uint256 numaPerEthVault = vaultManager.ethToNuma(
+            _nuAssetAmount,
+            IVaultManager.PriceType.BuyPrice
+        );
         //numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-vaultManager.getBuyFee()));
         //numaPerEthVault = (numaPerEthVault * vaultManager.getBuyFee()) /1000 ;
         // TODO formula look incorrect, audit missed?
-
 
         uint256 costWithoutFee = oracle.getNbOfNumaNeeded(
             _nuAssetAmount,
@@ -289,38 +297,38 @@ contract NumaPrinter is Pausable, Ownable2Step {
             numaPerEthVault
         );
 
-
-  
-
-
         // uint256 costWithFee = (costWithoutFee*10000) / (10000 - printAssetFeeBps);
-        uint256 feeAMount = computeFeeAmountOut(costWithoutFee,printAssetFeeBps);
+        uint256 feeAMount = computeFeeAmountOut(
+            costWithoutFee,
+            printAssetFeeBps
+        );
 
-        // print fee    
-        // will need to pay (burn): cost + amountToBurn 
+        // print fee
+        // will need to pay (burn): cost + amountToBurn
         //return (costWithFee, costWithFee - costWithoutFee);
-        return (costWithoutFee+feeAMount, feeAMount);
+        return (costWithoutFee + feeAMount, feeAMount);
     }
 
+    // NUASSET --> NUMA
 
-      // NUASSET --> NUMA
-   
-      /**
+    /**
      * @dev returns amount of nuAsset needed mint an amount of numa
      * @notice if fees needs to be applied they should be in input amount
      * @param {uint256} _numaAmount amount we want to mint
      * @return {uint256} amount of nuAsset that will be needed
      */
-    function getNbOfnuAssetNeededForNuma(address _nuAsset,
+    function getNbOfnuAssetNeededForNuma(
+        address _nuAsset,
         uint _numaAmount
-    ) public view returns (uint256,uint256) 
-    {
+    ) public view returns (uint256, uint256) {
         //uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
-        uint256 feeAmount = computeFeeAmountOut(_numaAmount,burnAssetFeeBps);
-        uint256 amountWithFee = _numaAmount+feeAmount;
+        uint256 feeAmount = computeFeeAmountOut(_numaAmount, burnAssetFeeBps);
+        uint256 amountWithFee = _numaAmount + feeAmount;
 
-        uint256 EthPerNumaVault = vaultManager.numaToEth(amountWithFee,IVaultManager.PriceType.SellPrice); // TODO this one was using _numaAmount, audit missed?
-
+        uint256 EthPerNumaVault = vaultManager.numaToEth(
+            amountWithFee,
+            IVaultManager.PriceType.SellPrice
+        ); // TODO this one was using _numaAmount, audit missed?
 
         // (uint16 sellfee,) = vaultManager.getSellFeeScaling();
         // EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
@@ -333,29 +341,28 @@ contract NumaPrinter is Pausable, Ownable2Step {
             EthPerNumaVault
         );
 
-        (uint scaleOverride,,,) = vaultManager.getSynthScaling();
+        (uint scaleOverride, , , ) = vaultManager.getSynthScaling();
         // apply scale
-        nuAssetIn = (nuAssetIn*BASE_1000)/scaleOverride;
-        
+        nuAssetIn = (nuAssetIn * BASE_1000) / scaleOverride;
 
-        return (nuAssetIn,amountWithFee - _numaAmount);
+        return (nuAssetIn, amountWithFee - _numaAmount);
     }
 
-
-     /**
+    /**
      * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
      * @param {uint256} _nuAssetAmount amount of nuAsset we want to burn
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
-    function getNbOfNumaFromAssetWithFee(address _nuAsset,
+    function getNbOfNumaFromAssetWithFee(
+        address _nuAsset,
         uint256 _nuAssetAmount
-    ) public view returns (uint256, uint256) 
-    {
-
-        uint256 ethToNumaMulAmount = vaultManager.ethToNuma(_nuAssetAmount,IVaultManager.PriceType.SellPrice);
+    ) public view returns (uint256, uint256) {
+        uint256 ethToNumaMulAmount = vaultManager.ethToNuma(
+            _nuAssetAmount,
+            IVaultManager.PriceType.SellPrice
+        );
         // (uint16 sellfee,) = vaultManager.getSellFeeScaling();
         // numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
-
 
         uint256 _output = oracle.getNbOfNumaFromAsset(
             _nuAssetAmount,
@@ -365,19 +372,15 @@ contract NumaPrinter is Pausable, Ownable2Step {
             ethToNumaMulAmount
         );
 
-        (uint scaleOverride,,,) = vaultManager.getSynthScaling();
+        (uint scaleOverride, , , ) = vaultManager.getSynthScaling();
         // apply scale
-        _output = (_output*scaleOverride)/BASE_1000;         
-
-        
+        _output = (_output * scaleOverride) / BASE_1000;
 
         // burn fee
-        uint256 amountToBurn = computeFeeAmountIn(_output,burnAssetFeeBps);
+        uint256 amountToBurn = computeFeeAmountIn(_output, burnAssetFeeBps);
         //uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
-        return (_output-amountToBurn, amountToBurn);
+        return (_output - amountToBurn, amountToBurn);
     }
-
-
 
     /**
      * dev
@@ -385,7 +388,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * param {uint256} _amount
      * param {address} _recipient
      */
-    function mintAssetFromNumaInput(address _nuAsset,
+    function mintAssetFromNumaInput(
+        address _nuAsset,
         uint _numaAmount,
         uint _minNuAssetAmount,
         address _recipient
@@ -398,15 +402,15 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 assetAmount;
         uint256 numaFee;
 
-        (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset,_numaAmount);
+        (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset, _numaAmount);
 
-        require(assetAmount >= _minNuAssetAmount,"min amount");
+        require(assetAmount >= _minNuAssetAmount, "min amount");
         // burn
         numa.burnFrom(msg.sender, _numaAmount);
         // mint token
         INuAsset nuAsset = INuAsset(_nuAsset);
         // mint token
-        mintNuAsset(nuAsset,_recipient,assetAmount);
+        mintNuAsset(nuAsset, _recipient, assetAmount);
 
         emit PrintFee(numaFee);
         return assetAmount;
@@ -417,7 +421,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * param {uint256} _nuAssetamount amount of nuAsset to mint
      * param {address} _recipient recipient of minted nuAsset tokens
      */
-    function mintAssetOutputFromNuma(address _nuAsset,
+    function mintAssetOutputFromNuma(
+        address _nuAsset,
         uint _nuAssetamount,
         uint _maxNumaAmount,
         address _recipient
@@ -428,21 +433,19 @@ contract NumaPrinter is Pausable, Ownable2Step {
         updateVaultAndInterest();
 
         INuAsset nuAsset = INuAsset(_nuAsset);
-        
+
         // how much numa should we burn to get this nuAsset amount
         uint256 numaCost;
         uint256 numaFee;
-        (numaCost, numaFee) = getNbOfNumaNeededAndFee(_nuAsset,_nuAssetamount);
-
-
+        (numaCost, numaFee) = getNbOfNumaNeededAndFee(_nuAsset, _nuAssetamount);
 
         // slippage check
-        require (numaCost <= _maxNumaAmount,"max numa");
+        require(numaCost <= _maxNumaAmount, "max numa");
 
         // burn numa
         numa.burnFrom(msg.sender, numaCost);
         // mint token
-        mintNuAsset(nuAsset,_recipient,_nuAssetamount);       
+        mintNuAsset(nuAsset, _recipient, _nuAssetamount);
         emit PrintFee(numaFee); // NUMA burnt
     }
 
@@ -452,56 +455,60 @@ contract NumaPrinter is Pausable, Ownable2Step {
      * param {uint256} _nuAssetAmount amount of nuAsset that we want to burn
      * param {address} _recipient recipient of minted Numa tokens
      */
-    function burnAssetInputToNuma(address _nuAsset,
+    function burnAssetInputToNuma(
+        address _nuAsset,
         uint256 _nuAssetAmount,
         uint256 _minimumReceivedAmount,
         address _recipient
     ) external whenNotPaused returns (uint) {
-      
         updateVaultAndInterest();
-      
+
         INuAsset nuAsset = INuAsset(_nuAsset);
         uint256 _output;
         uint256 amountToBurn;
-        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(_nuAsset,_nuAssetAmount);
+        (_output, amountToBurn) = getNbOfNumaFromAssetWithFee(
+            _nuAsset,
+            _nuAssetAmount
+        );
 
-        require (_output >= _minimumReceivedAmount,"minimum amount");
+        require(_output >= _minimumReceivedAmount, "minimum amount");
 
-        // burn amount       
-        burnNuAssetFrom(nuAsset,msg.sender,_nuAssetAmount);
+        // burn amount
+        burnNuAssetFrom(nuAsset, msg.sender, _nuAssetAmount);
         // and mint
-        minterContract.mint(_recipient,_output);
+        minterContract.mint(_recipient, _output);
 
         emit BurntFee(amountToBurn); // NUMA burnt (not minted)
         return (_output);
     }
 
-   
-    function burnAssetToNumaOutput(address _nuAsset,
+    function burnAssetToNumaOutput(
+        address _nuAsset,
         uint256 _numaAmount,
         uint256 _maximumAmountIn,
         address _recipient
     ) external whenNotPaused returns (uint) {
-
         updateVaultAndInterest();
         INuAsset nuAsset = INuAsset(_nuAsset);
-      
+
         // burn fee
         //uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
 
         // how much _nuAssetFrom are needed to get this amount of Numa
-        (uint256 nuAssetAmount,uint256 numaFee) = getNbOfnuAssetNeededForNuma(_nuAsset,_numaAmount);
-        require(nuAssetAmount <= _maximumAmountIn,"max amount");
+        (uint256 nuAssetAmount, uint256 numaFee) = getNbOfnuAssetNeededForNuma(
+            _nuAsset,
+            _numaAmount
+        );
+        require(nuAssetAmount <= _maximumAmountIn, "max amount");
 
         // burn amount
-        burnNuAssetFrom(nuAsset,msg.sender,nuAssetAmount);
-             
-        minterContract.mint(_recipient,_numaAmount);
-      
+        burnNuAssetFrom(nuAsset, msg.sender, nuAssetAmount);
+
+        minterContract.mint(_recipient, _numaAmount);
+
         emit BurntFee(numaFee); // NUMA burnt (not minted)
         return (_numaAmount);
     }
-
 
     function swapExactInput(
         address _nuAssetFrom,
@@ -509,8 +516,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _receiver,
         uint256 _amountToSwap,
         uint256 _amountOutMinimum
-    ) external whenNotPaused returns (uint256 amountOut) 
-    {
+    ) external whenNotPaused returns (uint256 amountOut) {
         require(_nuAssetFrom != address(0), "input asset not set");
         require(_nuAssetTo != address(0), "output asset not set");
         require(_receiver != address(0), "receiver not set");
@@ -522,21 +528,21 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // estimate output and check that it's ok with slippage
         // don't apply synth scaling here
         // fee is applied only 1 time when swapping
-        (uint256 assetAmount,uint amountInFee) = getNbOfNuAssetFromNuAsset(_nuAssetFrom,_nuAssetTo,_amountToSwap);
+        (uint256 assetAmount, uint amountInFee) = getNbOfNuAssetFromNuAsset(
+            _nuAssetFrom,
+            _nuAssetTo,
+            _amountToSwap
+        );
 
-        require(
-            (assetAmount) >= _amountOutMinimum,
-            "min output"
-            );
+        require((assetAmount) >= _amountOutMinimum, "min output");
 
         // burn asset from
-        burnNuAssetFrom(nuAssetFrom,msg.sender,_amountToSwap);
+        burnNuAssetFrom(nuAssetFrom, msg.sender, _amountToSwap);
 
         // mint asset dest
         nuAssetTo.mint(_receiver, assetAmount);
         emit AssetMint(_nuAssetTo, assetAmount);
 
-      
         emit SwapFee(amountInFee);
         emit SwapExactInput(
             _nuAssetFrom,
@@ -549,7 +555,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         return assetAmount;
     }
-
 
     function swapExactOutput(
         address _nuAssetFrom,
@@ -567,14 +572,16 @@ contract NumaPrinter is Pausable, Ownable2Step {
         INuAsset nuAssetFrom = INuAsset(_nuAssetFrom);
         INuAsset nuAssetTo = INuAsset(_nuAssetTo);
 
-        (uint256 nuAssetAmount, uint256 fee) = getNbOfNuAssetNeededForNuAsset(_nuAssetFrom,_nuAssetTo,_amountToReceive);
-
+        (uint256 nuAssetAmount, uint256 fee) = getNbOfNuAssetNeededForNuAsset(
+            _nuAssetFrom,
+            _nuAssetTo,
+            _amountToReceive
+        );
 
         require(nuAssetAmount <= _amountInMaximum, "maximum input reached");
 
         // burn asset from
-        burnNuAssetFrom(nuAssetFrom,msg.sender,nuAssetAmount);
-
+        burnNuAssetFrom(nuAssetFrom, msg.sender, nuAssetAmount);
 
         nuAssetTo.mint(_receiver, _amountToReceive);
         emit AssetMint(_nuAssetTo, _amountToReceive);
@@ -591,6 +598,4 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         return _amountToReceive;
     }
-
-
 }

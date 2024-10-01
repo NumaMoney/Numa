@@ -6,9 +6,16 @@ import "../../lending/CErc20.sol";
 
 contract SimplePriceOracle is PriceOracleCollateralBorrow {
     mapping(address => uint) prices;
-    event PricePosted(address asset, uint previousPriceMantissa, uint requestedPriceMantissa, uint newPriceMantissa);
+    event PricePosted(
+        address asset,
+        uint previousPriceMantissa,
+        uint requestedPriceMantissa,
+        uint newPriceMantissa
+    );
 
-    function _getUnderlyingAddress(CToken cToken) private view returns (address) {
+    function _getUnderlyingAddress(
+        CToken cToken
+    ) private view returns (address) {
         address asset;
         if (compareStrings(cToken.symbol(), "cETH")) {
             asset = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -19,21 +26,32 @@ contract SimplePriceOracle is PriceOracleCollateralBorrow {
     }
 
     function getUnderlyingPrice(CToken cToken) public view returns (uint) {
-        
         return prices[_getUnderlyingAddress(cToken)];
     }
 
-    function getUnderlyingPriceAsCollateral(CToken cToken) public override view returns (uint) {
+    function getUnderlyingPriceAsCollateral(
+        CToken cToken
+    ) public view override returns (uint) {
         return getUnderlyingPrice(cToken);
     }
 
-    function getUnderlyingPriceAsBorrowed(CToken cToken) public override view returns (uint) {
+    function getUnderlyingPriceAsBorrowed(
+        CToken cToken
+    ) public view override returns (uint) {
         return getUnderlyingPrice(cToken);
     }
 
-    function setUnderlyingPrice(CToken cToken, uint underlyingPriceMantissa) public {
+    function setUnderlyingPrice(
+        CToken cToken,
+        uint underlyingPriceMantissa
+    ) public {
         address asset = _getUnderlyingAddress(cToken);
-        emit PricePosted(asset, prices[asset], underlyingPriceMantissa, underlyingPriceMantissa);
+        emit PricePosted(
+            asset,
+            prices[asset],
+            underlyingPriceMantissa,
+            underlyingPriceMantissa
+        );
         prices[asset] = underlyingPriceMantissa;
     }
 
@@ -47,7 +65,11 @@ contract SimplePriceOracle is PriceOracleCollateralBorrow {
         return prices[asset];
     }
 
-    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    function compareStrings(
+        string memory a,
+        string memory b
+    ) internal pure returns (bool) {
+        return (keccak256(abi.encodePacked((a))) ==
+            keccak256(abi.encodePacked((b))));
     }
 }
