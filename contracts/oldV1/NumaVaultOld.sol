@@ -14,10 +14,13 @@ import "./IVaultManagerOld.sol";
 import "./INumaVaultOld.sol";
 import "../interfaces/IRewardFeeReceiver.sol";
 
-
-
 /// @title Numa vault to mint/burn Numa to lst token
-contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
+contract NumaVaultOld is
+    Ownable2Step,
+    ReentrancyGuard,
+    Pausable,
+    INumaVaultOld
+{
     using EnumerableSet for EnumerableSet.AddressSet;
 
     // address that receives fees
@@ -137,8 +140,10 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
     /**
      * @dev Set Rwd address
      */
-    function setRwdAddress(address _address,bool _isRwdReceiver) external onlyOwner 
-    {        
+    function setRwdAddress(
+        address _address,
+        bool _isRwdReceiver
+    ) external onlyOwner {
         rwd_address = payable(_address);
         isRwdReceiver = _isRwdReceiver;
         emit RwdAddressUpdated(_address);
@@ -147,8 +152,10 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
     /**
      * @dev Set Fee address
      */
-    function setFeeAddress(address _address,bool _isFeeReceiver) external onlyOwner 
-    {        
+    function setFeeAddress(
+        address _address,
+        bool _isFeeReceiver
+    ) external onlyOwner {
         fee_address = payable(_address);
         isFeeReceiver = _isFeeReceiver;
         emit FeeAddressUpdated(_address);
@@ -220,15 +227,13 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalueWei = currentvalueWei;
 
-        if (rwd_address != address(0))
-        {
+        if (rwd_address != address(0)) {
             SafeERC20.safeTransfer(IERC20(lstToken), rwd_address, rwd);
-            if (isContract(rwd_address) && isRwdReceiver) 
-            {
+            if (isContract(rwd_address) && isRwdReceiver) {
                 // we don't check result as contract might not implement the deposit function (if multi sig for example)
                 rwd_address.call(
                     abi.encodeWithSignature("DepositFromVault(uint256)", rwd)
-                    );
+                );
             }
         }
         emit RewardsExtracted(rwd, currentvalueWei);
@@ -237,8 +242,7 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
     /**
      * @dev transfers rewards to rwd_address and updates reference price
      */
-    function extractRewards() external 
-    {    
+    function extractRewards() external {
         require(
             block.timestamp >= (last_extracttimestamp + 24 hours),
             "reward already extracted"
@@ -255,14 +259,11 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
      * conditions are not filled
      */
     function extractRewardsNoRequire() internal {
-        if (block.timestamp >= (last_extracttimestamp + 24 hours)) 
-        {
+        if (block.timestamp >= (last_extracttimestamp + 24 hours)) {
             (uint256 rwd, uint256 currentvalueWei) = rewardsValue();
-            if (rwd > rwd_threshold) 
-            {
+            if (rwd > rwd_threshold) {
                 extractInternal(rwd, currentvalueWei);
             }
-            
         }
     }
 
@@ -281,12 +282,12 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
      * @dev Buy numa from token (token approval needed)
      */
     function buy(
-        uint _inputAmount,uint _minNumaAmount,
+        uint _inputAmount,
+        uint _minNumaAmount,
         address _receiver
-    ) external nonReentrant whenNotPaused returns (uint _numaOut)
-    {
+    ) external nonReentrant whenNotPaused returns (uint _numaOut) {
         require(_inputAmount > MIN, "must trade over min");
-        
+
         // extract rewards if any
         extractRewardsNoRequire();
 
@@ -294,7 +295,6 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
         uint256 MAX = (max_percent * vaultsBalance) / FEE_BASE_1000;
         require(_inputAmount <= MAX, "must trade under max");
 
-      
         // execute buy
         uint256 numaAmount = vaultManager.tokenToNuma(
             _inputAmount,
@@ -311,27 +311,25 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
             _inputAmount
         );
 
-        _numaOut =  (numaAmount * buy_fee) / FEE_BASE_1000;
+        _numaOut = (numaAmount * buy_fee) / FEE_BASE_1000;
         require(_numaOut >= _minNumaAmount, "Min NUMA");
 
         // mint numa
         numa.mint(_receiver, _numaOut);
-        emit Buy(
-            _numaOut,
-            _inputAmount,
-            _receiver
-        );
+        emit Buy(_numaOut, _inputAmount, _receiver);
         // fee
         if (fee_address != address(0x0)) {
             uint256 feeAmount = (fees * _inputAmount) / FEE_BASE_1000;
             SafeERC20.safeTransfer(lstToken, fee_address, feeAmount);
-            
-            if (isContract(fee_address) && isFeeReceiver) 
-            {
+
+            if (isContract(fee_address) && isFeeReceiver) {
                 // we don't check result as contract might not implement the deposit function (if multi sig for example)
                 fee_address.call(
-                    abi.encodeWithSignature("DepositFromVault(uint256)", feeAmount)
-                    );
+                    abi.encodeWithSignature(
+                        "DepositFromVault(uint256)",
+                        feeAmount
+                    )
+                );
             }
             emit Fee(feeAmount, fee_address);
         }
@@ -341,7 +339,8 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
      * @dev Sell numa (burn) to token (numa approval needed)
      */
     function sell(
-        uint256 _numaAmount,uint256 _minTokenAmount,
+        uint256 _numaAmount,
+        uint256 _minTokenAmount,
         address _receiver
     ) external nonReentrant whenNotPaused returns (uint _tokenOut) {
         require(_numaAmount > MIN, "must trade over min");
@@ -367,27 +366,21 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
         numa.burnFrom(msg.sender, _numaAmount);
 
         // transfer lst tokens to receiver
-        SafeERC20.safeTransfer(
-            lstToken,
-            _receiver,
-            _tokenOut
-        );
-        emit Sell(
-            _numaAmount,
-            _tokenOut,
-            _receiver
-        );
+        SafeERC20.safeTransfer(lstToken, _receiver, _tokenOut);
+        emit Sell(_numaAmount, _tokenOut, _receiver);
         // fee
         if (fee_address != address(0x0)) {
             uint256 feeAmount = (fees * tokenAmount) / FEE_BASE_1000;
             SafeERC20.safeTransfer(IERC20(lstToken), fee_address, feeAmount);
 
-            if (isContract(fee_address) && isFeeReceiver) 
-            {
+            if (isContract(fee_address) && isFeeReceiver) {
                 // we don't check result as contract might not implement the deposit function (if multi sig for example)
                 fee_address.call(
-                    abi.encodeWithSignature("DepositFromVault(uint256)", feeAmount)
-                    );
+                    abi.encodeWithSignature(
+                        "DepositFromVault(uint256)",
+                        feeAmount
+                    )
+                );
             }
 
             emit Fee(feeAmount, fee_address);
@@ -461,14 +454,16 @@ contract NumaVaultOld is Ownable2Step, ReentrancyGuard, Pausable ,INumaVaultOld{
     /**
      * @dev Withdraw any ERC20 from vault
      */
-    function withdrawToken(address _tokenAddress,uint256 _amount,address _receiver) external onlyOwner
-    {
+    function withdrawToken(
+        address _tokenAddress,
+        uint256 _amount,
+        address _receiver
+    ) external onlyOwner {
         require(!isWithdrawRevoked);
-        SafeERC20.safeTransfer(IERC20(_tokenAddress),_receiver,_amount);
+        SafeERC20.safeTransfer(IERC20(_tokenAddress), _receiver, _amount);
     }
 
-    function revokeWithdraw() external onlyOwner
-    {
+    function revokeWithdraw() external onlyOwner {
         isWithdrawRevoked = true;
     }
 

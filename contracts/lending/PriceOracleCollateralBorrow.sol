@@ -8,12 +8,15 @@ abstract contract PriceOracleCollateralBorrow {
     bool public constant isPriceOracle = true;
 
     /**
-      * @notice Get the underlying price of a cToken asset
-      * @param cToken The cToken to get the underlying price of
-      * @return The underlying asset price mantissa (scaled by 1e18).
-      *  Zero means the price is unavailable.
-      */
-    function getUnderlyingPriceAsCollateral(CToken cToken) virtual external view returns (uint);
-    function getUnderlyingPriceAsBorrowed(CToken cToken) virtual external view returns (uint);
-
+     * @notice Get the underlying price of a cToken asset
+     * @param cToken The cToken to get the underlying price of
+     * @return The underlying asset price mantissa (scaled by 1e18).
+     *  Zero means the price is unavailable.
+     */
+    function getUnderlyingPriceAsCollateral(
+        CToken cToken
+    ) external view virtual returns (uint);
+    function getUnderlyingPriceAsBorrowed(
+        CToken cToken
+    ) external view virtual returns (uint);
 }

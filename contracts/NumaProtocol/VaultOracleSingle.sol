@@ -10,7 +10,12 @@ contract VaultOracleSingle is IVaultOracleSingle, OracleUtils {
 
     uint128 chainlink_heartbeat;
     address token;
-    constructor(address _token,address _feed, uint128 _chainlink_heartbeat,address _uptimeFeedAddress) OracleUtils(_uptimeFeedAddress) {
+    constructor(
+        address _token,
+        address _feed,
+        uint128 _chainlink_heartbeat,
+        address _uptimeFeedAddress
+    ) OracleUtils(_uptimeFeedAddress) {
         feed = _feed;
         chainlink_heartbeat = _chainlink_heartbeat;
         token = _token;
@@ -19,10 +24,13 @@ contract VaultOracleSingle is IVaultOracleSingle, OracleUtils {
     /**
      * @dev value in Eth (in wei) of this amount of token
      */
-    function getTokenPrice(uint256 _amount) external view returns (uint256) 
-    {
-        return getPriceInEth(_amount, feed, chainlink_heartbeat,IERC20Metadata(token).decimals());
+    function getTokenPrice(uint256 _amount) external view returns (uint256) {
+        return
+            getPriceInEth(
+                _amount,
+                feed,
+                chainlink_heartbeat,
+                IERC20Metadata(token).decimals()
+            );
     }
-
-  
 }

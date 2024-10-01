@@ -19,13 +19,8 @@ contract nuAssetManagerMock is INuAssetManager, OracleUtils {
 
     uint constant max_nuasset = 200;
 
-
-    constructor(address _uptimeFeedAddress) OracleUtils(_uptimeFeedAddress)
-    {
-
-    }
-    function getNuAssetList() external view returns(address[] memory)
-    {
+    constructor(address _uptimeFeedAddress) OracleUtils(_uptimeFeedAddress) {}
+    function getNuAssetList() external view returns (address[] memory) {
         return nuAssetList;
     }
 
@@ -54,7 +49,12 @@ contract nuAssetManagerMock is INuAssetManager, OracleUtils {
             uint256 totalSupply = IERC20(nuAssetList[i]).totalSupply();
             address priceFeed = nuAssetInfos[nuAssetList[i]].feed;
             require(priceFeed != address(0), "currency not supported");
-            uint256 EthValue = getPriceInEth(totalSupply, priceFeed, 24 hours,IERC20Metadata(nuAssetList[i]).decimals());
+            uint256 EthValue = getPriceInEth(
+                totalSupply,
+                priceFeed,
+                24 hours,
+                IERC20Metadata(nuAssetList[i]).decimals()
+            );
             result += EthValue;
         }
         return result;

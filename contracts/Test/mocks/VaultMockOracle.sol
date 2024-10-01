@@ -12,18 +12,13 @@ contract VaultMockOracle is IVaultOracleSingle {
         price = _price;
     }
 
-
-
     // function getTokenPriceSimple(address _tokenAddress) external view returns (uint256)
     // {
 
     //     return (price);
     // }
 
-    function getTokenPrice(
-        
-        uint256 _amount
-    ) external view returns (uint256) {
+    function getTokenPrice(uint256 _amount) external view returns (uint256) {
         return FullMath.mulDiv(_amount, uint256(price), 10 ** 18);
     }
 }
