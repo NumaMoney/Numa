@@ -16,6 +16,5 @@ interface IVaultManagerOld {
         uint _decimals
     ) external view returns (uint256);
 
-
     function isVault(address _addy) external view returns (bool);
 }

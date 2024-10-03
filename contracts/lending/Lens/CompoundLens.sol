@@ -6,17 +6,18 @@ import "../CToken.sol";
 import "../PriceOracleCollateralBorrow.sol";
 import "../EIP20Interface.sol";
 
-
 interface ComptrollerLensInterface {
     function markets(address) external view returns (bool, uint);
     function oracle() external view returns (PriceOracleCollateralBorrow);
     //function getAccountLiquidity(address) external view returns (uint, uint, uint,uint);
-    function getAccountLiquidityIsolate(address,CToken,CToken) external view returns (uint, uint, uint,uint);
-    function getAssetsIn(address) external view returns (CToken[] memory);  
+    function getAccountLiquidityIsolate(
+        address,
+        CToken,
+        CToken
+    ) external view returns (uint, uint, uint, uint);
+    function getAssetsIn(address) external view returns (CToken[] memory);
     function borrowCaps(address) external view returns (uint);
 }
-
-
 
 contract CompoundLens {
     struct CTokenMetadata {
@@ -37,12 +38,16 @@ contract CompoundLens {
         uint borrowCap;
     }
 
-  
-
-    function cTokenMetadata(CToken cToken) public returns (CTokenMetadata memory) {
+    function cTokenMetadata(
+        CToken cToken
+    ) public returns (CTokenMetadata memory) {
         uint exchangeRateCurrent = cToken.exchangeRateCurrent();
-        ComptrollerLensInterface comptroller = ComptrollerLensInterface(address(cToken.comptroller()));
-        (bool isListed, uint collateralFactorMantissa) = comptroller.markets(address(cToken));
+        ComptrollerLensInterface comptroller = ComptrollerLensInterface(
+            address(cToken.comptroller())
+        );
+        (bool isListed, uint collateralFactorMantissa) = comptroller.markets(
+            address(cToken)
+        );
         address underlyingAssetAddress;
         uint underlyingDecimals;
 
@@ -56,8 +61,9 @@ contract CompoundLens {
         }
 
         uint borrowCap = 0;
-        (bool borrowCapSuccess, bytes memory borrowCapReturnData) =
-            address(comptroller).call(
+        (bool borrowCapSuccess, bytes memory borrowCapReturnData) = address(
+            comptroller
+        ).call(
                 abi.encodePacked(
                     comptroller.borrowCaps.selector,
                     abi.encode(address(cToken))
@@ -67,26 +73,29 @@ contract CompoundLens {
             borrowCap = abi.decode(borrowCapReturnData, (uint));
         }
 
-        return CTokenMetadata({
-            cToken: address(cToken),
-            exchangeRateCurrent: exchangeRateCurrent,
-            supplyRatePerBlock: cToken.supplyRatePerBlock(),
-            borrowRatePerBlock: cToken.borrowRatePerBlock(),
-            reserveFactorMantissa: cToken.reserveFactorMantissa(),
-            totalBorrows: cToken.totalBorrows(),
-            totalReserves: cToken.totalReserves(),
-            totalSupply: cToken.totalSupply(),
-            totalCash: cToken.getCash(),
-            isListed: isListed,
-            collateralFactorMantissa: collateralFactorMantissa,
-            underlyingAssetAddress: underlyingAssetAddress,
-            cTokenDecimals: cToken.decimals(),
-            underlyingDecimals: underlyingDecimals,          
-            borrowCap: borrowCap
-        });
+        return
+            CTokenMetadata({
+                cToken: address(cToken),
+                exchangeRateCurrent: exchangeRateCurrent,
+                supplyRatePerBlock: cToken.supplyRatePerBlock(),
+                borrowRatePerBlock: cToken.borrowRatePerBlock(),
+                reserveFactorMantissa: cToken.reserveFactorMantissa(),
+                totalBorrows: cToken.totalBorrows(),
+                totalReserves: cToken.totalReserves(),
+                totalSupply: cToken.totalSupply(),
+                totalCash: cToken.getCash(),
+                isListed: isListed,
+                collateralFactorMantissa: collateralFactorMantissa,
+                underlyingAssetAddress: underlyingAssetAddress,
+                cTokenDecimals: cToken.decimals(),
+                underlyingDecimals: underlyingDecimals,
+                borrowCap: borrowCap
+            });
     }
 
-    function cTokenMetadataAll(CToken[] calldata cTokens) external returns (CTokenMetadata[] memory) {
+    function cTokenMetadataAll(
+        CToken[] calldata cTokens
+    ) external returns (CTokenMetadata[] memory) {
         uint cTokenCount = cTokens.length;
         CTokenMetadata[] memory res = new CTokenMetadata[](cTokenCount);
         for (uint i = 0; i < cTokenCount; i++) {
@@ -104,7 +113,10 @@ contract CompoundLens {
         uint tokenAllowance;
     }
 
-    function cTokenBalances(CToken cToken, address payable account) public returns (CTokenBalances memory) {
+    function cTokenBalances(
+        CToken cToken,
+        address payable account
+    ) public returns (CTokenBalances memory) {
         uint balanceOf = cToken.balanceOf(account);
         uint borrowBalanceCurrent = cToken.borrowBalanceCurrent(account);
         uint balanceOfUnderlying = cToken.balanceOfUnderlying(account);
@@ -121,17 +133,21 @@ contract CompoundLens {
             tokenAllowance = underlying.allowance(account, address(cToken));
         }
 
-        return CTokenBalances({
-            cToken: address(cToken),
-            balanceOf: balanceOf,
-            borrowBalanceCurrent: borrowBalanceCurrent,
-            balanceOfUnderlying: balanceOfUnderlying,
-            tokenBalance: tokenBalance,
-            tokenAllowance: tokenAllowance
-        });
+        return
+            CTokenBalances({
+                cToken: address(cToken),
+                balanceOf: balanceOf,
+                borrowBalanceCurrent: borrowBalanceCurrent,
+                balanceOfUnderlying: balanceOfUnderlying,
+                tokenBalance: tokenBalance,
+                tokenAllowance: tokenAllowance
+            });
     }
 
-    function cTokenBalancesAll(CToken[] calldata cTokens, address payable account) external returns (CTokenBalances[] memory) {
+    function cTokenBalancesAll(
+        CToken[] calldata cTokens,
+        address payable account
+    ) external returns (CTokenBalances[] memory) {
         uint cTokenCount = cTokens.length;
         CTokenBalances[] memory res = new CTokenBalances[](cTokenCount);
         for (uint i = 0; i < cTokenCount; i++) {
@@ -146,20 +162,31 @@ contract CompoundLens {
         uint underlyingPriceAsCollateral;
     }
 
-    function cTokenUnderlyingPrice(CToken cToken) public returns (CTokenUnderlyingPrice memory) {
-        ComptrollerLensInterface comptroller = ComptrollerLensInterface(address(cToken.comptroller()));
+    function cTokenUnderlyingPrice(
+        CToken cToken
+    ) public returns (CTokenUnderlyingPrice memory) {
+        ComptrollerLensInterface comptroller = ComptrollerLensInterface(
+            address(cToken.comptroller())
+        );
         PriceOracleCollateralBorrow priceOracle = comptroller.oracle();
 
-        return CTokenUnderlyingPrice({
-            cToken: address(cToken),
-            underlyingPriceAsBorrow: priceOracle.getUnderlyingPriceAsBorrowed(cToken),
-            underlyingPriceAsCollateral: priceOracle.getUnderlyingPriceAsCollateral(cToken)
-        });
+        return
+            CTokenUnderlyingPrice({
+                cToken: address(cToken),
+                underlyingPriceAsBorrow: priceOracle
+                    .getUnderlyingPriceAsBorrowed(cToken),
+                underlyingPriceAsCollateral: priceOracle
+                    .getUnderlyingPriceAsCollateral(cToken)
+            });
     }
 
-    function cTokenUnderlyingPriceAll(CToken[] calldata cTokens) external returns (CTokenUnderlyingPrice[] memory) {
+    function cTokenUnderlyingPriceAll(
+        CToken[] calldata cTokens
+    ) external returns (CTokenUnderlyingPrice[] memory) {
         uint cTokenCount = cTokens.length;
-        CTokenUnderlyingPrice[] memory res = new CTokenUnderlyingPrice[](cTokenCount);
+        CTokenUnderlyingPrice[] memory res = new CTokenUnderlyingPrice[](
+            cTokenCount
+        );
         for (uint i = 0; i < cTokenCount; i++) {
             res[i] = cTokenUnderlyingPrice(cTokens[i]);
         }
@@ -185,31 +212,52 @@ contract CompoundLens {
     //     });
     // }
 
-    function getAccountLimits(ComptrollerLensInterface comptroller, address account,CToken collateral,CToken borrow) public view returns (AccountLimits memory) {
-        (uint errorCode, uint liquidity, uint shortfall,uint badDebt) = comptroller.getAccountLiquidityIsolate(account,collateral,borrow);
+    function getAccountLimits(
+        ComptrollerLensInterface comptroller,
+        address account,
+        CToken collateral,
+        CToken borrow
+    ) public view returns (AccountLimits memory) {
+        (
+            uint errorCode,
+            uint liquidity,
+            uint shortfall,
+            uint badDebt
+        ) = comptroller.getAccountLiquidityIsolate(account, collateral, borrow);
         require(errorCode == 0);
 
-        return AccountLimits({
-            markets: comptroller.getAssetsIn(account),
-            liquidity: liquidity,
-            shortfall: shortfall,
-            badDebt: badDebt
-        });
+        return
+            AccountLimits({
+                markets: comptroller.getAssetsIn(account),
+                liquidity: liquidity,
+                shortfall: shortfall,
+                badDebt: badDebt
+            });
     }
 
-   
-
-    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    function compareStrings(
+        string memory a,
+        string memory b
+    ) internal pure returns (bool) {
+        return (keccak256(abi.encodePacked((a))) ==
+            keccak256(abi.encodePacked((b))));
     }
 
-    function add(uint a, uint b, string memory errorMessage) internal pure returns (uint) {
+    function add(
+        uint a,
+        uint b,
+        string memory errorMessage
+    ) internal pure returns (uint) {
         uint c = a + b;
         require(c >= a, errorMessage);
         return c;
     }
 
-    function sub(uint a, uint b, string memory errorMessage) internal pure returns (uint) {
+    function sub(
+        uint a,
+        uint b,
+        string memory errorMessage
+    ) internal pure returns (uint) {
         require(b <= a, errorMessage);
         uint c = a - b;
         return c;

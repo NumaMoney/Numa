@@ -22,13 +22,10 @@ contract NumaOracle is Ownable2Step, INumaOracle {
     uint32 public intervalShort;
     uint32 public intervalLong;
 
-
-    
     nuAssetManager public nuAManager;
 
     event IntervalShort(uint32 _intervalShort);
-    event IntervalLong(uint32 _intervalLong);   
-
+    event IntervalLong(uint32 _intervalLong);
 
     constructor(
         address _token,
@@ -57,7 +54,140 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         intervalLong = _interval;
         emit IntervalLong(intervalLong);
     }
+    function getTWAPPriceInEth(
+        address _numaPool,
+        address _converter,
+        uint _numaAmount,
+        uint32 _interval
+    ) external view returns (uint256) {
+        uint160 sqrtPriceX96 = getV3SqrtPriceAvg(_numaPool, _interval);
 
+        uint256 numerator = (
+            IUniswapV3Pool(_numaPool).token0() == token
+                ? sqrtPriceX96
+                : FixedPoint96.Q96
+        );
+        uint256 denominator = (
+            numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
+        );
+
+        uint256 TokenPerNumaMulAmount = (
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** IERC20Metadata(token).decimals(),
+                        numerator
+                    ),
+                    _numaAmount,
+                    numerator * 10 ** 18 // numa decimals
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** 18,
+                        numerator
+                    ), // numa decimals
+                    _numaAmount,
+                    numerator * 10 ** IERC20Metadata(token).decimals()
+                )
+        );
+
+        uint EthPerNumaMulAmount = TokenPerNumaMulAmount;
+        if (_converter != address(0)) {
+            EthPerNumaMulAmount = INumaTokenToEthConverter(_converter)
+                .convertTokenPerNumaToEthPerNuma(TokenPerNumaMulAmount);
+        }
+
+        return EthPerNumaMulAmount;
+    }
+
+    function getV3LowestPrice(
+        address _numaPool,
+        uint _numaAmount
+    ) external view returns (uint256) {
+        uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
+            _numaPool,
+            intervalShort,
+            intervalLong
+        );
+        uint256 numerator = (
+            IUniswapV3Pool(_numaPool).token0() == token
+                ? sqrtPriceX96
+                : FixedPoint96.Q96
+        );
+        uint256 denominator = (
+            numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
+        );
+
+        uint256 TokenPerNumaMulAmount = (
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** IERC20Metadata(token).decimals(),
+                        numerator
+                    ),
+                    _numaAmount,
+                    numerator * 10 ** 18 // numa decimals
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** 18,
+                        numerator
+                    ), // numa decimals
+                    _numaAmount,
+                    numerator * 10 ** IERC20Metadata(token).decimals()
+                )
+        );
+
+        return TokenPerNumaMulAmount;
+    }
+
+    function getV3HighestPrice(
+        address _numaPool,
+        uint _numaAmount
+    ) external view returns (uint256) {
+        uint160 sqrtPriceX96 = getV3SqrtHighestPrice(
+            _numaPool,
+            intervalShort,
+            intervalLong
+        );
+        uint256 numerator = (
+            IUniswapV3Pool(_numaPool).token0() == token
+                ? sqrtPriceX96
+                : FixedPoint96.Q96
+        );
+        uint256 denominator = (
+            numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
+        );
+
+        uint256 TokenPerNumaMulAmount = (
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** IERC20Metadata(token).decimals(),
+                        numerator
+                    ),
+                    _numaAmount,
+                    numerator * 10 ** 18 // numa decimals
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** 18,
+                        numerator
+                    ), // numa decimals
+                    _numaAmount,
+                    numerator * 10 ** IERC20Metadata(token).decimals()
+                )
+        );
+
+        return TokenPerNumaMulAmount;
+    }
+ 
     /**
      * @dev Fetch uniswap V3 pool average price over an interval
      * @notice Will revert if interval is older than oldest pool observation
@@ -85,7 +215,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     (tickCumulatives[1] - tickCumulatives[0]) /
                         int56(int32(_interval))
                 )
-            ); 
+            );
     }
 
     /**
@@ -121,6 +251,9 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             _uniswapV3Pool,
             _intervalLong
         );
+        console2.log(sqrtPriceX96Spot);
+        console2.log(sqrtPriceX96Short);
+        console2.log(sqrtPriceX96Long);
         //Takes the lowest token price denominated in token
         //Condition checks to see if token is in denominator of pair, ie: token1/token0
         if (IUniswapV3Pool(_uniswapV3Pool).token0() == token) {
@@ -209,9 +342,6 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         return sqrtPriceX96;
     }
 
-
-
-
     /**
      * @dev number of numa tokens needed to mint this amount of nuAsset
      * @param {uint256} _nuAssetAmount amount we want to mint
@@ -226,23 +356,19 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         address _converter,
         uint _numaPerEthVault
     ) external view returns (uint256) {
-         console.log("****getV3SqrtLowestPrice***");
-       uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
+        uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
             _numaPool,
             intervalShort,
             intervalLong
         );
 
-        
         uint256 numerator = (
             IUniswapV3Pool(_numaPool).token0() == token
-                ? sqrtPriceX96 
+                ? sqrtPriceX96
                 : FixedPoint96.Q96
         );
 
         console.log(numerator);
-
-
 
         uint256 denominator = (
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
@@ -250,45 +376,64 @@ contract NumaOracle is Ownable2Step, INumaOracle {
 
         console.log(denominator);
 
-        uint256 numaPerETHmulAmount = (
-            numerator == sqrtPriceX96 ?
-        FullMath.mulDivRoundingUp(
-            FullMath.mulDivRoundingUp(numerator, numerator* 10**18, denominator),
-            _nuAssetAmount,
-            denominator * 10**IERC20Metadata(token).decimals()// numa decimals
-        ) 
-        : FullMath.mulDivRoundingUp(
-            FullMath.mulDivRoundingUp(numerator, numerator * 10**IERC20Metadata(token).decimals(), denominator),// numa decimals
-            _nuAssetAmount,
-            denominator* 10**18
-        )
+        uint256 numaPerTokenMulAmount = (
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        numerator,
+                        numerator * 10 ** 18,
+                        denominator
+                    ),
+                    _nuAssetAmount,
+                    denominator * 10 ** IERC20Metadata(token).decimals() // numa decimals
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        numerator,
+                        numerator * 10 ** IERC20Metadata(token).decimals(),
+                        denominator
+                    ), // numa decimals
+                    _nuAssetAmount,
+                    denominator * 10 ** 18
+                )
         );
 
-        if (_converter != address(0))
-        {
-            numaPerETHmulAmount = INumaTokenToEthConverter(_converter).convertNumaPerTokenToNumaPerEth(numaPerETHmulAmount);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+        uint numaPerETHmulAmount = numaPerTokenMulAmount;
+        if (_converter != address(0)) {
+            numaPerETHmulAmount = INumaTokenToEthConverter(_converter)
+                .convertNumaPerTokenToNumaPerEth(numaPerTokenMulAmount);
         }
+
+        console2.log("oracle numa per eth");
+        console.log(numaPerTokenMulAmount);
         console.log(numaPerETHmulAmount);
 
-     
-        if (numaPerETHmulAmount < _numaPerEthVault)
-        {
+        if (numaPerETHmulAmount < _numaPerEthVault) {
+            console.log("clipped by vault");
+            console.log(_numaPerEthVault);
             numaPerETHmulAmount = _numaPerEthVault;
         }
 
-        uint256 tokensForAmount = nuAManager.getPriceInEthRoundUp(_nuAsset,numaPerETHmulAmount);
+        uint256 tokensForAmount = nuAManager.getPriceInEthRoundUp(
+            _nuAsset,
+            numaPerETHmulAmount
+        );
         return tokensForAmount;
     }
 
-
-    function getNbOfNuAssetFromNuAsset( uint256 _nuAssetAmountIn,
+    function getNbOfNuAssetFromNuAsset(
+        uint256 _nuAssetAmountIn,
         address _nuAssetIn,
         address _nuAssetOut
-    ) external view returns (uint256) 
-    {
- 
-        uint256 nuAssetOutPerETHmulAmountIn = nuAManager.getTokenPerEth(_nuAssetOut,_nuAssetAmountIn);
-        uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAssetIn,nuAssetOutPerETHmulAmountIn);
+    ) external view returns (uint256) {
+        uint256 nuAssetOutPerETHmulAmountIn = nuAManager.getTokenPerEth(
+            _nuAssetOut,
+            _nuAssetAmountIn
+        );
+        uint256 tokensForAmount = nuAManager.getPriceInEth(
+            _nuAssetIn,
+            nuAssetOutPerETHmulAmountIn
+        );
         return tokensForAmount;
     }
 
@@ -304,9 +449,9 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         address _nuAsset,
         address _numaPool,
         address _converter,
-        uint    _ethToNumaMulAmountVault
+        uint _ethToNumaMulAmountVault
     ) external view returns (uint256) {
-         // highest price for numa to minimize amount to mint
+        // highest price for numa to minimize amount to mint
         uint160 sqrtPriceX96 = getV3SqrtHighestPrice(
             _numaPool,
             intervalShort,
@@ -321,47 +466,97 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
 
-        uint256 numaPerETHmulAmount = (
-            numerator == sqrtPriceX96 ?
-            FullMath.mulDivRoundingUp(
-                FullMath.mulDivRoundingUp(numerator, numerator* 10**18, denominator),
-                _nuAssetAmount,
-                denominator * 10**IERC20Metadata(token).decimals()
-            ) 
-            : FullMath.mulDivRoundingUp(
-                FullMath.mulDivRoundingUp(numerator, numerator * 10**IERC20Metadata(token).decimals(), denominator),
-                _nuAssetAmount,
-                denominator* 10**18
-            )
+        uint256 numaPerTokenMulAmount = (
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        numerator,
+                        numerator * 10 ** 18,
+                        denominator
+                    ),
+                    _nuAssetAmount,
+                    denominator * 10 ** IERC20Metadata(token).decimals()
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        numerator,
+                        numerator * 10 ** IERC20Metadata(token).decimals(),
+                        denominator
+                    ),
+                    _nuAssetAmount,
+                    denominator * 10 ** 18
+                )
         );
 
-        if (_converter != address(0))
-        {
-            numaPerETHmulAmount = INumaTokenToEthConverter(_converter).convertNumaPerTokenToNumaPerEth(numaPerETHmulAmount);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+        uint numaPerETHmulAmount = numaPerTokenMulAmount;
+                console.log("numaPerTokenMulAmount",numaPerETHmulAmount);
+
+
+
+        // this value is weird
+           (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(_numaPool)
+            .slot0();
+   numerator= (
+            IUniswapV3Pool(_numaPool).token0() == token
+                ? sqrtPriceX96Spot
+                : FixedPoint96.Q96
+        );
+         denominator = (
+            numerator == sqrtPriceX96Spot ? FixedPoint96.Q96 : sqrtPriceX96Spot
+        );
+
+        uint256 numaPerTokenMulAmount2 = (
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        numerator,
+                        numerator * 10 ** 18,
+                        denominator
+                    ),
+                    _nuAssetAmount,
+                    denominator * 10 ** IERC20Metadata(token).decimals()
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        numerator,
+                        numerator * 10 ** IERC20Metadata(token).decimals(),
+                        denominator
+                    ),
+                    _nuAssetAmount,
+                    denominator * 10 ** 18
+                )
+        );
+
+  console.log("numaPerTokenMulAmount2",numaPerETHmulAmount);
+
+            //
+
+
+
+        if (_converter != address(0)) {
+            numaPerETHmulAmount = INumaTokenToEthConverter(_converter)
+                .convertNumaPerTokenToNumaPerEth(numaPerTokenMulAmount);
         }
-
-
-    
-        if (numaPerETHmulAmount > _ethToNumaMulAmountVault)
-        {
+    console.log("numaPerEthMulAmount",numaPerETHmulAmount);
+        if (numaPerETHmulAmount > _ethToNumaMulAmountVault) {
             numaPerETHmulAmount = _ethToNumaMulAmountVault;
         }
-
-        uint256 tokensForAmount = nuAManager.getPriceInEth(_nuAsset,numaPerETHmulAmount);
+  console.log("numaPerEthMulAmount",numaPerETHmulAmount);
+        uint256 tokensForAmount = nuAManager.getPriceInEth(
+            _nuAsset,
+            numaPerETHmulAmount
+        );
 
         return tokensForAmount;
     }
-
 
     function getNbOfNuAsset(
         uint256 _numaAmount,
         address _nuAsset,
         address _numaPool,
         address _converter,
-        uint    _EthPerNumaVault
-    ) external view returns (uint256) 
-    {
-
+        uint _EthPerNumaVault
+    ) external view returns (uint256) {
         uint160 sqrtPriceX96 = getV3SqrtLowestPrice(
             _numaPool,
             intervalShort,
@@ -377,37 +572,43 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         );
 
         uint256 TokenPerNumaMulAmount = (
-            numerator == sqrtPriceX96 ?
-                FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(denominator, denominator*10**IERC20Metadata(token).decimals() , numerator),
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** IERC20Metadata(token).decimals(),
+                        numerator
+                    ),
                     _numaAmount,
-                    numerator * 10**18// numa decimals
-            ) 
-            : FullMath.mulDivRoundingUp(
-                FullMath.mulDivRoundingUp(denominator, denominator * 10**18, numerator),// numa decimals
-                _numaAmount,
-                numerator* 10**IERC20Metadata(token).decimals()
-            )
+                    numerator * 10 ** 18 // numa decimals
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** 18,
+                        numerator
+                    ), // numa decimals
+                    _numaAmount,
+                    numerator * 10 ** IERC20Metadata(token).decimals()
+                )
         );
 
         uint256 EthPerNumaMulAmount = TokenPerNumaMulAmount;
-        if (_converter != address(0))
-        {
-            EthPerNumaMulAmount = INumaTokenToEthConverter(_converter).convertTokenPerNumaToEthPerNuma(TokenPerNumaMulAmount);
+        if (_converter != address(0)) {
+            EthPerNumaMulAmount = INumaTokenToEthConverter(_converter)
+                .convertTokenPerNumaToEthPerNuma(TokenPerNumaMulAmount);
         }
 
-
-
-        if (EthPerNumaMulAmount > _EthPerNumaVault)
-        {
+        if (EthPerNumaMulAmount > _EthPerNumaVault) {
             EthPerNumaMulAmount = _EthPerNumaVault;
         }
 
-        uint256 tokensForAmount = nuAManager.getTokenPerEth(_nuAsset,EthPerNumaMulAmount);
+        uint256 tokensForAmount = nuAManager.getTokenPerEth(
+            _nuAsset,
+            EthPerNumaMulAmount
+        );
         return tokensForAmount;
     }
-
-
 
     function getNbOfAssetneeded(
         uint256 _amountNumaOut,
@@ -415,10 +616,8 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         address _numaPool,
         address _converter,
         uint _EthPerNumaVault
-
-    ) external view returns (uint256) 
-    {
-         // highest price for numa to minimize amount to mint
+    ) external view returns (uint256) {
+        // highest price for numa to minimize amount to mint
         uint160 sqrtPriceX96 = getV3SqrtHighestPrice(
             _numaPool,
             intervalShort,
@@ -433,35 +632,42 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
 
-
-        uint256 EthPerNuma = (
-            numerator == sqrtPriceX96 ?
-            FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(denominator, denominator*10**IERC20Metadata(token).decimals() , numerator),
+        uint256 TokenPerNuma = (
+            numerator == sqrtPriceX96
+                ? FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** IERC20Metadata(token).decimals(),
+                        numerator
+                    ),
                     _amountNumaOut,
-                    numerator * 10**18// numa decimals
-            ) 
-            : FullMath.mulDivRoundingUp(
-                FullMath.mulDivRoundingUp(denominator, denominator * 10**18, numerator),// numa decimals
-                _amountNumaOut,
-                numerator* 10**IERC20Metadata(token).decimals()
-            )
+                    numerator * 10 ** 18 // numa decimals
+                )
+                : FullMath.mulDivRoundingUp(
+                    FullMath.mulDivRoundingUp(
+                        denominator,
+                        denominator * 10 ** 18,
+                        numerator
+                    ), // numa decimals
+                    _amountNumaOut,
+                    numerator * 10 ** IERC20Metadata(token).decimals()
+                )
         );
 
-        if (_converter != address(0))
-        {
-            EthPerNuma = INumaTokenToEthConverter(_converter).convertTokenPerNumaToEthPerNuma(EthPerNuma);//,0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3,1000*86400,0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612,1000*86400) ;
+        uint256 EthPerNuma = TokenPerNuma;
+        if (_converter != address(0)) {
+            EthPerNuma = INumaTokenToEthConverter(_converter)
+                .convertTokenPerNumaToEthPerNuma(TokenPerNuma);
         }
 
-
-        if (EthPerNuma < _EthPerNumaVault)
-        {
+        if (EthPerNuma < _EthPerNumaVault) {
             EthPerNuma = _EthPerNumaVault;
         }
 
-        uint256 tokensForAmount = nuAManager.getTokenPerEthRoundUp(_nuAsset,EthPerNuma);
+        uint256 tokensForAmount = nuAManager.getTokenPerEthRoundUp(
+            _nuAsset,
+            EthPerNuma
+        );
         return tokensForAmount;
     }
-
-   
 }

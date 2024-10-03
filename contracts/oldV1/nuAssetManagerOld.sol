@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-
 import "@openzeppelin/contracts_5.0.2/token/ERC20/utils/SafeERC20.sol";
 
 import "@openzeppelin/contracts_5.0.2/token/ERC20/extensions/IERC20Metadata.sol";
@@ -31,11 +30,9 @@ contract nuAssetManagerOld is INuAssetManagerOld, OracleUtils, Ownable2Step {
 
     event AddedAsset(address _assetAddress, address _pricefeed);
     event RemovedAsset(address _assetAddress);
-    constructor(address _uptimeFeedAddress) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress)
-    {
-
-    }
-
+    constructor(
+        address _uptimeFeedAddress
+    ) Ownable(msg.sender) OracleUtils(_uptimeFeedAddress) {}
 
     /**
      * @dev returns nuAssets list
@@ -111,16 +108,21 @@ contract nuAssetManagerOld is INuAssetManagerOld, OracleUtils, Ownable2Step {
             (address priceFeed, uint128 heartbeat) = (
                 info.feed,
                 info.heartbeat
-            );         
-            uint256 EthValue = getPriceInEth(totalSupply, priceFeed, heartbeat,IERC20Metadata(nuAssetList[i]).decimals());
+            );
+            uint256 EthValue = getPriceInEth(
+                totalSupply,
+                priceFeed,
+                heartbeat,
+                IERC20Metadata(nuAssetList[i]).decimals()
+            );
             result += EthValue;
         }
         return result;
     }
 
-    function changeSequencerUptimeFeedAddress(address _newaddress) external onlyOwner
-    {
+    function changeSequencerUptimeFeedAddress(
+        address _newaddress
+    ) external onlyOwner {
         sequencerUptimeFeed = _newaddress;
-
     }
 }

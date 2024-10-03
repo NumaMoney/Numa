@@ -5,16 +5,19 @@ import "./InterestRateModel.sol";
 import "@openzeppelin/contracts_5.0.2/access/Ownable.sol";
 
 /**
-  * @title Compound's JumpRateModel Contract V3
-  * @author Compound (modified by Dharma Labs)
-  * @notice Version 2 modifies Version 1 by enabling updateable parameters.
-  * @notice Version 3 includes Ownable and have updatable blocksPerYear.
-  * @notice Version 4 moves blocksPerYear to the constructor.
-  */
+ * @title Compound's JumpRateModel Contract V3
+ * @author Compound (modified by Dharma Labs)
+ * @notice Version 2 modifies Version 1 by enabling updateable parameters.
+ * @notice Version 3 includes Ownable and have updatable blocksPerYear.
+ * @notice Version 4 moves blocksPerYear to the constructor.
+ */
 contract JumpRateModelV4 is InterestRateModel, Ownable {
-
-
-    event NewInterestParams(uint baseRatePerBlock, uint multiplierPerBlock, uint jumpMultiplierPerBlock, uint kink);
+    event NewInterestParams(
+        uint baseRatePerBlock,
+        uint multiplierPerBlock,
+        uint jumpMultiplierPerBlock,
+        uint kink
+    );
 
     /**
      * @notice The approximate number of blocks per year that is assumed by the interest rate model
@@ -55,12 +58,23 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
      * @param owner_ Sets the owner of the contract to someone other than msgSender
      * @param name_ User-friendly name for the new contract
      */
-    constructor(uint blocksPerYear_, uint baseRatePerYear, uint multiplierPerYear, uint jumpMultiplierPerYear, uint kink_, 
-            address owner_, string memory name_) Ownable(owner_)
-    {
+    constructor(
+        uint blocksPerYear_,
+        uint baseRatePerYear,
+        uint multiplierPerYear,
+        uint jumpMultiplierPerYear,
+        uint kink_,
+        address owner_,
+        string memory name_
+    ) Ownable(owner_) {
         blocksPerYear = blocksPerYear_;
         name = name_;
-        updateJumpRateModelInternal(baseRatePerYear,  multiplierPerYear, jumpMultiplierPerYear, kink_);
+        updateJumpRateModelInternal(
+            baseRatePerYear,
+            multiplierPerYear,
+            jumpMultiplierPerYear,
+            kink_
+        );
     }
 
     /**
@@ -70,8 +84,18 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
      * @param jumpMultiplierPerYear The multiplierPerBlock after hitting a specified utilization point
      * @param kink_ The utilization point at which the jump multiplier is applied
      */
-    function updateJumpRateModel(uint baseRatePerYear, uint multiplierPerYear, uint jumpMultiplierPerYear, uint kink_) external onlyOwner {
-        updateJumpRateModelInternal(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink_);
+    function updateJumpRateModel(
+        uint baseRatePerYear,
+        uint multiplierPerYear,
+        uint jumpMultiplierPerYear,
+        uint kink_
+    ) external onlyOwner {
+        updateJumpRateModelInternal(
+            baseRatePerYear,
+            multiplierPerYear,
+            jumpMultiplierPerYear,
+            kink_
+        );
     }
 
     /**
@@ -81,16 +105,19 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
      * @param reserves The amount of reserves in the market (currently unused)
      * @return The utilization rate as a mantissa between [0, 1e18]
      */
-    function utilizationRate(uint cash, uint borrows, uint reserves) public override pure returns (uint) 
-    {
+    function utilizationRate(
+        uint cash,
+        uint borrows,
+        uint reserves
+    ) public pure override returns (uint) {
         // Utilization rate is 0 when there are no borrows
         if (borrows == 0) {
             return 0;
         }
 
-        return borrows * 1e18 / (cash + borrows - reserves);
+        return (borrows * 1e18) / (cash + borrows - reserves);
     }
-    
+
     /**
      * @notice Updates the blocksPerYear in order to make interest calculations simpler
      * @param blocksPerYear_ The new estimated eth blocks per year.
@@ -108,16 +135,26 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
      * @param _OldfullUtilizationRate fullUtilizationRate at last update
      * @return newRatePerBlock The borrow rate percentage per block as a mantissa (scaled by 1e18)
      */
-    function getBorrowRate(uint cash, uint borrows, uint reserves,uint deltaTime,uint _OldfullUtilizationRate) public override view returns (uint newRatePerBlock,uint) 
-    {
+    function getBorrowRate(
+        uint cash,
+        uint borrows,
+        uint reserves,
+        uint deltaTime,
+        uint _OldfullUtilizationRate
+    ) public view override returns (uint newRatePerBlock, uint) {
         uint util = utilizationRate(cash, borrows, reserves);
 
         if (util <= kink) {
-            newRatePerBlock = (util * multiplierPerBlock / 1e18) + baseRatePerBlock;
+            newRatePerBlock =
+                ((util * multiplierPerBlock) / 1e18) +
+                baseRatePerBlock;
         } else {
-            uint normalRate = (kink * multiplierPerBlock / 1e18) + baseRatePerBlock;
+            uint normalRate = ((kink * multiplierPerBlock) / 1e18) +
+                baseRatePerBlock;
             uint excessUtil = util - kink;
-            newRatePerBlock = (excessUtil * jumpMultiplierPerBlock/ 1e18) + normalRate;
+            newRatePerBlock =
+                ((excessUtil * jumpMultiplierPerBlock) / 1e18) +
+                normalRate;
         }
     }
 
@@ -129,11 +166,24 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
      * @param reserveFactorMantissa The current reserve factor for the market
      * @return The supply rate percentage per block as a mantissa (scaled by 1e18)
      */
-    function getSupplyRate(uint cash, uint borrows, uint reserves, uint reserveFactorMantissa,uint deltaTime,uint fullUtilizationRate) public override view returns (uint) {
+    function getSupplyRate(
+        uint cash,
+        uint borrows,
+        uint reserves,
+        uint reserveFactorMantissa,
+        uint deltaTime,
+        uint fullUtilizationRate
+    ) public view override returns (uint) {
         uint oneMinusReserveFactor = 1e18 - reserveFactorMantissa;
-        (uint borrowRate,) = getBorrowRate(cash, borrows, reserves,deltaTime,fullUtilizationRate);
-        uint rateToPool = borrowRate * oneMinusReserveFactor / 1e18;
-        return utilizationRate(cash, borrows, reserves) * rateToPool / 1e18;
+        (uint borrowRate, ) = getBorrowRate(
+            cash,
+            borrows,
+            reserves,
+            deltaTime,
+            fullUtilizationRate
+        );
+        uint rateToPool = (borrowRate * oneMinusReserveFactor) / 1e18;
+        return (utilizationRate(cash, borrows, reserves) * rateToPool) / 1e18;
     }
 
     /**
@@ -143,14 +193,24 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
      * @param jumpMultiplierPerYear The multiplierPerBlock after hitting a specified utilization point
      * @param kink_ The utilization point at which the jump multiplier is applied
      */
-    function updateJumpRateModelInternal(uint baseRatePerYear, uint multiplierPerYear, uint jumpMultiplierPerYear, uint kink_) internal {
-
+    function updateJumpRateModelInternal(
+        uint baseRatePerYear,
+        uint multiplierPerYear,
+        uint jumpMultiplierPerYear,
+        uint kink_
+    ) internal {
         baseRatePerBlock = baseRatePerYear / blocksPerYear;
-        multiplierPerBlock = (multiplierPerYear * 1e18) / (blocksPerYear * kink_);
+        multiplierPerBlock =
+            (multiplierPerYear * 1e18) /
+            (blocksPerYear * kink_);
         jumpMultiplierPerBlock = jumpMultiplierPerYear / blocksPerYear;
         kink = kink_;
 
-        emit NewInterestParams(baseRatePerBlock, multiplierPerBlock, jumpMultiplierPerBlock, kink);
-
+        emit NewInterestParams(
+            baseRatePerBlock,
+            multiplierPerBlock,
+            jumpMultiplierPerBlock,
+            kink
+        );
     }
 }

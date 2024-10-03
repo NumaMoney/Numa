@@ -6,34 +6,25 @@ import {IChainlinkPriceFeed} from "../interfaces/IChainlinkPriceFeed.sol";
 
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
-
-
-
 contract OracleUtils {
-
-
     uint256 private constant GRACE_PERIOD_TIME = 3600;
 
     error SequencerDown();
     error GracePeriodNotOver();
 
     address internal sequencerUptimeFeed;
-    constructor(address _uptimeFeedAddress) 
-    {
+    constructor(address _uptimeFeedAddress) {
         sequencerUptimeFeed = _uptimeFeedAddress;
     }
 
-
-    modifier checkSequencerActive() 
-    {
-        if (sequencerUptimeFeed != address(0))
-        {
+    modifier checkSequencerActive() {
+        if (sequencerUptimeFeed != address(0)) {
             (
-                /*uint80 roundID*/,
-                int256 answer,
-                uint256 startedAt,
-                /*uint256 updatedAt*/,
-                /*uint80 answeredInRound*/
+                ,
+                /*uint80 roundID*/ int256 answer,
+                uint256 startedAt /*uint256 updatedAt*/ /*uint80 answeredInRound*/,
+                ,
+
             ) = AggregatorV2V3Interface(sequencerUptimeFeed).latestRoundData();
 
             // Answer == 0: Sequencer is up
@@ -55,11 +46,20 @@ contract OracleUtils {
 
     /**
      * @dev chainlink call to a pricefeed with any amount
-     */  
-    function getTokenPerEth(uint256 _ethAmount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 tokenAmount) 
-    {
-
-        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
+     */
+    function getTokenPerEth(
+        uint256 _ethAmount,
+        address _pricefeed,
+        uint128 _chainlink_heartbeat,
+        uint256 _decimals
+    ) public view checkSequencerActive returns (uint256 tokenAmount) {
+        (
+            uint80 roundID,
+            int256 price,
+            ,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        ) = AggregatorV3Interface(_pricefeed).latestRoundData();
 
         // heartbeat check
         require(
@@ -68,9 +68,12 @@ contract OracleUtils {
         );
 
         // minAnswer/maxAnswer check
-        IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_pricefeed).aggregator());
+        IChainlinkAggregator aggregator = IChainlinkAggregator(
+            IChainlinkPriceFeed(_pricefeed).aggregator()
+        );
         require(
-            ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
+            ((price > int256(aggregator.minAnswer())) &&
+                (price < int256(aggregator.maxAnswer()))),
             "min/max reached"
         );
 
@@ -92,16 +95,25 @@ contract OracleUtils {
         }
 
         // audit fix
-        tokenAmount = tokenAmount * 10**(18 - _decimals);
+        tokenAmount = tokenAmount * 10 ** (18 - _decimals);
     }
 
     /**
      * @dev chainlink call to a pricefeed with any amount
-     */  
-    function getTokenPerEthRoundUp(uint256 _ethAmount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 tokenAmount) 
-    {
-
-        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
+     */
+    function getTokenPerEthRoundUp(
+        uint256 _ethAmount,
+        address _pricefeed,
+        uint128 _chainlink_heartbeat,
+        uint256 _decimals
+    ) public view checkSequencerActive returns (uint256 tokenAmount) {
+        (
+            uint80 roundID,
+            int256 price,
+            ,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        ) = AggregatorV3Interface(_pricefeed).latestRoundData();
 
         // heartbeat check
         require(
@@ -110,9 +122,12 @@ contract OracleUtils {
         );
 
         // minAnswer/maxAnswer check
-        IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_pricefeed).aggregator());
+        IChainlinkAggregator aggregator = IChainlinkAggregator(
+            IChainlinkPriceFeed(_pricefeed).aggregator()
+        );
         require(
-            ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
+            ((price > int256(aggregator.minAnswer())) &&
+                (price < int256(aggregator.maxAnswer()))),
             "min/max reached"
         );
 
@@ -133,16 +148,25 @@ contract OracleUtils {
             );
         }
         // audit fix
-        tokenAmount = tokenAmount * 10**(18 - _decimals);
+        tokenAmount = tokenAmount * 10 ** (18 - _decimals);
     }
 
     /**
      * @dev chainlink call to a pricefeed with any amount
-     */  
-    function getPriceInEth(uint256 _amount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 EthValue) 
-    {
-
-        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
+     */
+    function getPriceInEth(
+        uint256 _amount,
+        address _pricefeed,
+        uint128 _chainlink_heartbeat,
+        uint256 _decimals
+    ) public view checkSequencerActive returns (uint256 EthValue) {
+        (
+            uint80 roundID,
+            int256 price,
+            ,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        ) = AggregatorV3Interface(_pricefeed).latestRoundData();
 
         // heartbeat check
         require(
@@ -151,9 +175,12 @@ contract OracleUtils {
         );
 
         // minAnswer/maxAnswer check
-        IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_pricefeed).aggregator());
+        IChainlinkAggregator aggregator = IChainlinkAggregator(
+            IChainlinkPriceFeed(_pricefeed).aggregator()
+        );
         require(
-            ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
+            ((price > int256(aggregator.minAnswer())) &&
+                (price < int256(aggregator.maxAnswer()))),
             "min/max reached"
         );
 
@@ -174,17 +201,25 @@ contract OracleUtils {
             );
         }
         // audit fix
-        EthValue = EthValue * 10**(18 - _decimals);
+        EthValue = EthValue * 10 ** (18 - _decimals);
     }
-
 
     /**
      * @dev chainlink call to a pricefeed with any amount
-     */  
-    function getPriceInEthRoundUp(uint256 _amount, address _pricefeed,uint128 _chainlink_heartbeat,uint256 _decimals) public view checkSequencerActive returns (uint256 EthValue) 
-    {
-
-        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = AggregatorV3Interface(_pricefeed).latestRoundData();
+     */
+    function getPriceInEthRoundUp(
+        uint256 _amount,
+        address _pricefeed,
+        uint128 _chainlink_heartbeat,
+        uint256 _decimals
+    ) public view checkSequencerActive returns (uint256 EthValue) {
+        (
+            uint80 roundID,
+            int256 price,
+            ,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        ) = AggregatorV3Interface(_pricefeed).latestRoundData();
 
         // heartbeat check
         require(
@@ -193,9 +228,12 @@ contract OracleUtils {
         );
 
         // minAnswer/maxAnswer check
-        IChainlinkAggregator aggregator = IChainlinkAggregator(IChainlinkPriceFeed(_pricefeed).aggregator());
+        IChainlinkAggregator aggregator = IChainlinkAggregator(
+            IChainlinkPriceFeed(_pricefeed).aggregator()
+        );
         require(
-            ((price > int256(aggregator.minAnswer())) && (price < int256(aggregator.maxAnswer()))),
+            ((price > int256(aggregator.minAnswer())) &&
+                (price < int256(aggregator.maxAnswer()))),
             "min/max reached"
         );
 
@@ -216,7 +254,7 @@ contract OracleUtils {
             );
         }
         // audit fix
-        EthValue = EthValue * 10**(18 - _decimals);
+        EthValue = EthValue * 10 ** (18 - _decimals);
     }
 
     function ethLeftSide(address _chainlinkFeed) internal view returns (bool) {
@@ -228,6 +266,4 @@ contract OracleUtils {
             if (descriptionBytes[i] != ethBytes[i]) return false;
         return true;
     }
-
-
 }
