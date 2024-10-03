@@ -138,7 +138,7 @@ async function main () {
    let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);
    await lstToken.transfer(VAULT1_ADDRESS, ethers.parseEther("2000"));
 
-   await Vault1.setBuyFee(750);//25%
+   await Vault1.setBuyFee(ethers.parseEther("0.75"));//25%
 
    await VM.startDecay();
 

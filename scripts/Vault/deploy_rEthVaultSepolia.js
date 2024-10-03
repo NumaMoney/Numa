@@ -115,7 +115,7 @@ async function main () {
    await VM.setDecayValues( ethers.parseEther(decayAmount),decayPeriod,0,0,ethers.parseEther(constantRemoved));
 
    // BUY FEE 25%
-   await Vault1.setBuyFee(750);
+   await Vault1.setBuyFee(ethers.parseEther("0.75"));
 
    // TODO transfer rETH to vault to initialize price
    let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);

@@ -1328,10 +1328,10 @@ describe('NUMA VAULT', function () {
   it('Fees', async () => 
   {
   
-    await expect(VM.setBuyFee(1001)).to.be.reverted;
-    await expect(VM.setSellFee(1001)).to.be.reverted;
-    await expect(VM.setBuyFee(800)).to.not.be.reverted;
-    await expect(VM.setSellFee(800)).to.not.be.reverted;
+    await expect(VM.setBuyFee(ethers.parseEther("1.001"))).to.be.reverted;
+    await expect(VM.setSellFee(ethers.parseEther("1.001"))).to.be.reverted;
+    await expect(VM.setBuyFee(ethers.parseEther("0.8"))).to.not.be.reverted;
+    await expect(VM.setSellFee(ethers.parseEther("0.8"))).to.not.be.reverted;
     await expect(Vault1.setFee(200)).to.not.be.reverted;
     await expect(Vault1.setFee(1001)).to.be.reverted;
 
@@ -1352,7 +1352,7 @@ describe('NUMA VAULT', function () {
   it('Owner', async function () 
   {
     let addy = "0x1230000000000000000000000000000000000004";
-    let newBuySellFee = 900;// 10%
+    let newBuySellFee = ethers.parseEther("0.9");// 10%
     let newFees = 20; // 2%
     let newRwdThreshold = ethers.parseEther("1");
 

@@ -484,7 +484,7 @@ describe('NUMA LENDING', function () {
       it('Supply Numa, Borrow rEth from vault only', async () => 
       {
         
-        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.numaToEth(ethers.parseEther("1"),0);
 
         
         let numasupplyamount = ethers.parseEther("200000");
@@ -514,7 +514,7 @@ describe('NUMA LENDING', function () {
         let debt = await Vault1.getDebt();
         expect(debt).to.equal(notTooMuchrEth);
 
-        let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceAfter = await VM.numaToEth(ethers.parseEther("1"),0);
 
         // price
         expect(numaPriceAfter).to.equal(numaPriceBefore);
@@ -1200,7 +1200,7 @@ describe('NUMA LENDING', function () {
         console.log(`Supply APY for ETH ${supplyApy} %`);
         console.log(`Borrow APY for ETH ${borrowApy} %`);
         console.log("*************************");
-        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.numaToEth(ethers.parseEther("1"),0);
 
         let numasupplyamount = ethers.parseEther("200000");
         // userB supply numa      
@@ -1445,7 +1445,7 @@ describe('NUMA LENDING', function () {
         console.log(`Supply APY for ETH ${supplyApy} %`);
         console.log(`Borrow APY for ETH ${borrowApy} %`);
         console.log("*************************");
-        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.numaToEth(ethers.parseEther("1"),0);
 
         let numasupplyamount = ethers.parseEther("200000");
         // userB supply numa      
@@ -1927,8 +1927,8 @@ describe('NUMA LENDING', function () {
       {
         // standart liquidate numa borrowers
         // remove fees for checks
-        await VM.setBuyFee(1000);
-        await VM.setSellFee(1000);
+        await VM.setBuyFee(ethers.parseEther("1"));
+        await VM.setSellFee(ethers.parseEther("1"));
         await Vault1.setFee(0);
         // approve
         let rethsupplyamount = ethers.parseEther("2"); 
@@ -1997,7 +1997,7 @@ describe('NUMA LENDING', function () {
         
         // check lending protocol balance
         let numaBalanceLiquidatorBefore = await numa.balanceOf(await owner.getAddress());
-        await Vault1.liquidateNumaBorrower(await userA.getAddress(), repayAmount) ;
+        await Vault1.liquidateNumaBorrower(await userA.getAddress(), repayAmount,true,false) ;
 
         //
         // check new shortfall
@@ -2020,8 +2020,8 @@ describe('NUMA LENDING', function () {
       it('Borrow rEth, change price, liquidate simple', async () => 
       {
         // remove fees for checks
-        await VM.setBuyFee(1000);
-        await VM.setSellFee(1000);
+        await VM.setBuyFee(ethers.parseEther("1"));
+        await VM.setSellFee(ethers.parseEther("1"));
         await Vault1.setFee(0);
 
         // supply reth
@@ -2084,7 +2084,7 @@ describe('NUMA LENDING', function () {
         // await cReth.liquidateBorrow(await userB.getAddress(), repayAmount,cNuma) ;
         await rEth_contract.approve(VAULT1_ADDRESS,repayAmount);
         let rethBalanceLiquidatorBefore = await rEth_contract.balanceOf(await owner.getAddress());
-        await Vault1.liquidateLstBorrower(await userB.getAddress(), repayAmount) ;
+        await Vault1.liquidateLstBorrower(await userB.getAddress(), repayAmount,true,false) ;
 
         // check received balance equals equivalent collateral + discount
         // check lending protocol balance
@@ -2116,8 +2116,8 @@ describe('NUMA LENDING', function () {
       it('Borrow numa, change price, liquidate flashloan', async () => 
       {
         // remove fees for checks
-        await VM.setBuyFee(1000);
-        await VM.setSellFee(1000);
+        await VM.setBuyFee(ethers.parseEther("1"));
+        await VM.setSellFee(ethers.parseEther("1"));
         await Vault1.setFee(0);
 
         // supply
@@ -2161,7 +2161,7 @@ describe('NUMA LENDING', function () {
         let repayAmount = notTooMuchNuma/BigInt(2);
  
         await Vault1.setMaxLiquidationsProfit(ethers.parseEther("10"));
-        await Vault1.liquidateNumaBorrowerFlashloan(await userA.getAddress(), repayAmount);
+        await Vault1.liquidateNumaBorrower(await userA.getAddress(), repayAmount,true,true);
 
 
         //
@@ -2212,8 +2212,8 @@ describe('NUMA LENDING', function () {
       it('Borrow numa, change price, liquidate flashloan, max profit', async () => 
       {
         // remove fees for checks
-        await VM.setBuyFee(1000);
-        await VM.setSellFee(1000);
+        await VM.setBuyFee(ethers.parseEther("1"));
+        await VM.setSellFee(ethers.parseEther("1"));
         await Vault1.setFee(0);
 
         // supply
@@ -2237,7 +2237,7 @@ describe('NUMA LENDING', function () {
         // double the supply, will multiply the price by 2
         let totalsupply = await numa.totalSupply();
         await numa.burn(totalsupply/BigInt(4));
-        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.numaToEth(ethers.parseEther("1"),0);
         [_, collateral, shortfall] = await comptroller.getAccountLiquidityIsolate(
           await userA.getAddress(),cReth,cNuma
         );
@@ -2262,7 +2262,7 @@ describe('NUMA LENDING', function () {
         let maxProfitLst = await VM.numaToToken(maxProfit,await Vault1.last_lsttokenvalueWei(),ethers.parseEther("1"),1000);
         await Vault1.setMaxLiquidationsProfit(maxProfitLst);
         //await Vault1.setMaxLiquidationsProfit(ethers.parseEther("1000000000000"));
-        await Vault1.liquidateNumaBorrowerFlashloan(await userA.getAddress(), repayAmount);
+        await Vault1.liquidateNumaBorrower(await userA.getAddress(), repayAmount,true,true);
 
 
         //
@@ -2308,7 +2308,7 @@ describe('NUMA LENDING', function () {
         // check numa price is the same
 
         
-        let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceAfter = await VM.numaToEth(ethers.parseEther("1"),0);
 
         // price
         expect(numaPriceAfter).to.be.above(numaPriceBefore);
@@ -2318,8 +2318,8 @@ describe('NUMA LENDING', function () {
       it('Borrow rEth, change price, liquidate flashloan', async () => 
       {
         // remove fees for checks
-        await VM.setBuyFee(1000);
-        await VM.setSellFee(1000);
+        await VM.setBuyFee(ethers.parseEther("1"));
+        await VM.setSellFee(ethers.parseEther("1"));
         await Vault1.setFee(0);
 
         let rethsupplyamount = ethers.parseEther("1");
@@ -2382,7 +2382,7 @@ describe('NUMA LENDING', function () {
 
         let lstBalanceLiquidatorBefore = await rEth_contract.balanceOf(await owner.getAddress());
 
-        await Vault1.liquidateLstBorrowerFlashloan(await userB.getAddress(), repayAmount);
+        await Vault1.liquidateLstBorrower(await userB.getAddress(), repayAmount,true,true);
         let lstBalanceLiquidatorAfter = await rEth_contract.balanceOf(await owner.getAddress());
 
         // checks
@@ -2419,8 +2419,8 @@ describe('NUMA LENDING', function () {
 
           // standart liquidate numa borrowers
           // remove fees for checks
-          await VM.setBuyFee(1000);
-          await VM.setSellFee(1000);
+          await VM.setBuyFee(ethers.parseEther("1"));
+          await VM.setSellFee(ethers.parseEther("1"));
           await Vault1.setFee(0);
           // approve
           let rethsupplyamount = ethers.parseEther("2"); 
@@ -2508,7 +2508,7 @@ describe('NUMA LENDING', function () {
           let numaBalanceLiquidatorBefore = await numa.balanceOf(await owner.getAddress());
           let rethBalanceLiquidatorBefore = await rEth_contract.balanceOf(await owner.getAddress());
           // revert LIQUIDATE_SEIZE_TOO_MUCH because we want to liquidtae whole position and there is bad debt
-          await expect (Vault1.liquidateNumaBorrowerNoSwap(await userA.getAddress(), repayAmount) ).to.be.reverted;
+          await expect (Vault1.liquidateNumaBorrower(await userA.getAddress(), repayAmount ,true,false)).to.be.reverted;
 
           // this one will not but should when bad debt liquidations will be blocked
           // check bad debt
@@ -2540,7 +2540,7 @@ describe('NUMA LENDING', function () {
           let borrowNumaBalance = await cNuma.borrowBalanceStored(await userA.getAddress());
           repayAmount = (borrowNumaBalance)/BigInt(4);
 
-          await expect(Vault1.liquidateNumaBorrowerNoSwap(await userA.getAddress(), repayAmount)).to.be.reverted;
+          await expect(Vault1.liquidateNumaBorrower(await userA.getAddress(), repayAmount,false,false)).to.be.reverted;
   
           // repay bad debt custom function
           //address cTokenBorrowed, address cTokenCollateral,address borrower, uint actualRepayAmount
@@ -2610,24 +2610,8 @@ describe('NUMA LENDING', function () {
       it('Leverage numa', async () => 
       {
         // TODO: here, we have vault debt. Do the same with some supply in lending protocol
-
-        // await Vault1.setBuyFee(1000);
-        // await Vault1.setSellFee(1000);
-        // await Vault1.setFee(0);
-
-
-        // let amountIn = await Vault1.getBuyNumaAmountIn(ethers.parseEther("200"));
-
-        // //amountIn = amountIn + BigInt(1);
-        // console.log(amountIn);
-
-        // await rEth_contract.approve(VAULT1_ADDRESS,amountIn);
-        // let balBefore = await numa.balanceOf(await owner.getAddress());
-        // let amiutnOut = await Vault1.buy(amountIn,0,await owner.getAddress());
-        // let balAfter = await numa.balanceOf(await owner.getAddress());
-        // console.log(balAfter - balBefore);
       
-        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.numaToEth(ethers.parseEther("1"),0);
 
         let suppliedAmount = ethers.parseEther("100");
         let borrowAmount = ethers.parseEther("100");
@@ -2665,16 +2649,19 @@ describe('NUMA LENDING', function () {
 
         expect(collateral).to.be.closeTo(collateralEstimate - ethBorrowed,epsilon);
 
-        let swappedToVault = (borrowbalance * (BigInt(1000)-await Vault1.fees()) )/ BigInt(1000);
 
-        expect(vaultBalanceAfter).to.be.closeTo(vaultInitialBalance + swappedToVault - vaultDebtAfter,epsilon);
+        // fees should be 1% (20% * 5)%
+        let sentFees = (borrowbalance *  BigInt(10) )/ BigInt(1000);
+        // as we swapped back borrowed amount, vault accounting balance is back to normal
+        // but still has a debt
+        expect(vaultBalanceAfter).to.be.closeTo(vaultInitialBalance - sentFees,epsilon);
         expect(vaultDebtAfter).to.be.closeTo(borrowbalance,epsilon);
         let rethBalanceAfter = await rEth_contract.balanceOf(CRETH_ADDRESS);
         
         expect(rethBalanceAfter).to.equal(0);
 
 
-        let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceAfter = await VM.numaToEth(ethers.parseEther("1"),0);
 
         // price
         expect(numaPriceAfter).to.be.above(numaPriceBefore);
@@ -2684,7 +2671,7 @@ describe('NUMA LENDING', function () {
       });
       it('Leverage rEth', async () => 
       {
-        let numaPriceBefore = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+        let numaPriceBefore = await VM.numaToEth(ethers.parseEther("1"),0);
         // userB supply numa      
         let numasupplyamount = ethers.parseEther("200000");
         await supplyNuma(userB,numasupplyamount);
@@ -2741,7 +2728,7 @@ describe('NUMA LENDING', function () {
           // expect(rethBalanceAfter).to.equal(0);
   
   
-          let numaPriceAfter = await VM.GetNumaPriceEth(ethers.parseEther("1"));
+          let numaPriceAfter = await VM.numaToEth(ethers.parseEther("1"),0);
   
           // price
           expect(numaPriceAfter).to.be.above(numaPriceBefore);

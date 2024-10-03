@@ -219,7 +219,7 @@ async function main() {
         // init them, send lst, unpause, etc...
         // TODO: same quantity as arbitrum + check lastlstprice OK
         await lstToken.transfer(VAULT1_ADDRESS, vaultREthBalanceArbitrum);
-        await Vault1.setBuyFee(750);//25%     
+        await Vault1.setBuyFee(ethers.parseEther("0.75"));//25%     
         await VM.startDecay();
         await Vault1.unpause();
 

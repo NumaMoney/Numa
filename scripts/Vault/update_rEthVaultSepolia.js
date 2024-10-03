@@ -126,7 +126,7 @@ let Vault2  =  await hre.ethers.getContractAt("NumaVault", "0x1c027eb3A6216A0cD6
    
 
    // BUY FEE 25%
-   await Vault2.setBuyFee(750);
+   await Vault2.setBuyFee(ethers.parseEther("0.75"));
 
    // TODO transfer rETH to vault to initialize price
    let lstToken = await hre.ethers.getContractAt("LstTokenMock", LST_ADDRESS);

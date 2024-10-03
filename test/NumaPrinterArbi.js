@@ -120,9 +120,9 @@ describe('NUMA NUASSET PRINTER', function () {
     let fees = (feesPc * numaAmount)/BigInt(10000);
 
 
-    let EthPerNumaVault = await VaultManager.GetNumaPriceEth(numaAmount - fees);
-    let buyFee = await VaultManager.getBuyFee();
-    EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (BigInt(1000)-buyFee)) /BigInt(1000);
+    let EthPerNumaVault = await VaultManager.numaToEth(numaAmount - fees,1);
+    // let buyFee = await VaultManager.getBuyFee();
+    // EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (BigInt(1000)-buyFee)) /BigInt(1000);
 
 
     let amountFromOracle = await oracle.getNbOfNuAsset(
@@ -151,9 +151,9 @@ describe('NUMA NUASSET PRINTER', function () {
     let feesPc = await moneyPrinter.printAssetFeeBps();
    
 
-    let numaPerEthVault = await VaultManager.GetNumaPerEth(nuassetAmount);
-    let buyfee = await VaultManager.getBuyFee();
-    numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (BigInt(1000) + (BigInt(1000)-buyfee));
+    let numaPerEthVault = await VaultManager.ethToNuma(nuassetAmount,1);
+    // let buyfee = await VaultManager.getBuyFee();
+    // numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (BigInt(1000) + (BigInt(1000)-buyfee));
 
     let amountFromOracle = await oracle.getNbOfNumaNeeded(
       nuassetAmount,
@@ -180,7 +180,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
     let numaAmount = ethers.parseEther("10000");
     // NO SCALING
-    let amountNuAssetInView = await moneyPrinter.getNbOfnuAssetNeededForNumaView(NUUSD_ADDRESS,numaAmount);
+    let amountNuAssetInView = await moneyPrinter.getNbOfnuAssetNeededForNuma(NUUSD_ADDRESS,numaAmount);
     console.log(amountNuAssetInView);
 
     let feesPc = await moneyPrinter.burnAssetFeeBps();
@@ -189,9 +189,9 @@ describe('NUMA NUASSET PRINTER', function () {
 
     console.log(numaAmountInflated);
 
-    let EthPerNumaVault = await VaultManager.GetNumaPriceEth(numaAmountInflated);        
-    let [sellfee,] = await VaultManager.getSellFeeScaling();
-    EthPerNumaVault = (EthPerNumaVault * sellfee) /BigInt(1000);
+    let EthPerNumaVault = await VaultManager.numaToEth(numaAmountInflated,2);        
+    // let [sellfee,] = await VaultManager.getSellFeeScaling();
+    // EthPerNumaVault = (EthPerNumaVault * sellfee) /BigInt(1000);
 
     let amountFromOracle = await oracle.getNbOfAssetneeded(
       numaAmountInflated,
@@ -208,7 +208,7 @@ describe('NUMA NUASSET PRINTER', function () {
     expect(fees).to.be.closeTo(amountNuAssetInView[1], epsilon);
 
     // SCALING
-    let amountNuAssetInView2 = await moneyPrinterMock.getNbOfnuAssetNeededForNumaView(NUUSD_ADDRESS,numaAmount);
+    let amountNuAssetInView2 = await moneyPrinterMock.getNbOfnuAssetNeededForNuma(NUUSD_ADDRESS,numaAmount);
     console.log(amountNuAssetInView);
     console.log(amountNuAssetInView2);
 
@@ -222,22 +222,22 @@ describe('NUMA NUASSET PRINTER', function () {
   });
 
   
-  it('getNbOfNumaFromAssetWithFeeView', async function () 
+  it('getNbOfNumaFromAssetWithFee', async function () 
   {
 
     let nuassetAmount = ethers.parseEther("10000");
     // price from oracle
     // NO SCALING
-    let amountNuma = await moneyPrinter.getNbOfNumaFromAssetWithFeeView(NUUSD_ADDRESS,nuassetAmount);
+    let amountNuma = await moneyPrinter.getNbOfNumaFromAssetWithFee(NUUSD_ADDRESS,nuassetAmount);
    
-
+    console.log(amountNuma);
 
     let feesPc = await moneyPrinter.burnAssetFeeBps();
-    let fees = (BigInt(feesPc) * amountNuma[0])/BigInt(10000);
+    let fees = (BigInt(feesPc) * (amountNuma[0] + amountNuma[1]))/BigInt(10000);
 
-    let numaPerEthVault = await VaultManager.GetNumaPerEth(nuassetAmount);
-    let [sellfee,] = await VaultManager.getSellFeeScaling();
-    numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (sellfee);
+    let numaPerEthVault = await VaultManager.ethToNuma(nuassetAmount,2);
+    // let [sellfee,] = await VaultManager.getSellFeeScaling();
+    // numaPerEthVault = (numaPerEthVault * BigInt(1000)) / (sellfee);
 
     let amountFromOracle = await oracle.getNbOfNumaFromAsset(
       nuassetAmount,
@@ -248,24 +248,25 @@ describe('NUMA NUASSET PRINTER', function () {
     );
     console.log(amountFromOracle);
      
-    expect(amountFromOracle).to.be.closeTo(amountNuma[0], epsilon);
+    expect(amountFromOracle).to.be.closeTo(amountNuma[0] + amountNuma[1], epsilon);
     expect(fees).to.be.closeTo(amountNuma[1], epsilon);
     
     
     // SCALING
-    let amountNuma2 = await moneyPrinterMock.getNbOfNumaFromAssetWithFeeView(NUUSD_ADDRESS,nuassetAmount);
+    let amountNuma2 = await moneyPrinterMock.getNbOfNumaFromAssetWithFee(NUUSD_ADDRESS,nuassetAmount);
    
 
 
     let feesPc2 = await moneyPrinterMock.burnAssetFeeBps();
-    let fees2 = (BigInt(feesPc2) * amountNuma2[0])/BigInt(10000);
+    let amountWithFee = amountNuma2[0]+amountNuma2[1];
+    let fees2 = (BigInt(feesPc2) * amountWithFee)/BigInt(10000);
 
 
     let amountFromOracle2 = amountFromOracle/BigInt(4);
 
      console.log(fees2);
      console.log(fees);
-    expect(amountFromOracle2).to.be.closeTo(amountNuma2[0], epsilon);
+    expect(amountFromOracle2).to.be.closeTo(amountWithFee, epsilon);
     expect(fees2).to.be.closeTo(amountNuma2[1], epsilon);
     expect(fees2).to.be.closeTo(fees/BigInt(4), epsilon);
 
@@ -367,9 +368,9 @@ describe('NUMA NUASSET PRINTER', function () {
     await nuUSD.mint(await signer.getAddress(),BigInt(10)*nuAssetAmount);
 
   
-    let numaAmountAndFee = await moneyPrinter.getNbOfNumaFromAssetWithFeeView(NUUSD_ADDRESS,nuAssetAmount);
+    let numaAmountAndFee = await moneyPrinter.getNbOfNumaFromAssetWithFee(NUUSD_ADDRESS,nuAssetAmount);
     console.log(numaAmountAndFee);
-    let minAmountReached = BigInt(numaAmountAndFee[0])  - BigInt(numaAmountAndFee[1]) + BigInt(1);
+    let minAmountReached = BigInt(numaAmountAndFee[0]) + BigInt(1);
     await nuUSD.approve(MONEY_PRINTER_ADDRESS,BigInt(10)*nuAssetAmount);
 
     await expect(moneyPrinter.burnAssetInputToNuma(NUUSD_ADDRESS,nuAssetAmount,
@@ -379,28 +380,28 @@ describe('NUMA NUASSET PRINTER', function () {
     let nuUSDBefore = await nuUSD.balanceOf(await signer.getAddress());
 
     await moneyPrinter.burnAssetInputToNuma(NUUSD_ADDRESS,nuAssetAmount,
-      numaAmountAndFee[0] - numaAmountAndFee[1],await signer2.getAddress());
+      numaAmountAndFee[0],await signer2.getAddress());
 
     let numaBalAfter = await numa.balanceOf(await signer2.getAddress());
     let nuUSDAfter = await nuUSD.balanceOf(await signer.getAddress());
 
     let numaReceived = numaBalAfter-numaBalBefore;
-    expect(numaReceived).to.equal(numaAmountAndFee[0] - numaAmountAndFee[1]);
+    expect(numaReceived).to.equal(numaAmountAndFee[0]);
     expect(nuUSDBefore-nuUSDAfter).to.equal(nuAssetAmount);
 
     // SCALING
-    numaAmountAndFee = await moneyPrinterMock.getNbOfNumaFromAssetWithFeeView(NUUSD_ADDRESS,nuAssetAmount);
+    numaAmountAndFee = await moneyPrinterMock.getNbOfNumaFromAssetWithFee(NUUSD_ADDRESS,nuAssetAmount);
     numaBalBefore = await numa.balanceOf(await signer2.getAddress());
     nuUSDBefore = await nuUSD.balanceOf(await signer.getAddress());
 
     await nuUSD.approve(await moneyPrinterMock.getAddress(),BigInt(10)*nuAssetAmount);
     await moneyPrinterMock.burnAssetInputToNuma(NUUSD_ADDRESS,nuAssetAmount,
-      numaAmountAndFee[0] - numaAmountAndFee[1],await signer2.getAddress());
+      numaAmountAndFee[0],await signer2.getAddress());
 
     numaBalAfter = await numa.balanceOf(await signer2.getAddress());
     nuUSDAfter = await nuUSD.balanceOf(await signer.getAddress());
     let numaReceived2 = numaBalAfter-numaBalBefore;
-    expect(numaReceived2).to.equal(numaAmountAndFee[0] - numaAmountAndFee[1]);
+    expect(numaReceived2).to.equal(numaAmountAndFee[0]);
     expect(nuUSDBefore-nuUSDAfter).to.equal(nuAssetAmount);
     expect(numaReceived2).to.equal(numaReceived/BigInt(4));
 
@@ -412,7 +413,7 @@ describe('NUMA NUASSET PRINTER', function () {
     let numaAmount = ethers.parseEther("100000");
 
     // mint some
-    let nuAssetAmount = await moneyPrinter.getNbOfnuAssetNeededForNumaView(NUUSD_ADDRESS,numaAmount);
+    let nuAssetAmount = await moneyPrinter.getNbOfnuAssetNeededForNuma(NUUSD_ADDRESS,numaAmount);
     await nuUSD.mint(await signer.getAddress(),BigInt(10)*nuAssetAmount[0]);
 
     let maxAmountReached = BigInt(nuAssetAmount[0]) - BigInt(1);
@@ -438,7 +439,7 @@ describe('NUMA NUASSET PRINTER', function () {
     expect(usdspent).to.equal(nuAssetAmount[0]);
 
     // SCALING
-    nuAssetAmount = await moneyPrinterMock.getNbOfnuAssetNeededForNumaView(NUUSD_ADDRESS,numaAmount);
+    nuAssetAmount = await moneyPrinterMock.getNbOfnuAssetNeededForNuma(NUUSD_ADDRESS,numaAmount);
     numaBalBefore = await numa.balanceOf(await signer2.getAddress());
     nuUSDBefore = await nuUSD.balanceOf(await signer.getAddress());
 
@@ -601,7 +602,7 @@ describe('NUMA NUASSET PRINTER', function () {
 
 
     // start rebasing
-    let numaAmountAndFee = await moneyPrinter.getNbOfNumaFromAssetWithFeeView(NUUSD_ADDRESS,mintUSDAmount);
+    let numaAmountAndFee = await moneyPrinter.getNbOfNumaFromAssetWithFee(NUUSD_ADDRESS,mintUSDAmount);
     await nuUSD.approve(MONEY_PRINTER_ADDRESS,BigInt(10)*mintUSDAmount);
 
 
