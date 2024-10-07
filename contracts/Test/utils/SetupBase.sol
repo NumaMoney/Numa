@@ -229,6 +229,9 @@ contract SetupBase is
             (_reserve0, _reserve1) = (_reserve1, _reserve0);
             (_token0, _token1) = (_token1, _token0);
         }
+        console.log("encoding price");
+        console2.log(_reserve0);
+        console2.log(_reserve1);
 
         uint160 sqrtPrice = encodePriceSqrt(_reserve1, _reserve0);
         console.log("mint pool");

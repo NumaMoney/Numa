@@ -7,7 +7,8 @@ function encodePriceSqrt(
     uint256 reserve1,
     uint256 reserve0
 ) pure returns (uint160) {
-    return uint160(sqrt((reserve1 * PRECISION * PRECISION) / reserve0));
+    //return uint160(sqrt((reserve1 * PRECISION * PRECISION) / reserve0));
+    return uint160(sqrt(((reserve1 * PRECISION) / reserve0)*PRECISION));
 }
 
 // Fast sqrt, taken from Solmate.

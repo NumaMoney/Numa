@@ -14,6 +14,9 @@ import "../uniV3Interfaces/ISwapRouter.sol";
 
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
+
+import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "./TickHelper.sol";
 import "./Math.sol";
 import {encodePriceSqrt} from "./Math.sol";
@@ -35,7 +38,7 @@ import {NumaPrinter} from "../../NumaProtocol/NumaPrinter.sol";
 import "../../interfaces/INumaTokenToEthConverter.sol";
 import "../../NumaProtocol/USDCToEthConverter.sol";
 import {NumaLeverageVaultSwap} from "../../lending/NumaLeverageVaultSwap.sol";
-import {NumaLeverageLPSwap} from "../../lending/NumaLeverageLPSwap.sol";
+
 import {NumaComptroller} from "../../lending/NumaComptroller.sol";
 import "../../lending/JumpRateModelVariable.sol";
 import "../../lending/CNumaLst.sol";
@@ -305,28 +308,7 @@ contract Setup is SetupBase {
         );
         cReth.addStrategy(address(strat0));
 
-        // lp swap strategy
-        // deploy pool numa reth
-        //uint NumaAmount = 200000;
-        uint NumaAmountPool = numa.totalSupply() / 100;
-        uint rEthAmountPool = rEth.balanceOf(address(vault)) / 100;
-        console2.log(NumaAmountPool);
-        console2.log(rEthAmountPool);
-
-        // TODO: arithmetic underflowor overflow?
-        // address NUMA_RETH_POOL_ADDRESS = _setupUniswapPool(
-        //     rEth,
-        //     numa,
-        //     rEthAmountPool,
-        //     NumaAmountPool
-        // );
-
-        // // deploy and add strategy
-        // NumaLeverageLPSwap strat1 = new NumaLeverageLPSwap(
-        //     address(swapRouter),
-        //     address(vault)
-        // );
-        // cReth.addStrategy(address(strat1));
+      
     }
 
     function SwapNumaToUSDC() public {
