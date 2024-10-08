@@ -2,11 +2,7 @@
 pragma solidity 0.8.20;
 
 interface INumaVault {
-    function buyFromCToken(
-        uint _inputAmount,
-        uint _minNumaAmount,
-        bool _closePosition
-    ) external returns (uint);
+
     function getDebt() external view returns (uint);
     function repay(uint amount) external;
     function borrow(uint amount) external;
@@ -21,9 +17,6 @@ interface INumaVault {
     ) external view returns (uint256);
     function repayLeverage(bool _closePosition) external;
     function borrowLeverage(uint _amount, bool _closePosition) external;
-    function getAmountIn(
-        uint256 _amount,
-        bool _closePosition
-    ) external view returns (uint256);
+
     function updateVault() external;
 }

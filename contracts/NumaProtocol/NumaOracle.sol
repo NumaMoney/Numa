@@ -96,7 +96,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         uint EthPerNumaMulAmount = TokenPerNumaMulAmount;
         if (_converter != address(0)) {
             EthPerNumaMulAmount = INumaTokenToEthConverter(_converter)
-                .convertTokenPerNumaToEthPerNuma(TokenPerNumaMulAmount);
+                .convertTokenToEth(TokenPerNumaMulAmount);
         }
 
         return EthPerNumaMulAmount;
@@ -401,7 +401,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         uint numaPerETHmulAmount = numaPerTokenMulAmount;
         if (_converter != address(0)) {
             numaPerETHmulAmount = INumaTokenToEthConverter(_converter)
-                .convertNumaPerTokenToNumaPerEth(numaPerTokenMulAmount);
+                .convertEthToToken(numaPerTokenMulAmount);
         }
 
         console2.log("oracle numa per eth");
@@ -493,41 +493,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
 
 
 
-        // this value is weird
-           (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(_numaPool)
-            .slot0();
-   numerator= (
-            IUniswapV3Pool(_numaPool).token0() == token
-                ? sqrtPriceX96Spot
-                : FixedPoint96.Q96
-        );
-         denominator = (
-            numerator == sqrtPriceX96Spot ? FixedPoint96.Q96 : sqrtPriceX96Spot
-        );
-
-        uint256 numaPerTokenMulAmount2 = (
-            numerator == sqrtPriceX96
-                ? FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(
-                        numerator,
-                        numerator * 10 ** 18,
-                        denominator
-                    ),
-                    _nuAssetAmount,
-                    denominator * 10 ** IERC20Metadata(token).decimals()
-                )
-                : FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(
-                        numerator,
-                        numerator * 10 ** IERC20Metadata(token).decimals(),
-                        denominator
-                    ),
-                    _nuAssetAmount,
-                    denominator * 10 ** 18
-                )
-        );
-
-  console.log("numaPerTokenMulAmount2",numaPerETHmulAmount);
+       
 
             //
 
@@ -535,7 +501,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
 
         if (_converter != address(0)) {
             numaPerETHmulAmount = INumaTokenToEthConverter(_converter)
-                .convertNumaPerTokenToNumaPerEth(numaPerTokenMulAmount);
+                .convertEthToToken(numaPerTokenMulAmount);
         }
     console.log("numaPerEthMulAmount",numaPerETHmulAmount);
         if (numaPerETHmulAmount > _ethToNumaMulAmountVault) {
@@ -596,7 +562,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         uint256 EthPerNumaMulAmount = TokenPerNumaMulAmount;
         if (_converter != address(0)) {
             EthPerNumaMulAmount = INumaTokenToEthConverter(_converter)
-                .convertTokenPerNumaToEthPerNuma(TokenPerNumaMulAmount);
+                .convertTokenToEth(TokenPerNumaMulAmount);
         }
 
         if (EthPerNumaMulAmount > _EthPerNumaVault) {
@@ -657,7 +623,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         uint256 EthPerNuma = TokenPerNuma;
         if (_converter != address(0)) {
             EthPerNuma = INumaTokenToEthConverter(_converter)
-                .convertTokenPerNumaToEthPerNuma(TokenPerNuma);
+                .convertTokenToEth(TokenPerNuma);
         }
 
         if (EthPerNuma < _EthPerNumaVault) {

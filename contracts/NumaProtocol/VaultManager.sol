@@ -41,7 +41,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     // sell fee
     uint public sell_fee = 0.95 ether; // 5%
-    uint last_sell_fee = 0.95 ether;
+    uint sell_fee_withPID = 0.95 ether;
 
     // buy fee
     uint public buy_fee = 0.95 ether; // 5%
@@ -54,6 +54,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint public sell_fee_minimum = 0.5 ether;
     uint public sell_fee_deltaRebase = 24 hours;
     uint public sell_fee_deltaDebase = 24 hours;
+    uint public sell_fee_criticalMultiplier = 10000;// base 1000
 
     uint lastBlockTime_sell_fee;
     uint public sell_fee_update_blocknumber;
@@ -129,7 +130,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _sell_fee_rebaseValue,
         uint _sell_fee_deltaDebase,
         uint _sell_fee_deltaRebase,
-        uint _sell_fee_minimum
+        uint _sell_fee_minimum,
+        uint _sell_fee_criticalMultiplier
     );
 
     constructor(
@@ -227,7 +229,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _sell_fee_rebaseValue,
         uint _sell_fee_deltaDebase,
         uint _sell_fee_deltaRebase,
-        uint _sell_fee_minimum
+        uint _sell_fee_minimum,
+        uint _sell_fee_criticalMultiplier
     ) external onlyOwner {
         getSellFeeScalingUpdate();
         cf_liquid_severe = _cf_liquid_severe;
@@ -236,6 +239,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         sell_fee_deltaDebase = _sell_fee_deltaDebase;
         sell_fee_deltaRebase = _sell_fee_deltaRebase;
         sell_fee_minimum = _sell_fee_minimum;
+        sell_fee_criticalMultiplier = _sell_fee_criticalMultiplier;
 
         emit SetSellFeeParameters(
             _cf_liquid_severe,
@@ -243,7 +247,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
             _sell_fee_rebaseValue,
             _sell_fee_deltaDebase,
             _sell_fee_deltaRebase,
-            _sell_fee_minimum
+            _sell_fee_minimum,
+            _sell_fee_criticalMultiplier
         );
     }
 
@@ -256,7 +261,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
         // careful
         // changing sell fee will reset sell_fee scaling
-        last_sell_fee = sell_fee;
+        sell_fee_withPID = sell_fee;
         lastBlockTime_sell_fee = block.timestamp;
         sell_fee_update_blocknumber = block.number;
 
@@ -390,13 +395,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint currentBlock = block.number;
         if (currentBlock == sell_fee_update_blocknumber) {
             (sell_fee_memory, blockTime) = (
-                last_sell_fee,
+                sell_fee_withPID,
                 lastBlockTime_sell_fee
             );
         } else {
             (sell_fee_memory, blockTime) = getSellFeeScaling();
             // save
-            last_sell_fee = sell_fee_memory;
+            sell_fee_withPID = sell_fee_memory;
             lastBlockTime_sell_fee = blockTime;
             sell_fee_update_blocknumber = currentBlock;
         }
@@ -406,10 +411,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint blockTime = block.timestamp;
         // if it has already been updated in that block, no need to compute, we can use what's stored
         if (blockTime == sell_fee_update_blocknumber) {
-            return (last_sell_fee, lastBlockTime_sell_fee);
+            return (sell_fee_withPID, lastBlockTime_sell_fee);
         }
 
-        uint lastSellFee = last_sell_fee;
+        uint lastSellFee = sell_fee_withPID;
         // synth scaling
         uint currentLiquidCF = getGlobalLiquidCF();
         if (currentLiquidCF < cf_liquid_severe) {
@@ -428,7 +433,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
                 } else lastSellFee = sell_fee_minimum;
             }
         } else {
-            if (last_sell_fee < sell_fee) {
+            if (sell_fee_withPID < sell_fee) {
                 // rebase
                 uint nrebase = ((blockTime - lastBlockTime_sell_fee) *
                     sell_fee_rebaseValue) / (sell_fee_deltaRebase);
@@ -446,14 +451,24 @@ contract VaultManager is IVaultManager, Ownable2Step {
         // So, if synthetics are debased 4%, then the sell fee should be 9% (5% + 4%)
         // Whichever sell fee is greater should be used at any given time
         // we use scaleForPrice because we want to use this scale in our sell_fee only when cf_critical is reached
-        //(uint scaleOverride, ,,) = getSynthScaling();
         (, , uint scaleForPrice, ) = getSynthScaling();
-        uint sell_fee_update_synth = sell_fee -
-            ((BASE_1000 - scaleForPrice) * 1 ether) /
-            BASE_1000; // using scaleOverride or scaleMemory
+
+        uint sell_fee_increaseCriticalCF = ((BASE_1000 - scaleForPrice) * 1 ether) /
+            BASE_1000;
+        // add a multiplier on top
+        sell_fee_increaseCriticalCF = (sell_fee_increaseCriticalCF * sell_fee_criticalMultiplier)/1000;
+
+        // here we use original fee value increase by this factor            
+        uint sell_fee_criticalCF = sell_fee;
+
+        if (sell_fee > sell_fee_increaseCriticalCF)
+            sell_fee_criticalCF = sell_fee - sell_fee_increaseCriticalCF;
+        else   
+            sell_fee_criticalCF = 0;
+
         // Whichever sell fee is greater should be used at any given time
-        if (sell_fee_update_synth < lastSellFee)
-            lastSellFee = sell_fee_update_synth;
+        if (sell_fee_criticalCF < lastSellFee)
+            lastSellFee = sell_fee_criticalCF;
 
         // clip it by min value
         if (lastSellFee < sell_fee_minimum) lastSellFee = sell_fee_minimum;
@@ -523,7 +538,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
                 lastBlockTime
             );
         }
-        uint lastScaleMemory = lastScale;
+        uint syntheticsCurrentPID = lastScale;
         // synth scaling
         uint currentCF = getGlobalCF();
 
@@ -541,15 +556,15 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     // not enough time has passed to get some debase, so we reset our time reference
                     blockTime = lastBlockTime;
                 } else {
-                    if (lastScaleMemory > ndebase) {
-                        lastScaleMemory = lastScaleMemory - ndebase;
-                        if (lastScaleMemory < minimumScale)
-                            lastScaleMemory = minimumScale;
-                    } else lastScaleMemory = minimumScale;
+                    if (syntheticsCurrentPID > ndebase) {
+                        syntheticsCurrentPID = syntheticsCurrentPID - ndebase;
+                        if (syntheticsCurrentPID < minimumScale)
+                            syntheticsCurrentPID = minimumScale;
+                    } else syntheticsCurrentPID = minimumScale;
                 }
             }
         } else {
-            if (lastScaleMemory < BASE_1000) {
+            if (syntheticsCurrentPID < BASE_1000) {
                 // rebase linearly
                 uint nrebase = ((blockTime - lastBlockTime) * rebaseValue) /
                     (deltaRebase);
@@ -558,26 +573,35 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     // not enough time has passed to get some rebase, so we reset our time reference
                     blockTime = lastBlockTime;
                 } else {
-                    lastScaleMemory = lastScaleMemory + nrebase;
+                    syntheticsCurrentPID = syntheticsCurrentPID + nrebase;
 
-                    if (lastScaleMemory > BASE_1000)
-                        lastScaleMemory = BASE_1000;
+                    if (syntheticsCurrentPID > BASE_1000)
+                        syntheticsCurrentPID = BASE_1000;
                 }
             }
         }
 
         // apply scale to synth burn price
-        uint scale1000 = lastScaleMemory;
-        uint scaleForPrice = BASE_1000;
+        uint synthBurningPrice = syntheticsCurrentPID;// PID
+        uint syntheticsScaleForNumaPrice = BASE_1000;
         // CRITICAL_CF
         if (currentCF < cf_critical) {
             // scale such that currentCF = cf_critical
-            uint scaleSecure = (currentCF * BASE_1000) / cf_critical;
-            scaleSecure = (scaleSecure * BASE_1000) / criticalDebaseMult;
-            if (scaleSecure < scale1000) scale1000 = scaleSecure;
-            scaleForPrice = scaleSecure;
+            uint criticalDebaseFactor = (currentCF * BASE_1000) / cf_critical;
+            
+            // when reaching CF_CRITICAL, we use that criticalDebaseFactor in numa price so that numa price is clipped by this lower limit
+            syntheticsScaleForNumaPrice = criticalDebaseFactor;
+
+
+            // we apply this multiplier on the factor for when it's used on synthetics burning price
+            criticalDebaseFactor = (criticalDebaseFactor * BASE_1000) / criticalDebaseMult;
+
+            // for burning price we take the min between PID and criticalDebaseFactor
+
+            if (criticalDebaseFactor < synthBurningPrice) synthBurningPrice = criticalDebaseFactor;
+
         }
-        return (scale1000, lastScaleMemory, scaleForPrice, blockTime);
+        return (synthBurningPrice, syntheticsCurrentPID, syntheticsScaleForNumaPrice, blockTime);
     }
 
     /**

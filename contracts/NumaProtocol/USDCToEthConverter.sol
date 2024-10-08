@@ -27,8 +27,8 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
     /**
      * @dev
      */
-    function convertNumaPerTokenToNumaPerEth(
-        uint256 _numaPerTokenmulAmount
+    function convertEthToToken(
+        uint256 _ethAmount
     ) public view checkSequencerActive returns (uint256 ethValue) {
         // 1st oracle
         (
@@ -87,7 +87,7 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         // compose oracles
         if (usdcLeftSide(pricefeedUSDC_USD) && ethLeftSide(pricefeedETH_USD)) {
             ethValue = FullMath.mulDiv(
-                _numaPerTokenmulAmount,
+                _ethAmount,
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
                     uint256(price2),
                 uint256(price) *
@@ -97,7 +97,7 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
             usdcLeftSide(pricefeedUSDC_USD) && (!ethLeftSide(pricefeedETH_USD))
         ) {
             ethValue = FullMath.mulDiv(
-                _numaPerTokenmulAmount,
+                _ethAmount,
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
                     10 ** AggregatorV3Interface(pricefeedETH_USD).decimals(),
                 uint256(price) ** uint256(price2)
@@ -106,14 +106,14 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
             (!usdcLeftSide(pricefeedUSDC_USD)) && ethLeftSide(pricefeedETH_USD)
         ) {
             ethValue = FullMath.mulDiv(
-                _numaPerTokenmulAmount,
+                _ethAmount,
                 uint256(price) * uint256(price2),
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
                     10 ** AggregatorV3Interface(pricefeedETH_USD).decimals()
             );
         } else {
             ethValue = FullMath.mulDiv(
-                _numaPerTokenmulAmount,
+                _ethAmount,
                 uint256(price) *
                     10 ** AggregatorV3Interface(pricefeedETH_USD).decimals(),
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
@@ -122,8 +122,8 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         }
     }
 
-    function convertTokenPerNumaToEthPerNuma(
-        uint256 _tokenPerNumamulAmount
+    function convertTokenToEth(
+        uint256 _tokenAmount
     ) public view checkSequencerActive returns (uint256 ethValue) {
         // 1st oracle
         (
@@ -182,7 +182,7 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         // compose oracles
         if (usdcLeftSide(pricefeedUSDC_USD) && ethLeftSide(pricefeedETH_USD)) {
             ethValue = FullMath.mulDiv(
-                _tokenPerNumamulAmount,
+                _tokenAmount,
                 uint256(price) *
                     10 ** AggregatorV3Interface(pricefeedETH_USD).decimals(),
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
@@ -192,7 +192,7 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
             usdcLeftSide(pricefeedUSDC_USD) && (!ethLeftSide(pricefeedETH_USD))
         ) {
             ethValue = FullMath.mulDiv(
-                _tokenPerNumamulAmount,
+                _tokenAmount,
                 uint256(price) ** uint256(price2),
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
                     10 ** AggregatorV3Interface(pricefeedETH_USD).decimals()
@@ -201,14 +201,14 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
             (!usdcLeftSide(pricefeedUSDC_USD)) && ethLeftSide(pricefeedETH_USD)
         ) {
             ethValue = FullMath.mulDiv(
-                _tokenPerNumamulAmount,
+                _tokenAmount,
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
                     10 ** AggregatorV3Interface(pricefeedETH_USD).decimals(),
                 uint256(price) * uint256(price2)
             );
         } else {
             ethValue = FullMath.mulDiv(
-                _tokenPerNumamulAmount,
+                _tokenAmount,
                 10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
                     uint256(price2),
                 uint256(price) *

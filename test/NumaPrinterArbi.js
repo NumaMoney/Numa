@@ -675,13 +675,13 @@ describe('NUMA NUASSET PRINTER', function () {
     let theConverter = await Converter.attach(converterAddress);
   
   
-    let res = await theConverter.convertNumaPerTokenToNumaPerEth(_numaPerUSDCmulAmount) ;
+    let res = await theConverter.convertEthToToken(_numaPerUSDCmulAmount) ;
   
   
     console.log(res);
   
     let _USDCPerNumamulAmount = ethers.parseEther("0.5");
-    let res2 = await theConverter.convertTokenPerNumaToEthPerNuma(_USDCPerNumamulAmount) ;
+    let res2 = await theConverter.convertTokenToEth(_USDCPerNumamulAmount) ;
   
   
     console.log(res2);
