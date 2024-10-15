@@ -49,7 +49,7 @@ contract nuAssetManagerMock is INuAssetManager, OracleUtils {
             uint256 totalSupply = IERC20(nuAssetList[i]).totalSupply();
             address priceFeed = nuAssetInfos[nuAssetList[i]].feed;
             require(priceFeed != address(0), "currency not supported");
-            uint256 EthValue = getPriceInEth(
+            uint256 EthValue = tokenToEth(
                 totalSupply,
                 priceFeed,
                 24 hours,

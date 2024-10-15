@@ -47,7 +47,7 @@ contract OracleUtils {
     /**
      * @dev chainlink call to a pricefeed with any amount
      */
-    function getTokenPerEth(
+    function ethToToken(
         uint256 _ethAmount,
         address _pricefeed,
         uint128 _chainlink_heartbeat,
@@ -101,7 +101,7 @@ contract OracleUtils {
     /**
      * @dev chainlink call to a pricefeed with any amount
      */
-    function getTokenPerEthRoundUp(
+    function ethToTokenRoundUp(
         uint256 _ethAmount,
         address _pricefeed,
         uint128 _chainlink_heartbeat,
@@ -154,7 +154,7 @@ contract OracleUtils {
     /**
      * @dev chainlink call to a pricefeed with any amount
      */
-    function getPriceInEth(
+    function tokenToEth(
         uint256 _amount,
         address _pricefeed,
         uint128 _chainlink_heartbeat,
@@ -207,7 +207,7 @@ contract OracleUtils {
     /**
      * @dev chainlink call to a pricefeed with any amount
      */
-    function getPriceInEthRoundUp(
+    function tokenToEthRoundUp(
         uint256 _amount,
         address _pricefeed,
         uint128 _chainlink_heartbeat,

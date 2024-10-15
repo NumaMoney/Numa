@@ -3,6 +3,8 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts_5.0.2/utils/Pausable.sol";
 import "@openzeppelin/contracts_5.0.2/access/Ownable2Step.sol";
+
+import "@openzeppelin/contracts_5.0.2/token/ERC20/utils/SafeERC20.sol";
 import "../Numa.sol";
 import "./NumaMinter.sol";
 import "../interfaces/INuAsset.sol";
@@ -29,6 +31,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
     uint public burnAssetFeeBps;
     uint public swapAssetFeeBps;
 
+    uint public printBurnAssetFeeSentBps;
+    address payable private fee_address;
+
     event SetOracle(address oracle);
     event SetChainlinkFeed(address _chainlink);
     event SetNumaPool(address _pool, address _convertAddress);
@@ -37,9 +42,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
     event PrintAssetFeeBps(uint _newfee);
     event BurnAssetFeeBps(uint _newfee);
     event SwapAssetFeeBps(uint _newfee);
+    event SetFeeAddressAndBps(address payable _fee_address,uint _printBurnAssetFeeSentBps);
+
     event BurntFee(uint _fee);
     event PrintFee(uint _fee);
     event SwapFee(uint _fee);
+   
     event SetVaultManager(address _vaultManager);
 
     event SwapExactInput(
@@ -116,6 +124,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
         numaPool = _numaPool;
         tokenToEthConverter = _converterAddress;
         emit SetNumaPool(_numaPool, _converterAddress);
+    }
+
+
+    function setFeeAddress(address payable _fee_address,uint _printBurnAssetFeeSentBps) external onlyOwner {
+        fee_address = _fee_address;
+        printBurnAssetFeeSentBps = _printBurnAssetFeeSentBps;
+        emit SetFeeAddressAndBps(_fee_address,_printBurnAssetFeeSentBps);
     }
 
     /**
@@ -297,6 +312,51 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return (output, amountToBurn);
     }
 
+
+    // SWAPREFACTO
+    function getNbOfNuAssetFromNuma2(
+        address _nuAsset,
+        uint256 _numaAmount
+    ) public view returns (uint256, uint256) {
+
+        // print fee
+        uint256 amountToBurn = computeFeeAmountIn(
+            _numaAmount,
+            printAssetFeeBps
+        );
+
+        // numa --> eth vault
+        // todo explain why it's used and why buyprice
+        uint256 ethAmountVault = vaultManager.numaToEth(
+            _numaAmount - amountToBurn,
+            IVaultManager.PriceType.BuyPrice
+        );
+        // numa --> eth pool
+        uint256 ethAmountPool = oracle.numaToEth(
+            _numaAmount - amountToBurn,
+            numaPool,
+            tokenToEthConverter
+        );
+
+
+        // compare
+        uint ethAmount = ethAmountVault;
+        if (ethAmountPool < ethAmountVault)
+            ethAmount = ethAmountPool;
+        // eth --> nuasset
+
+         // nuAssetAmount --> ethAmount
+        // rounding up because of 1
+        uint256 output = oracle.ethToNuAsset(
+            _nuAsset,
+            ethAmount
+        );
+        console2.log("eth amount",ethAmount);
+
+
+        return (output, amountToBurn);
+    }
+
     /**
      * @dev returns amount of Numa needed and fee to mint an amount of nuAsset
      * @param {uint256} _nuAssetAmount amount we want to mint
@@ -321,16 +381,62 @@ contract NumaPrinter is Pausable, Ownable2Step {
             tokenToEthConverter,
             numaPerEthVault
         );
+        console2.log("costWithoutFee fucntion 1",costWithoutFee);
 
         // uint256 costWithFee = (costWithoutFee*10000) / (10000 - printAssetFeeBps);
         uint256 feeAMount = computeFeeAmountOut(
             costWithoutFee,
             printAssetFeeBps
         );
-
+console2.log("feeAMount fucntion 1",feeAMount);
         // print fee
         // will need to pay (burn): cost + amountToBurn
         //return (costWithFee, costWithFee - costWithoutFee);
+        return (costWithoutFee + feeAMount, feeAMount);
+    }
+
+    // SWAPREFACTO
+    function getNbOfNumaNeededAndFee2(
+        address _nuAsset,
+        uint256 _nuAssetAmount
+    ) public view returns (uint256, uint256) {
+
+       
+        // nuAssetAmount --> ethAmount
+        // rounding up because of 1
+        uint256 ethAmount = oracle.nuAssetToEthRoundUp(
+            _nuAsset,
+            _nuAssetAmount
+        );
+        console2.log("eth amount",ethAmount);
+
+        // ethAmount --> numaAmount from vault
+        uint256 numaAmountVault = vaultManager.ethToNuma(
+            ethAmount,
+            IVaultManager.PriceType.BuyPrice
+        );
+
+        console2.log("numa amount vault",numaAmountVault);
+
+        uint256 numaAmountPool = oracle.ethToNuma(
+            ethAmount,          
+            numaPool,
+            tokenToEthConverter
+        );
+
+        console2.log("numa amount pool",numaAmountPool);
+
+        // mint price is the minimum between vault buy price and LP price
+        // todo comment why and why we use buy price here
+        uint costWithoutFee = numaAmountPool;
+        if (numaAmountVault > numaAmountPool)
+            costWithoutFee = numaAmountVault;
+
+        uint256 feeAMount = computeFeeAmountOut(
+            costWithoutFee,
+            printAssetFeeBps
+        );
+
         return (costWithoutFee + feeAMount, feeAMount);
     }
 
@@ -432,8 +538,30 @@ contract NumaPrinter is Pausable, Ownable2Step {
         (assetAmount, numaFee) = getNbOfNuAssetFromNuma(_nuAsset, _numaAmount);
 
         require(assetAmount >= _minNuAssetAmount, "min amount");
+
+        // NEWFEE
+        // numaFee
+        // printBurnAssetFeeSentBps;
+        // fee_address;
+        // if address is specified
+        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
+        // burn the rest
+        uint amountToBurn = _numaAmount;
+        if (fee_address != address(0))
+        {
+            uint amountToSend = (numaFee * printBurnAssetFeeSentBps) / 10000;
+            SafeERC20.safeTransferFrom(
+                IERC20(address(numa)),
+                msg.sender,
+                fee_address,
+                amountToSend
+            );
+            amountToBurn -= amountToSend;
+
+        }
+
         // burn
-        numa.burnFrom(msg.sender, _numaAmount);
+        numa.burnFrom(msg.sender, amountToBurn);
         // mint token
         INuAsset nuAsset = INuAsset(_nuAsset);
         // mint token
@@ -469,11 +597,39 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // slippage check
         require(numaCost <= _maxNumaAmount, "max numa");
 
+
+        // NEWFEE
+        // numaFee
+        // printBurnAssetFeeSentBps;
+        // fee_address;
+        // if address is specified
+        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
+        // burn the rest
+        uint amountToBurn = numaCost;
+
+
+        if (fee_address != address(0))
+        {
+            uint amountToSend = (numaFee * printBurnAssetFeeSentBps) / 10000;
+            SafeERC20.safeTransferFrom(
+                IERC20(address(numa)),
+                msg.sender,
+                fee_address,
+                amountToSend
+            );
+            amountToBurn -= amountToSend;
+
+        }
+
+
+
+
+
         // burn numa
-        numa.burnFrom(msg.sender, numaCost);
+        numa.burnFrom(msg.sender, amountToBurn);
         // mint token
         mintNuAsset(nuAsset, _recipient, _nuAssetamount, numaCost);
-        emit PrintFee(numaFee); // NUMA burnt
+        emit PrintFee(numaFee); // NUMA burnt&sent
     }
 
     /**
@@ -500,6 +656,23 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         require(_output >= _minimumReceivedAmount, "minimum amount");
 
+
+        // NEWFEE
+        // numaFee
+        // printBurnAssetFeeSentBps;
+        // fee_address;
+        // if address is specified
+        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
+        // burn the rest
+
+        if (fee_address != address(0))
+        {
+            uint amountToSend = (amountToBurn * printBurnAssetFeeSentBps) / 10000;
+            minterContract.mint(fee_address, amountToSend);
+
+        }
+
+
         // burn amount
         burnNuAssetFrom(
             nuAsset,
@@ -510,7 +683,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // and mint
         minterContract.mint(_recipient, _output);
 
-        emit BurntFee(amountToBurn); // NUMA burnt (not minted)
+        emit BurntFee(amountToBurn); // NUMA burnt (not minted & minted to fee address)
         return (_output);
     }
 
@@ -532,6 +705,28 @@ contract NumaPrinter is Pausable, Ownable2Step {
             _numaAmount
         );
         require(nuAssetAmount <= _maximumAmountIn, "max amount");
+
+
+
+        // NEWFEE
+        // numaFee
+        // printBurnAssetFeeSentBps;
+        // fee_address;
+        // if address is specified
+        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
+        // burn the rest
+
+        if (fee_address != address(0))
+        {
+            uint amountToSend = (numaFee * printBurnAssetFeeSentBps) / 10000;
+            minterContract.mint(fee_address, amountToSend);
+
+        }
+
+
+
+
+
 
         // burn amount
         burnNuAssetFrom(
@@ -570,11 +765,28 @@ contract NumaPrinter is Pausable, Ownable2Step {
             _nuAssetTo,
             _amountToSwap
         );
-
         require((assetAmount) >= _amountOutMinimum, "min output");
 
+          
+        uint amountToBurn = _amountToSwap;
+        // fees are 100% sent
+        if (fee_address != address(0))
+        {
+          
+            SafeERC20.safeTransferFrom(
+                IERC20(address(numa)),
+                msg.sender,
+                fee_address,
+                amountInFee
+            );
+            amountToBurn -= amountInFee;
+
+        }
+
+//
+
         // burn asset from
-        burnNuAssetFrom(nuAssetFrom, msg.sender, _amountToSwap, 0);
+        burnNuAssetFrom(nuAssetFrom, msg.sender, amountToBurn, 0);
 
         // mint asset dest
         nuAssetTo.mint(_receiver, assetAmount);
@@ -617,8 +829,24 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         require(nuAssetAmount <= _amountInMaximum, "maximum input reached");
 
+        uint amountToBurn = nuAssetAmount;
+        // fees are 100% sent
+        if (fee_address != address(0))
+        {
+          
+            SafeERC20.safeTransferFrom(
+                IERC20(address(numa)),
+                msg.sender,
+                fee_address,
+                fee
+            );
+            amountToBurn -= fee;
+
+        }
+
+
         // burn asset from
-        burnNuAssetFrom(nuAssetFrom, msg.sender, nuAssetAmount, 0);
+        burnNuAssetFrom(nuAssetFrom, msg.sender, amountToBurn, 0);
 
         nuAssetTo.mint(_receiver, _amountToReceive);
         emit AssetMint(_nuAssetTo, _amountToReceive);

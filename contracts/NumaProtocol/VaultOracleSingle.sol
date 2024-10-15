@@ -26,7 +26,7 @@ contract VaultOracleSingle is IVaultOracleSingle, OracleUtils {
      */
     function getTokenPrice(uint256 _amount) external view returns (uint256) {
         return
-            getPriceInEth(
+            tokenToEth(
                 _amount,
                 feed,
                 chainlink_heartbeat,

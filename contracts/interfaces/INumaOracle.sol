@@ -9,6 +9,21 @@ interface INumaOracle {
         address _converter,
         uint _numaPerEthVault
     ) external view returns (uint256);
+    
+    function nuAssetToEthRoundUp(
+        address _nuAsset,
+        uint256 _amount
+    ) external view returns (uint256 EthValue) ;
+    function ethToNuAsset(
+        address _nuAsset,
+        uint256 _amount
+    ) external view returns (uint256 TokenAmount) ;
+    function ethToNuma(
+        uint256 _ethAmount,
+        address _numaPool,
+        address _converter
+    ) external view returns (uint256 numaAmount);
+
     function getNbOfNumaFromAsset(
         uint256 _amount,
         address _nuAsset,
@@ -22,6 +37,11 @@ interface INumaOracle {
         address _numaPool,
         address _converter,
         uint _EthPerNumaVault
+    ) external view returns (uint256);
+     function numaToEth(
+        uint256 _amount,
+        address _numaPool,
+        address _converter
     ) external view returns (uint256);
     function getNbOfAssetneeded(
         uint256 _amountNumaOut,

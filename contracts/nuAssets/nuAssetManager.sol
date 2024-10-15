@@ -146,7 +146,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
                 info.feed,
                 info.heartbeat
             );
-            uint256 EthValue = getPriceInEth(
+            uint256 EthValue = tokenToEth(
                 totalSupply,
                 priceFeed,
                 heartbeat,
@@ -157,7 +157,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         return result;
     }
 
-    function getPriceInEth(
+    function nuAssetToEth(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 EthValue) {
@@ -165,7 +165,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
         (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
         return
-            getPriceInEth(
+            tokenToEth(
                 _amount,
                 priceFeed,
                 heartbeat,
@@ -173,7 +173,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
             );
     }
 
-    function getPriceInEthRoundUp(
+    function nuAssetToEthRoundUp(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 EthValue) {
@@ -181,7 +181,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
         (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
         return
-            getPriceInEthRoundUp(
+            tokenToEthRoundUp(
                 _amount,
                 priceFeed,
                 heartbeat,
@@ -189,24 +189,24 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
             );
     }
 
-    function getTokenPerEth(
+    function ethToNuAsset(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 EthValue) {
         require(contains(_nuAsset), "bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
         (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
-        return getTokenPerEth(_amount, priceFeed, heartbeat, 18);
+        return ethToToken(_amount, priceFeed, heartbeat, 18);
     }
 
-    function getTokenPerEthRoundUp(
+    function ethToNuAssetRoundUp(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 EthValue) {
         require(contains(_nuAsset), "bad nuAsset");
         nuAssetInfo memory info = getNuAssetInfo(_nuAsset);
         (address priceFeed, uint128 heartbeat) = (info.feed, info.heartbeat);
-        return getTokenPerEthRoundUp(_amount, priceFeed, heartbeat, 18);
+        return ethToTokenRoundUp(_amount, priceFeed, heartbeat, 18);
     }
 
     function changeSequencerUptimeFeedAddress(

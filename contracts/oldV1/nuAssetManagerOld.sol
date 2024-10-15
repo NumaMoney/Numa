@@ -109,7 +109,7 @@ contract nuAssetManagerOld is INuAssetManagerOld, OracleUtils, Ownable2Step {
                 info.feed,
                 info.heartbeat
             );
-            uint256 EthValue = getPriceInEth(
+            uint256 EthValue = tokenToEth(
                 totalSupply,
                 priceFeed,
                 heartbeat,

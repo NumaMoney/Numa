@@ -85,7 +85,24 @@ contract PrinterTest is Setup {
         );
     }
 
-    function test_Mint_Estimations() external {
+    function test_Converter() external
+    {
+       
+        //uint usdcAmountIn = 1000000;
+        uint usdcAmountIn = 100000000;
+        uint ethAmount = usdcEthConverter.convertTokenToEth2(usdcAmountIn);
+        console2.log(ethAmount);
+
+        uint usdcAmount = usdcEthConverter.convertEthToToken2(ethAmount);
+        console2.log(usdcAmount);
+
+           assertEq(usdcAmountIn, usdcAmount); // it will fail because the code logic is not correct
+
+    }
+
+    function test_Mint_Estimations() external  {
+
+
         uint numaAmount = 1000e18;
 
         // with 1000 NUMA "nuUSDAmount" will be minted
@@ -94,26 +111,70 @@ contract PrinterTest is Setup {
             numaAmount
         );
 
+        
+
         // plug in the above numa amount to see they are identical!
         (uint numaNeeded, uint fee2) = moneyPrinter.getNbOfNumaNeededAndFee(
             address(nuUSD),
             nuUSDAmount
         );
 
+
         console2.log("nuUSD would be minted given NUMA: ", nuUSDAmount);
+
         console2.log(
             "If the same nuUSD would be the input for reverse trade the NUMA amount: ",
             numaNeeded
         );
+        
 
-        console2.log("fee1: ", fee);
-        console2.log("fee2: ", fee2);
 
-        assertEq(numaNeeded, numaAmount); // it will fail because the code logic is not correct
+
+        
+        // refacto test
+        assertEq(numaAmount, numaNeeded); // it will fail because the code logic is not correct
         assertEq(fee, fee2); // same as above.
 
+    
+    }
+
+
+
+ function test_Mint_EstimationsRefacto() external  {
+
+        // removing fees for now to see if it matches better
+        vm.stopPrank();
+        vm.startPrank(deployer);
+        moneyPrinter.setPrintAssetFeeBps(0);
+        vm.stopPrank();
+        vm.startPrank(userA);
+
+        uint numaAmount = 1000e18;
+
+        (uint256 nuUSDAmount4, uint fee4) = moneyPrinter.getNbOfNuAssetFromNuma2(
+            address(nuUSD),
+            numaAmount
+        );
+        console2.log("nuUSD would be minted given NUMA new fct: ", nuUSDAmount4);
+
+
+       (uint numaNeeded3, uint fee3) = moneyPrinter.getNbOfNumaNeededAndFee2(
+            address(nuUSD),
+            nuUSDAmount4
+        );
+
+        console2.log(
+            "If the same nuUSD would be the input for reverse trade the NUMA amount new fct: ",
+            numaNeeded3
+        );
+    
+        
+        // refacto test
+        assertEq(numaAmount, numaNeeded3); // it will fail because the code logic is not correct
+        assertEq(fee4, fee3); // same as above.
 
     }
+
     function test_Burn() external {
         numa.approve(address(moneyPrinter), type(uint).max);
 
@@ -131,6 +192,8 @@ contract PrinterTest is Setup {
         console2.log("Numa minted", numaMinted);
 
     }
+
+
 
 
     // // gets

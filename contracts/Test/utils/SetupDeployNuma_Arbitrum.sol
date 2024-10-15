@@ -183,7 +183,8 @@ contract Setup is SetupBase {
             HEART_BEAT_CUSTOM,
             PRICEFEEDETHUSD_ARBI,
             HEART_BEAT_CUSTOM,
-            UPTIME_FEED_ARBI
+            UPTIME_FEED_ARBI,
+            usdc.decimals()
         );
 
         moneyPrinter = new NumaPrinter(
