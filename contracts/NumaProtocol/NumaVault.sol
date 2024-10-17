@@ -37,6 +37,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     // fee that is sent to fee_address
     // percentage of buy/sell fee in base 1000
     uint16 public fees = 200; //20%
+    // amount percentage limit sent to fee_address
+    uint16 public feesMaxAmountPct = 50; //5%
 
     mapping(address => bool) feeWhitelisted;
 
@@ -91,7 +93,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     event Buy(uint256 received, uint256 sent, address receiver);
     event Sell(uint256 sent, uint256 received, address receiver);
     event Fee(uint256 fee, address feeReceiver);
-    event FeeUpdated(uint16 Fee);
+    event FeeUpdated(uint16 Fee,uint16 MaxPctAmount);
     event MaxPercentUpdated(uint16 NewValue);
     event ThresholdUpdated(uint256 newThreshold);
     event FeeAddressUpdated(address feeAddress);
@@ -252,10 +254,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev Set Fee percentage (exemple: 1% fee --> fee = 10)
      */
-    function setFee(uint16 _fees) external onlyOwner {
+    function setFee(uint16 _fees,uint16 _feesMaxAmountPct) external onlyOwner {
         require(_fees <= BASE_1000, "above 1000");
+        require(_feesMaxAmountPct <= BASE_1000, "above 1000");
         fees = _fees;
-        emit FeeUpdated(_fees);
+        feesMaxAmountPct = _feesMaxAmountPct;
+        emit FeeUpdated(_fees,_feesMaxAmountPct);
     }
 
     function setMaxPercent(uint16 _maxPercent) external onlyOwner {
@@ -483,7 +487,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint _inputAmount,
         uint _minNumaAmount,
         address _receiver
-    ) public nonReentrant whenNotPaused returns (uint _numaOut) {
+    ) public whenNotPaused returns (uint _numaOut) {
        
         // CF will change so we need to update interest rates
         // Note that we call that function from vault and not vaultManager, because in multi vault case, we don't need to accrue interest on
@@ -496,7 +500,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint256 MAX = (max_percent * vaultsBalance) / BASE_1000;
         require(_inputAmount <= MAX, "must trade under max");
 
-        buyNoMax(_inputAmount,_minNumaAmount,_receiver,scaleForPrice);
+        _numaOut = buyNoMax(_inputAmount,_minNumaAmount,_receiver,scaleForPrice);
 
     }
 
@@ -556,6 +560,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             uint feeTransferDen = uint(BASE_1000) * 1 ether;
             uint256 feeAmount = (feeTransferNum * _inputAmount) /
                 (feeTransferDen);
+
+
+            // clip sent fees
+            uint256 feeAmountMax = (feesMaxAmountPct * _inputAmount) /BASE_1000;
+            if (feeAmount > feeAmountMax)
+                feeAmount = feeAmountMax;
+             
 
             SafeERC20.safeTransfer(lstToken, fee_address, feeAmount);
 
@@ -726,6 +737,11 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             uint feeTransferDen = uint(BASE_1000) * 1 ether;
             uint256 feeAmount = (feeTransferNum * tokenAmount) /
                 (feeTransferDen);
+
+            // clip sent fees
+            uint256 feeAmountMax = (feesMaxAmountPct * tokenAmount) /BASE_1000;
+            if (feeAmount > feeAmountMax)
+                feeAmount = feeAmountMax;
 
             SafeERC20.safeTransfer(IERC20(lstToken), fee_address, feeAmount);
 

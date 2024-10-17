@@ -7,6 +7,7 @@ import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
 import "@openzeppelin/contracts_5.0.2/access/Ownable2Step.sol";
+import "@openzeppelin/contracts_5.0.2/utils/math/Math.sol";
 
 import "../nuAssets/nuAssetManager.sol";
 import "../interfaces/INumaOracle.sol";
@@ -21,7 +22,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
     address public immutable token;
     uint32 public intervalShort;
     uint32 public intervalLong;
-    uint maxSpotOffsetBps = 145;//1.45%
+    //uint maxSpotOffsetBps = 145;//1.45%
+    //uint maxSpotOffsetSqrtBps = 1204;//sqrt(1.45%)
+
+    uint160 maxSpotOffsetPlus1SqrtBps = 10072;
+    uint160 maxSpotOffsetMinus1SqrtBps = 9927;
 
     nuAssetManager public nuAManager;
 
@@ -62,7 +67,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             _maxSpotOffsetBps < 10000,
             "percentage must be less than 100"
         );
-        maxSpotOffsetBps = _maxSpotOffsetBps;
+
+         maxSpotOffsetPlus1SqrtBps =  100*uint160(Math.sqrt(10000 + _maxSpotOffsetBps));
+
+         maxSpotOffsetMinus1SqrtBps = 100*uint160(Math.sqrt(10000 - _maxSpotOffsetBps));
+
         emit MaxSpotOffsetBps(_maxSpotOffsetBps);
     }
 
@@ -138,20 +147,20 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                 ? FullMath.mulDivRoundingUp(
                     FullMath.mulDivRoundingUp(
                         denominator,
-                        denominator * 10 ** IERC20Metadata(token).decimals(),
+                        denominator,
                         numerator
                     ),
                     _numaAmount,
-                    numerator * 10 ** 18 // numa decimals
+                    numerator
                 )
                 : FullMath.mulDivRoundingUp(
                     FullMath.mulDivRoundingUp(
                         denominator,
-                        denominator * 10 ** 18,
+                        denominator ,
                         numerator
                     ), // numa decimals
                     _numaAmount,
-                    numerator * 10 ** IERC20Metadata(token).decimals()
+                    numerator
                 )
         );
 
@@ -181,20 +190,20 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                 ? FullMath.mulDivRoundingUp(
                     FullMath.mulDivRoundingUp(
                         denominator,
-                        denominator * 10 ** IERC20Metadata(token).decimals(),
+                        denominator,
                         numerator
                     ),
                     _numaAmount,
-                    numerator * 10 ** 18 // numa decimals
+                    numerator
                 )
                 : FullMath.mulDivRoundingUp(
                     FullMath.mulDivRoundingUp(
                         denominator,
-                        denominator * 10 ** 18,
+                        denominator,
                         numerator
                     ), // numa decimals
                     _numaAmount,
-                    numerator * 10 ** IERC20Metadata(token).decimals()
+                    numerator
                 )
         );
 
@@ -264,9 +273,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             _uniswapV3Pool,
             _intervalLong
         );
-        console2.log(sqrtPriceX96Spot);
-        console2.log(sqrtPriceX96Short);
-        console2.log(sqrtPriceX96Long);
+
         //Takes the lowest token price denominated in token
         //Condition checks to see if token is in denominator of pair, ie: token1/token0
         if (IUniswapV3Pool(_uniswapV3Pool).token0() == token) {
@@ -275,10 +282,19 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     ? sqrtPriceX96Long
                     : sqrtPriceX96Short
             );
+
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)           
+            // inverted because numa price is 1/sqrtPriceX96
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*10000)/maxSpotOffsetPlus1SqrtBps;
+ console2.log("AAAAALOW");
+            console2.log(sqrtPriceX96Spot);
+            console2.log(sqrtPriceX96SpotModified);
+                        console2.log(sqrtPriceX96Short);
+                                    console2.log(sqrtPriceX96Long);
             sqrtPriceX96 = (
-                sqrtPriceX96 >= sqrtPriceX96Spot
+                sqrtPriceX96 >= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
-                    : sqrtPriceX96Spot
+                    : sqrtPriceX96SpotModified
             );
         } else {
             sqrtPriceX96 = (
@@ -286,11 +302,19 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     ? sqrtPriceX96Long
                     : sqrtPriceX96Short
             );
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)           
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*maxSpotOffsetPlus1SqrtBps)/10000;
+             console2.log("BBBBBLOW");
+            console2.log(sqrtPriceX96Spot);
+            console2.log(sqrtPriceX96SpotModified);
+                        console2.log(sqrtPriceX96Short);
+                                    console2.log(sqrtPriceX96Long);
             sqrtPriceX96 = (
-                sqrtPriceX96 <= sqrtPriceX96Spot
+                sqrtPriceX96 <= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
-                    : sqrtPriceX96Spot
+                    : sqrtPriceX96SpotModified
             );
+             console2.log(sqrtPriceX96);
         }
         return sqrtPriceX96;
     }
@@ -335,10 +359,19 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     ? sqrtPriceX96Long
                     : sqrtPriceX96Short
             );
+          
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)           
+            // inverted because numa price is 1/sqrtPriceX96
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*10000)/maxSpotOffsetMinus1SqrtBps;
+              console2.log("AAAAA");
+            console2.log(sqrtPriceX96Spot);
+            console2.log(sqrtPriceX96SpotModified);
+                        console2.log(sqrtPriceX96Short);
+                                    console2.log(sqrtPriceX96Long);
             sqrtPriceX96 = (
-                sqrtPriceX96 <= sqrtPriceX96Spot
+                sqrtPriceX96 <= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
-                    : sqrtPriceX96Spot
+                    : sqrtPriceX96SpotModified
             );
         } else {
             sqrtPriceX96 = (
@@ -346,11 +379,21 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     ? sqrtPriceX96Long
                     : sqrtPriceX96Short
             );
+
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)                      
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*maxSpotOffsetMinus1SqrtBps)/10000;
+               console2.log("BBBBBHIGH");
+            console2.log(sqrtPriceX96Spot);
+            console2.log(sqrtPriceX96SpotModified);
+                        console2.log(sqrtPriceX96Short);
+                                    console2.log(sqrtPriceX96Long);
+
             sqrtPriceX96 = (
-                sqrtPriceX96 >= sqrtPriceX96Spot
+                sqrtPriceX96 >= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
-                    : sqrtPriceX96Spot
+                    : sqrtPriceX96SpotModified
             );
+             console2.log(sqrtPriceX96);
         }
         return sqrtPriceX96;
     }

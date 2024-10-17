@@ -2,6 +2,8 @@
 pragma solidity 0.8.20;
 contract ConstantsTest {
     // ARBITRUM ADDRESSES
+    address constant NUMA_ADMIN = 
+        0x7B224b19b2b26d1b329723712eC5f60C3f7877E3;
     address constant UPTIME_FEED_ARBI =
         0xFdB631F5EE196F0ed6FAa767959853A9F217697D;
 

@@ -60,6 +60,7 @@ contract Setup is SetupBase {
     NumaVaultOld vaultOld;
 
     function setUp() public virtual {
+        numa_admin = NUMA_ADMIN;
         // setup fork
         string memory ARBI_RPC_URL = vm.envString("URL6");
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);

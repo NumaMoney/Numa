@@ -51,7 +51,7 @@ contract SetupBase is
 {
     // Contract instances that we will use repeatedly.
     // Tokens
-
+    address numa_admin;
     ERC20 rEth;
     ERC20 usdc;
     // Vault
@@ -102,6 +102,8 @@ contract SetupBase is
         uint _rethAmount,
         NUMA numa
     ) internal {
+       
+       
         // nuAssetManager
         nuAssetMgr = new nuAssetManager(UPTIME_FEED_ARBI);
 
@@ -109,7 +111,13 @@ contract SetupBase is
         numaMinter = new NumaMinter();
         numaMinter.setTokenAddress(address(numa));
 
+        vm.stopPrank();
+        vm.startPrank(numa_admin);
+
         numa.grantRole(MINTER_ROLE, address(numaMinter));
+        vm.stopPrank();
+        vm.startPrank(deployer);
+
 
         // vault manager
         vaultManager = new VaultManager(address(numa), address(nuAssetMgr));

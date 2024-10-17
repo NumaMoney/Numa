@@ -302,7 +302,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
         else if (currentBlockts > nextCheckBlock) {
             //reset the increment max rate params
             buyPIDXhrAgo = buy_fee_PID;
-            nextCheckBlock = currentBlockts + nextCheckBlockWindowDelta; //set new block height +xhrs from now
+            //set new block height +xhrs from now
+            nextCheckBlock = currentBlockts + nextCheckBlockWindowDelta; 
         }
 
         if (address(printer) == address(0x0)) {
@@ -320,17 +321,14 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
             uint pctFromBuyPrice;
             if (_priceTWAP < _vaultBuyPrice) {
-                //percentage down from buyPrice  in base 1000, TODO: do we need more precision?
-                pctFromBuyPrice = 1000 - (1000 * _priceTWAP) / _vaultBuyPrice; //percentage down from buyPrice
-                console2.log("PCT!!!");
-                console2.log(pctFromBuyPrice);
+                //percentage down from buyPrice  in base 1000
+                pctFromBuyPrice = 1000 - (1000 * _priceTWAP) / _vaultBuyPrice; 
             }
 
             if ((pctFromBuyPrice < buyPID_incTriggerPct) && _isVaultBuy) {
                 console2.log("trigger inc");
                 //_price is within incTriggerPct% of buyPrice, and is a vault buy
-                // TODO: precision
-                uint buyPID_adj = (ethAmount * buyPID_incAmt) / (1 ether); //amount to increment// TODO: either Amt is the incPerWei or we need to divide by USDC decimals
+                uint buyPID_adj = (ethAmount * buyPID_incAmt) / (1 ether); 
 
                 console2.log("increasing by");
                 console2.log(buyPID_adj);
@@ -360,9 +358,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
             ) {
                 console2.log("decreasing PID");
                 //LP15minTWAP is below decTriggerPct% from buyPrice.
-                // TODO: pourquoi initialisé avec PID
-                // TODO: est-ce un pct?
-                uint buyPID_multTriggerPct = (buy_fee_PID * 1000) / 1 ether;
+ 
+                // if pctFromBuyPrice is more than 2 x buyfee, we use our decrease multiplier
+                uint basefee = 1 ether - buy_fee;
+                uint buyPID_multTriggerPct = (2*basefee * 1000) / 1 ether;
                 uint buyPID_adj = (ethAmount * buyPID_decAmt) / (1 ether);
 
                 if (pctFromBuyPrice > buyPID_multTriggerPct) {

@@ -57,10 +57,13 @@ contract Setup is SetupBase {
     address public vaultRwdReceiver = makeAddr("vaultRwdReceiver");
 
     function setUp() public virtual {
+
         // setup fork
         string memory ARBI_RPC_URL = vm.envString("URL7");
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);
         vm.selectFork(arbitrumFork);
+
+        numa_admin = deployer;
         // prank deployer
         vm.startPrank(deployer);
 
