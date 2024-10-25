@@ -727,7 +727,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             decimals,
             scaleForPrice
         );
-        (uint sellFee, ) = vaultManager.getSellFeeScaling();
+        (uint sellFee,,) = vaultManager.getSellFeeScaling();
         tokenAmount = (tokenAmount * sellFee) / 1 ether;
         uint result = FullMath.mulDivRoundingUp(_amount, decimals, tokenAmount);
         return result;
@@ -779,7 +779,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             scaleForPrice
         );
 
-        (uint sellFee, ) = vaultManager.getSellFeeScaling();
+        (uint sellFee,,) = vaultManager.getSellFeeScaling();
         return (tokenAmount * sellFee) / 1 ether;
     }
 

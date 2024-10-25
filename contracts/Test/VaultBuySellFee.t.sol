@@ -562,7 +562,7 @@ console2.log("mult",mult);
 
     function test_SellFee_Debase() public 
     {
-        (uint sell_feePID, ) = vaultManager.getSellFeeScaling();
+        (uint sell_feePID, ,) = vaultManager.getSellFeeScaling();
         assertEq(vaultManager.getSellFeeOriginal(), sell_feePID);
   
         uint sellPrice = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.SellPrice);
@@ -581,14 +581,14 @@ console2.log("mult",mult);
      //vm.warp(block.timestamp + 600*10);
      // should debase by 10%
       console2.log(block.timestamp);
-     (sell_feePID, ) = vaultManager.getSellFeeScaling();
+     (sell_feePID, ,) = vaultManager.getSellFeeScaling();
  //assertEq(sell_feePID, vaultManager.getSellFeeOriginal()-0.1 ether);
  // should not have changed since no delta time
  assertEq(sell_feePID, vaultManager.getSellFeeOriginal());
 vm.warp(block.timestamp + 600*10);
 // we need to simulate a new block too because we check the update_block_number
 vm.roll(block.number+1);
-(sell_feePID, ) = vaultManager.getSellFeeScaling();
+(sell_feePID,, ) = vaultManager.getSellFeeScaling();
      // should debase by 10%
      assertEq(sell_feePID, vaultManager.getSellFeeOriginal()-0.1 ether);
 
@@ -603,7 +603,7 @@ assertLt(sellPrice2, sellPrice);
     vm.warp(block.timestamp + 600*41);
 // we need to simulate a new block too because we check the update_block_number
 vm.roll(block.number+1);
-(sell_feePID, ) = vaultManager.getSellFeeScaling();
+(sell_feePID,, ) = vaultManager.getSellFeeScaling();
      // should debase by 50% because it's the max
      assertEq(sell_feePID, vaultManager.sell_fee_minimum());
 
@@ -628,7 +628,7 @@ assertLt(sellPrice3, sellPrice2);
 // we need to simulate a new block too because we check the update_block_number
 vm.roll(block.number+1);
 
-(sell_feePID, ) = vaultManager.getSellFeeScaling();
+(sell_feePID,, ) = vaultManager.getSellFeeScaling();
      assertEq(sell_feePID, vaultManager.sell_fee_minimum() + 0.3 ether);
 
 
@@ -641,7 +641,7 @@ assertGt(sellPrice4, sellPrice3);
 // we need to simulate a new block too because we check the update_block_number
 vm.roll(block.number+1);
 
-(sell_feePID, ) = vaultManager.getSellFeeScaling();
+(sell_feePID,, ) = vaultManager.getSellFeeScaling();
    
      assertEq(sell_feePID, vaultManager.getSellFeeOriginal());
 
@@ -700,7 +700,7 @@ assertGt(sellPrice5, sellPrice4);
 
     if (sell_fee_criticalCF < vaultManager.sell_fee_minimum_critical())
         sell_fee_criticalCF = vaultManager.sell_fee_minimum_critical();
-    (sell_feePID, ,,) = vaultManager.getSellFeeScalingFixed();
+    (sell_feePID, ,) = vaultManager.getSellFeeScaling();
     console2.log("sell_feePID",sell_feePID);
 
     assertEq(sell_feePID,sell_fee_criticalCF);

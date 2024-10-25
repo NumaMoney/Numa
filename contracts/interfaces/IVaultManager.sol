@@ -11,7 +11,7 @@ interface IVaultManager {
 
     function getBuyFee() external view returns (uint);
     function getSellFeeOriginal() external view returns (uint);
-    function getSellFeeScaling() external view returns (uint, uint);
+    function getSellFeeScaling() external view returns (uint, uint,uint);
     function getSellFeeScalingUpdate() external returns (uint, uint);
     function getTotalBalanceEth() external view returns (uint256);
     function getTotalBalanceEthNoDebt() external view returns (uint256);
