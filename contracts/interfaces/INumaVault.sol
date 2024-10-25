@@ -9,10 +9,10 @@ interface INumaVault {
     function getEthBalance() external view returns (uint256);
     function getEthBalanceNoDebt() external view returns (uint256);
     function GetMaxBorrow() external view returns (uint256);
-    function getSellNumaSimulateExtract(
+    function numaToLst(
         uint256 _amount
     ) external view returns (uint256);
-    function getBuyNumaSimulateExtract(
+    function lstToNuma(
         uint256 _amount
     ) external view returns (uint256);
     function repayLeverage(bool _closePosition) external;

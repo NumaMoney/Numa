@@ -59,7 +59,8 @@ contract Setup is SetupBase {
     function setUp() public virtual {
 
         // setup fork
-        string memory ARBI_RPC_URL = vm.envString("URL7");
+        //string memory ARBI_RPC_URL = vm.envString("URL7");
+        string memory ARBI_RPC_URL = vm.envString("URL6");
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);
         vm.selectFork(arbitrumFork);
 
@@ -80,6 +81,13 @@ contract Setup is SetupBase {
             PRICEFEEDETHUSD_ARBI
         );
         (, ethusd, , , ) = dataFeedETHUSD.latestRoundData();
+
+        AggregatorV2V3Interface dataFeedUSDCUSD = AggregatorV2V3Interface(
+            PRICEFEEDUSDCUSD_ARBI
+        );
+        (, usdcusd, , , ) = dataFeedUSDCUSD.latestRoundData();
+
+        
         //console.log(ethusd);
         // RETHETH
         AggregatorV2V3Interface dataFeedRETHETH = AggregatorV2V3Interface(
@@ -90,7 +98,7 @@ contract Setup is SetupBase {
         uint amountReth = (1 ether * numaSupply * 1e8) /
             (USDTONUMA * uint(ethusd) * uint(answerRETHETH));
         _setupVaultAndAssetManager(
-            402 * 86400,
+            HEART_BEAT_CUSTOM,
             vaultFeeReceiver,
             vaultRwdReceiver,
             amountReth,
@@ -121,9 +129,10 @@ contract Setup is SetupBase {
         );
 
         // advance in time for avg prices to work
-        skip(INTERVAL_LONG);
+        skip(INTERVAL_LONG*2);
+        vm.roll(block.number + 1);
         IUniswapV3Pool(NUMA_USDC_POOL_ADDRESS)
-            .increaseObservationCardinalityNext(10);
+            .increaseObservationCardinalityNext(100);
     }
 
     // function _setupUniswapPool() internal
@@ -182,7 +191,7 @@ contract Setup is SetupBase {
         );
 
         usdcEthConverter = new USDCToEthConverter(
-            PRICEFEEDUSDCUDC_ARBI,
+            PRICEFEEDUSDCUSD_ARBI,
             HEART_BEAT_CUSTOM,
             PRICEFEEDETHUSD_ARBI,
             HEART_BEAT_CUSTOM,

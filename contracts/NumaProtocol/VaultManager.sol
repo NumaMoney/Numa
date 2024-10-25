@@ -52,6 +52,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint public sell_fee_debaseValue = 0.01 ether;
     uint public sell_fee_rebaseValue = 0.01 ether;
     uint public sell_fee_minimum = 0.5 ether;
+    uint public sell_fee_minimum_critical = 0.2 ether;
     uint public sell_fee_deltaRebase = 24 hours;
     uint public sell_fee_deltaDebase = 24 hours;
     uint public sell_fee_criticalMultiplier = 10000;// base 1000
@@ -131,6 +132,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _sell_fee_deltaDebase,
         uint _sell_fee_deltaRebase,
         uint _sell_fee_minimum,
+        uint _sell_fee_minimum_critical,
         uint _sell_fee_criticalMultiplier
     );
 
@@ -179,7 +181,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _deltaRebase,
         uint _minimumScale,
         uint _criticalDebaseMult
-    ) external onlyOwner {
+    ) external {//onlyOwner {// TODO
+        console2.log(msg.sender);
+                console2.log(owner());
         getSynthScalingUpdate();
         cf_critical = _cf_critical;
         cf_warning = _cf_warning;
@@ -230,6 +234,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _sell_fee_deltaDebase,
         uint _sell_fee_deltaRebase,
         uint _sell_fee_minimum,
+        uint _sell_fee_minimum_critical,
         uint _sell_fee_criticalMultiplier
     ) external onlyOwner {
         getSellFeeScalingUpdate();
@@ -239,6 +244,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         sell_fee_deltaDebase = _sell_fee_deltaDebase;
         sell_fee_deltaRebase = _sell_fee_deltaRebase;
         sell_fee_minimum = _sell_fee_minimum;
+        sell_fee_minimum_critical = _sell_fee_minimum_critical;
         sell_fee_criticalMultiplier = _sell_fee_criticalMultiplier;
 
         emit SetSellFeeParameters(
@@ -248,6 +254,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
             _sell_fee_deltaDebase,
             _sell_fee_deltaRebase,
             _sell_fee_minimum,
+            _sell_fee_minimum_critical,
             _sell_fee_criticalMultiplier
         );
     }
@@ -273,6 +280,12 @@ contract VaultManager is IVaultManager, Ownable2Step {
      */
     function setBuyFee(uint _fee) external onlyOwner {
         require(_fee <= 1 ether, "fee too high");
+        // we do not reset PID, it will adapt on his own
+        // but we need to ensure buy_fee stays in bounds
+        require(_fee > (buyFee_max+buy_fee_PID), "fee too high");
+       
+
+
         buy_fee = _fee;
         emit BuyFeeUpdated(_fee);
     }
@@ -346,10 +359,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     }
                 }
 
-                if (buy_fee_PID > buy_fee) {
-                    buy_fee_PID = buy_fee;
-                }
-                if (buy_fee - buy_fee_PID < buyFee_max) {
+              
+                if (buy_fee  < (buyFee_max+buy_fee_PID)) {
                     //buyFee above maximum allowable = clip
                     buy_fee_PID = buy_fee - buyFee_max;
                 }
@@ -397,6 +408,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
                 sell_fee_withPID,
                 lastBlockTime_sell_fee
             );
+
         } else {
             (sell_fee_memory, blockTime) = getSellFeeScaling();
             // save
@@ -408,8 +420,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     function getSellFeeScaling() public view returns (uint, uint) {
         uint blockTime = block.timestamp;
+        console2.log(blockTime);
+        console2.log(sell_fee_update_blocknumber);
         // if it has already been updated in that block, no need to compute, we can use what's stored
-        if (blockTime == sell_fee_update_blocknumber) {
+        if (block.number == sell_fee_update_blocknumber) {
+            console2.log("same block number");
             return (sell_fee_withPID, lastBlockTime_sell_fee);
         }
 
@@ -421,6 +436,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
             // debase linearly
             uint ndebase = ((blockTime - lastBlockTime_sell_fee) *
                 sell_fee_debaseValue) / (sell_fee_deltaDebase);
+
+                console2.log("delta time",blockTime - lastBlockTime_sell_fee);
+
+                                console2.log("ndebase ",ndebase);
+
             if (ndebase <= 0) {
                 // not enough time has passed to get some debase, so we reset our time reference
                 blockTime = lastBlockTime_sell_fee;
@@ -458,12 +478,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
         sell_fee_increaseCriticalCF = (sell_fee_increaseCriticalCF * sell_fee_criticalMultiplier)/1000;
 
         // here we use original fee value increase by this factor            
-        uint sell_fee_criticalCF = sell_fee;
+        uint sell_fee_criticalCF;
 
         if (sell_fee > sell_fee_increaseCriticalCF)
             sell_fee_criticalCF = sell_fee - sell_fee_increaseCriticalCF;
-        else   
-            sell_fee_criticalCF = 0;
+
 
         // Whichever sell fee is greater should be used at any given time
         if (sell_fee_criticalCF < lastSellFee)
@@ -473,6 +492,103 @@ contract VaultManager is IVaultManager, Ownable2Step {
         if (lastSellFee < sell_fee_minimum) lastSellFee = sell_fee_minimum;
 
         return (lastSellFee, blockTime);
+    }
+    function getSellFeeScalingUpdateFixed()
+        public
+        returns (uint sell_fee_result, uint blockTime)
+    {
+        
+            (uint result, uint btime,uint sell_fee_stored,uint blockNumber) = getSellFeeScalingFixed();
+            // return
+            sell_fee_result = result;
+            blockTime = btime;
+            // save
+            sell_fee_withPID = sell_fee_stored;
+            lastBlockTime_sell_fee = blockTime;           
+            sell_fee_update_blocknumber = blockNumber;
+        }
+    
+    function getSellFeeScalingFixed() public view returns (uint, uint,uint,uint) {
+        uint blockTime = block.timestamp;
+        uint blockNumber = block.number;
+        uint lastSellFee = sell_fee_withPID;
+        // if it has already been updated in that block, no need to compute, we can use what's stored
+        if (block.number == sell_fee_update_blocknumber) {
+            blockTime = lastBlockTime_sell_fee;
+            blockNumber = sell_fee_update_blocknumber;
+        }
+        else
+        {
+
+        
+        // synth scaling
+        uint currentLiquidCF = getGlobalLiquidCF();
+        if (currentLiquidCF < cf_liquid_severe) {
+            // we need to debase
+            // debase linearly
+            uint ndebase = ((blockTime - lastBlockTime_sell_fee) *
+                sell_fee_debaseValue) / (sell_fee_deltaDebase);
+
+                console2.log("delta time",blockTime - lastBlockTime_sell_fee);
+
+                                console2.log("ndebase ",ndebase);
+
+            if (ndebase <= 0) {
+                // not enough time has passed to get some debase, so we reset our time reference
+                blockTime = lastBlockTime_sell_fee;
+            } else {
+                if (lastSellFee > ndebase) {
+                    lastSellFee = lastSellFee - ndebase;
+                    if (lastSellFee < sell_fee_minimum)
+                        lastSellFee = sell_fee_minimum;
+                } else lastSellFee = sell_fee_minimum;
+            }
+        } else {
+            if (sell_fee_withPID < sell_fee) {
+                // rebase
+                uint nrebase = ((blockTime - lastBlockTime_sell_fee) *
+                    sell_fee_rebaseValue) / (sell_fee_deltaRebase);
+                if (nrebase <= 0) {
+                    // not enough time has passed to get some rebase, so we reset our time reference
+                    blockTime = lastBlockTime_sell_fee;
+                } else {
+                    lastSellFee = lastSellFee + nrebase;
+                    if (lastSellFee > sell_fee) lastSellFee = sell_fee;
+                }
+            }
+ 
+        }
+        }
+
+
+        // Sell fee increase also considers synthetics debasing.
+        // So, if synthetics are debased 4%, then the sell fee should be 9% (5% + 4%)
+        // Whichever sell fee is greater should be used at any given time
+        // we use scaleForPrice because we want to use this scale in our sell_fee only when cf_critical is reached
+        (, , uint scaleForPrice, ) = getSynthScaling();
+
+        uint sell_fee_increaseCriticalCF = ((BASE_1000 - scaleForPrice) * 1 ether) /
+            BASE_1000;
+        // add a multiplier on top
+        sell_fee_increaseCriticalCF = (sell_fee_increaseCriticalCF * sell_fee_criticalMultiplier)/1000;
+
+        // here we use original fee value increase by this factor            
+        uint sell_fee_criticalCF;
+
+        if (sell_fee > sell_fee_increaseCriticalCF)
+            sell_fee_criticalCF = sell_fee - sell_fee_increaseCriticalCF;
+
+         // clip it by min value
+        if (sell_fee_criticalCF < sell_fee_minimum_critical) sell_fee_criticalCF = sell_fee_minimum_critical;
+
+
+        uint sell_fee_result = lastSellFee;
+        // Whichever sell fee is greater should be used at any given time
+        if (sell_fee_criticalCF < sell_fee_result)
+            sell_fee_result = sell_fee_criticalCF;
+
+       
+        return (sell_fee_result, blockTime,lastSellFee,blockNumber);
     }
 
     function updateDebasings()
@@ -668,6 +784,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
             _inputAmount,
             _decimals
         );
+
 
         uint synthValueInEth = getTotalSynthValueEth();
         synthValueInEth = (synthValueInEth * _synthScaling) / BASE_1000;

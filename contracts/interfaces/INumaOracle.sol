@@ -2,15 +2,17 @@
 pragma solidity 0.8.20;
 
 interface INumaOracle {
-    function getNbOfNumaNeeded(
-        uint256 _amount,
-        address _nuAsset,
-        address _numaPool,
-        address _converter,
-        uint _numaPerEthVault
-    ) external view returns (uint256);
-    
+    enum PriceType {
+        HighestPrice,
+        LowestPrice
+    }
+
     function nuAssetToEthRoundUp(
+        address _nuAsset,
+        uint256 _amount
+    ) external view returns (uint256 EthValue) ;
+
+    function nuAssetToEth(
         address _nuAsset,
         uint256 _amount
     ) external view returns (uint256 EthValue) ;
@@ -18,37 +20,24 @@ interface INumaOracle {
         address _nuAsset,
         uint256 _amount
     ) external view returns (uint256 TokenAmount) ;
+     function ethToNuAssetRoundUp(
+        address _nuAsset,
+        uint256 _amount
+    ) external view returns (uint256 TokenAmount) ;
     function ethToNuma(
         uint256 _ethAmount,
         address _numaPool,
-        address _converter
+        address _converter,
+        PriceType _priceType
     ) external view returns (uint256 numaAmount);
 
-    function getNbOfNumaFromAsset(
-        uint256 _amount,
-        address _nuAsset,
-        address _numaPool,
-        address _converter,
-        uint _ethToNumaMulAmountVault
-    ) external view returns (uint256);
-    function getNbOfNuAsset(
-        uint256 _amount,
-        address _nuAsset,
-        address _numaPool,
-        address _converter,
-        uint _EthPerNumaVault
-    ) external view returns (uint256);
+
+
      function numaToEth(
         uint256 _amount,
         address _numaPool,
-        address _converter
-    ) external view returns (uint256);
-    function getNbOfAssetneeded(
-        uint256 _amountNumaOut,
-        address _nuAsset,
-        address _numaPool,
         address _converter,
-        uint _EthPerNumaVault
+        PriceType _priceType
     ) external view returns (uint256);
 
     function getNbOfNuAssetFromNuAsset(

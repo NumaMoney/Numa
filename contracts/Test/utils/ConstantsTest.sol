@@ -31,7 +31,7 @@ contract ConstantsTest {
         0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
     address constant PRICEFEEDBTCETH_ARBI =
         0xc5a90A6d7e4Af242dA238FFe279e9f2BA0c64B2e;
-    address constant PRICEFEEDUSDCUDC_ARBI =
+    address constant PRICEFEEDUSDCUSD_ARBI =
         0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3;
     // SEPOLIA
     // no uptime feed
@@ -45,6 +45,10 @@ contract ConstantsTest {
     uint USDTONUMA = 2;
     uint32 INTERVAL_SHORT = 180;
     uint32 INTERVAL_LONG = 1800;
+
+
+
+
     uint128 HEART_BEAT = 86400;
     uint128 HEART_BEAT_CUSTOM = 86400 * 1000;
     uint printFee = 500; //5%

@@ -283,41 +283,6 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _nuAsset,
         uint256 _numaAmount
     ) public view returns (uint256, uint256) {
-        // print fee
-        uint256 amountToBurn = computeFeeAmountIn(
-            _numaAmount,
-            printAssetFeeBps
-        );
-
-        // this function applies fees (amount = amount - fee)
-        // AUDITV2FIX: need to use same amount as in oracle.getNbOfNuAsset
-        // uint256 EthPerNumaVault = vaultManager.GetNumaPriceEth(_numaAmount);
-        uint256 EthPerNumaVault = vaultManager.numaToEth(
-            _numaAmount - amountToBurn,
-            IVaultManager.PriceType.BuyPrice
-        );
-
-        // AUDITV2FIX: formula for fees is incorrect
-        //EthPerNumaVault = EthPerNumaVault + (EthPerNumaVault * (1000-vaultManager.getBuyFee())) /1000;
-        // computed in numaToEth
-        //EthPerNumaVault = (EthPerNumaVault*1000)/vaultManager.getBuyFee();
-
-        uint256 output = oracle.getNbOfNuAsset(
-            _numaAmount - amountToBurn,
-            _nuAsset,
-            numaPool,
-            tokenToEthConverter,
-            EthPerNumaVault
-        );
-        return (output, amountToBurn);
-    }
-
-
-    // SWAPREFACTO
-    function getNbOfNuAssetFromNuma2(
-        address _nuAsset,
-        uint256 _numaAmount
-    ) public view returns (uint256, uint256) {
 
         // print fee
         uint256 amountToBurn = computeFeeAmountIn(
@@ -325,37 +290,38 @@ contract NumaPrinter is Pausable, Ownable2Step {
             printAssetFeeBps
         );
 
-        // numa --> eth vault
-        // todo explain why it's used and why buyprice
+        // first convert this amount to Eth
+        // formula is numaPrice = min(LPshort,LPlong,LPspot,vaultBuyPrice)
+        // numa --> eth vault (buyprice)    
         uint256 ethAmountVault = vaultManager.numaToEth(
             _numaAmount - amountToBurn,
             IVaultManager.PriceType.BuyPrice
         );
-        // numa --> eth pool
+
+        // numa --> eth (pool lowest price)
         uint256 ethAmountPool = oracle.numaToEth(
             _numaAmount - amountToBurn,
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            INumaOracle.PriceType.LowestPrice
         );
-
+  
 
         // compare
         uint ethAmount = ethAmountVault;
         if (ethAmountPool < ethAmountVault)
             ethAmount = ethAmountPool;
-        // eth --> nuasset
-
-         // nuAssetAmount --> ethAmount
-        // rounding up because of 1
+      
+        // convert to nuAsset
         uint256 output = oracle.ethToNuAsset(
             _nuAsset,
             ethAmount
         );
-        console2.log("eth amount",ethAmount);
-
 
         return (output, amountToBurn);
     }
+
+
 
     /**
      * @dev returns amount of Numa needed and fee to mint an amount of nuAsset
@@ -366,49 +332,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _nuAsset,
         uint256 _nuAssetAmount
     ) public view returns (uint256, uint256) {
-        uint256 numaPerEthVault = vaultManager.ethToNuma(
-            _nuAssetAmount,
-            IVaultManager.PriceType.BuyPrice
-        );
-        //numaPerEthVault = (numaPerEthVault * 1000) / (1000 + (1000-vaultManager.getBuyFee()));
-        //numaPerEthVault = (numaPerEthVault * vaultManager.getBuyFee()) /1000 ;
-        // TODO formula look incorrect, audit missed?
-
-        uint256 costWithoutFee = oracle.getNbOfNumaNeeded(
-            _nuAssetAmount,
-            _nuAsset,
-            numaPool,
-            tokenToEthConverter,
-            numaPerEthVault
-        );
-        console2.log("costWithoutFee fucntion 1",costWithoutFee);
-
-        // uint256 costWithFee = (costWithoutFee*10000) / (10000 - printAssetFeeBps);
-        uint256 feeAMount = computeFeeAmountOut(
-            costWithoutFee,
-            printAssetFeeBps
-        );
-console2.log("feeAMount fucntion 1",feeAMount);
-        // print fee
-        // will need to pay (burn): cost + amountToBurn
-        //return (costWithFee, costWithFee - costWithoutFee);
-        return (costWithoutFee + feeAMount, feeAMount);
-    }
-
-    // SWAPREFACTO
-    function getNbOfNumaNeededAndFee2(
-        address _nuAsset,
-        uint256 _nuAssetAmount
-    ) public view returns (uint256, uint256) {
 
        
         // nuAssetAmount --> ethAmount
-        // rounding up because of 1
+        // rounding up because we want rounding in favor of the protocol
         uint256 ethAmount = oracle.nuAssetToEthRoundUp(
             _nuAsset,
             _nuAssetAmount
         );
-        console2.log("eth amount",ethAmount);
 
         // ethAmount --> numaAmount from vault
         uint256 numaAmountVault = vaultManager.ethToNuma(
@@ -416,18 +347,16 @@ console2.log("feeAMount fucntion 1",feeAMount);
             IVaultManager.PriceType.BuyPrice
         );
 
-        console2.log("numa amount vault",numaAmountVault);
-
+   
         uint256 numaAmountPool = oracle.ethToNuma(
             ethAmount,          
             numaPool,
-            tokenToEthConverter
+            tokenToEthConverter,
+            INumaOracle.PriceType.LowestPrice
         );
 
-        console2.log("numa amount pool",numaAmountPool);
 
         // mint price is the minimum between vault buy price and LP price
-        // todo comment why and why we use buy price here
         uint costWithoutFee = numaAmountPool;
         if (numaAmountVault > numaAmountPool)
             costWithoutFee = numaAmountVault;
@@ -441,6 +370,53 @@ console2.log("feeAMount fucntion 1",feeAMount);
     }
 
     // NUASSET --> NUMA
+    /**
+     * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
+     * @param {uint256} _nuAssetAmount amount of nuAsset we want to burn
+     * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
+     */
+    function getNbOfNumaFromAssetWithFee(
+        address _nuAsset,
+        uint256 _nuAssetAmount
+    ) public view returns (uint256, uint256) {
+
+        // nuAssetAmount --> ethAmount
+        // rounding down
+        uint256 ethAmount = oracle.nuAssetToEth(
+            _nuAsset,
+            _nuAssetAmount
+        );
+
+        // ethAmount --> numaAmount from vault
+        uint256 numaAmountVault = vaultManager.ethToNuma(
+            ethAmount,
+            IVaultManager.PriceType.SellPrice
+        );
+
+ 
+        uint256 numaAmountPool = oracle.ethToNuma(
+            ethAmount,          
+            numaPool,
+            tokenToEthConverter,
+            INumaOracle.PriceType.HighestPrice
+        );
+
+    
+        // burn price is the max between vault sell price and LP price
+        uint costWithoutFee = numaAmountPool;
+        if (numaAmountVault < numaAmountPool)
+            costWithoutFee = numaAmountVault;
+
+        (uint scaleOverride, , , ) = vaultManager.getSynthScaling();
+        // apply scale
+        costWithoutFee = (costWithoutFee * scaleOverride) / BASE_1000;
+
+        // burn fee
+        uint256 amountToBurn = computeFeeAmountIn(costWithoutFee, burnAssetFeeBps);
+        //uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
+        return (costWithoutFee - amountToBurn, amountToBurn);
+
+    }
 
     /**
      * @dev returns amount of nuAsset needed mint an amount of numa
@@ -452,67 +428,42 @@ console2.log("feeAMount fucntion 1",feeAMount);
         address _nuAsset,
         uint _numaAmount
     ) public view returns (uint256, uint256) {
-        //uint256 amountWithFee = (_numaAmount*10000) / (10000 - burnAssetFeeBps);
+
         uint256 feeAmount = computeFeeAmountOut(_numaAmount, burnAssetFeeBps);
         uint256 amountWithFee = _numaAmount + feeAmount;
 
-        uint256 EthPerNumaVault = vaultManager.numaToEth(
+
+        uint256 ethAmountVault = vaultManager.numaToEth(
             amountWithFee,
             IVaultManager.PriceType.SellPrice
-        ); // TODO this one was using _numaAmount, audit missed?
-
-        // (uint16 sellfee,) = vaultManager.getSellFeeScaling();
-        // EthPerNumaVault = (EthPerNumaVault * sellfee) /1000;
-
-        uint256 nuAssetIn = oracle.getNbOfAssetneeded(
+        );
+        // numa --> eth pool
+        uint256 ethAmountPool = oracle.numaToEth(
             amountWithFee,
-            _nuAsset,
             numaPool,
             tokenToEthConverter,
-            EthPerNumaVault
+            INumaOracle.PriceType.HighestPrice
         );
 
+
+        // burn price is the max between vault sell price and LP price
+        uint ethAmount = ethAmountVault;
+        if (ethAmountPool > ethAmountVault)
+            ethAmount = ethAmountPool;
+        
+
+        // ethAmount -- nuAssetAmount
+        // rounding up because we need roundings in favor of protocol
+        uint256 nuAssetIn = oracle.ethToNuAssetRoundUp(
+            _nuAsset,
+            ethAmount
+        );
         (uint scaleOverride, , , ) = vaultManager.getSynthScaling();
         // apply scale
         nuAssetIn = (nuAssetIn * BASE_1000) / scaleOverride;
 
         return (nuAssetIn, amountWithFee - _numaAmount);
-    }
-
-    /**
-     * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
-     * @param {uint256} _nuAssetAmount amount of nuAsset we want to burn
-     * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
-     */
-    function getNbOfNumaFromAssetWithFee(
-        address _nuAsset,
-        uint256 _nuAssetAmount
-    ) public view returns (uint256, uint256) {
-        uint256 ethToNumaMulAmount = vaultManager.ethToNuma(
-            _nuAssetAmount,
-            IVaultManager.PriceType.SellPrice
-        );
-
-        console.log("Eth to numa",ethToNumaMulAmount);
-        // (uint16 sellfee,) = vaultManager.getSellFeeScaling();
-        // numaPerEthVault = (numaPerEthVault * 1000) / (sellfee);
-
-        uint256 _output = oracle.getNbOfNumaFromAsset(
-            _nuAssetAmount,
-            _nuAsset,
-            numaPool,
-            tokenToEthConverter,
-            ethToNumaMulAmount
-        );
-
-        (uint scaleOverride, , , ) = vaultManager.getSynthScaling();
-        // apply scale
-        _output = (_output * scaleOverride) / BASE_1000;
-
-        // burn fee
-        uint256 amountToBurn = computeFeeAmountIn(_output, burnAssetFeeBps);
-        //uint256 amountToBurn = (_output * burnAssetFeeBps) / 10000;
-        return (_output - amountToBurn, amountToBurn);
+ 
     }
 
     /**
@@ -539,13 +490,6 @@ console2.log("feeAMount fucntion 1",feeAMount);
 
         require(assetAmount >= _minNuAssetAmount, "min amount");
 
-        // NEWFEE
-        // numaFee
-        // printBurnAssetFeeSentBps;
-        // fee_address;
-        // if address is specified
-        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
-        // burn the rest
         uint amountToBurn = _numaAmount;
         if (fee_address != address(0))
         {
@@ -597,14 +541,6 @@ console2.log("feeAMount fucntion 1",feeAMount);
         // slippage check
         require(numaCost <= _maxNumaAmount, "max numa");
 
-
-        // NEWFEE
-        // numaFee
-        // printBurnAssetFeeSentBps;
-        // fee_address;
-        // if address is specified
-        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
-        // burn the rest
         uint amountToBurn = numaCost;
 
 
@@ -656,15 +592,6 @@ console2.log("feeAMount fucntion 1",feeAMount);
 
         require(_output >= _minimumReceivedAmount, "minimum amount");
 
-
-        // NEWFEE
-        // numaFee
-        // printBurnAssetFeeSentBps;
-        // fee_address;
-        // if address is specified
-        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
-        // burn the rest
-
         if (fee_address != address(0))
         {
             uint amountToSend = (amountToBurn * printBurnAssetFeeSentBps) / 10000;
@@ -706,27 +633,12 @@ console2.log("feeAMount fucntion 1",feeAMount);
         );
         require(nuAssetAmount <= _maximumAmountIn, "max amount");
 
-
-
-        // NEWFEE
-        // numaFee
-        // printBurnAssetFeeSentBps;
-        // fee_address;
-        // if address is specified
-        // send numaFee * printBurnAssetFeeSentBps / 10000 to address
-        // burn the rest
-
         if (fee_address != address(0))
         {
             uint amountToSend = (numaFee * printBurnAssetFeeSentBps) / 10000;
             minterContract.mint(fee_address, amountToSend);
 
         }
-
-
-
-
-
 
         // burn amount
         burnNuAssetFrom(

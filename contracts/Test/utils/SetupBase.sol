@@ -88,7 +88,7 @@ contract SetupBase is
 
     //
     int ethusd;
-
+    int usdcusd;
     function _setUpTokens() internal virtual {
         //
         rEth = ERC20(RETH_ADDRESS_ARBI);

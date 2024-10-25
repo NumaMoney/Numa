@@ -138,21 +138,24 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
         uint256 nbNuAssets = nuAssetList.length;
         require(nbNuAssets <= max_nuasset, "too many nuAssets in list");
         for (uint256 i = 0; i < nbNuAssets; i++) {
-            address nuAsset = nuAssetList[i];
+            address nuAsset = nuAssetList[i];            
             uint256 totalSupply = IERC20(nuAsset).totalSupply();
-            nuAssetInfo memory info = nuAssetInfos[nuAsset];
+            if (totalSupply > 0)
+            {
+                nuAssetInfo memory info = nuAssetInfos[nuAsset];
 
-            (address priceFeed, uint128 heartbeat) = (
-                info.feed,
-                info.heartbeat
-            );
-            uint256 EthValue = tokenToEth(
-                totalSupply,
-                priceFeed,
-                heartbeat,
-                IERC20Metadata(nuAsset).decimals()
-            );
-            result += EthValue;
+                (address priceFeed, uint128 heartbeat) = (
+                    info.feed,
+                    info.heartbeat
+                );
+                uint256 EthValue = tokenToEth(
+                    totalSupply,
+                    priceFeed,
+                    heartbeat,
+                    IERC20Metadata(nuAsset).decimals()
+                );
+                result += EthValue;
+            }
         }
         return result;
     }

@@ -24,7 +24,7 @@ contract NumaPriceOracleNew is PriceOracleCollateralBorrow, Ownable {
         require((address(vault) != address(0)), "no vault");
         if (compareStrings(cToken.symbol(), cNumaName)) {
             // numa price from vault
-            return vault.getSellNumaSimulateExtract(1e18);
+            return vault.numaToLst(1e18);
         } else if (compareStrings(cToken.symbol(), cLstName)) {
             //
             return 1e18; // rEth has 18 decimals
@@ -39,7 +39,7 @@ contract NumaPriceOracleNew is PriceOracleCollateralBorrow, Ownable {
         require((address(vault) != address(0)), "no vault");
         if (compareStrings(cToken.symbol(), cNumaName)) {
             // numa price from vault
-            uint rEthPriceInNuma = vault.getBuyNumaSimulateExtract(1e18);
+            uint rEthPriceInNuma = vault.lstToNuma(1e18);
             return FullMath.mulDivRoundingUp(1e18, 1e18, rEthPriceInNuma); // rounded up because we prefer borrowed to be worth a little bit more
         } else if (compareStrings(cToken.symbol(), cLstName)) {
             //

@@ -218,6 +218,8 @@ contract CNumaLst is CNumaToken {
                 uint amountNeeded = borrowAmount - cashPrior;
                 uint maxBorrowableAmountFromVault = vault.GetMaxBorrow();
 
+                console2.log("maxBorrowableAmountFromVault",maxBorrowableAmountFromVault);
+                console2.log("amountNeeded",amountNeeded);
                 if (amountNeeded <= maxBorrowableAmountFromVault) {
                     // if ok, borrow from vault
                     vault.borrow(amountNeeded);
