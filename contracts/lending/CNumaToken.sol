@@ -67,7 +67,6 @@ contract CNumaToken is CErc20Immutable {
         vault = INumaVault(_vault);
     }
 
-
     function setVault(address _vault) external onlyAdmin {
         vault = INumaVault(_vault);
         emit SetVault(_vault);
@@ -119,17 +118,15 @@ contract CNumaToken is CErc20Immutable {
         borrowFreshNoTransfer(payable(borrower), borrowAmount);
     }
 
-
-
     function getAmountIn(
         uint256 _amount,
         bool _closePosition,
         uint _strategyIndex
     ) external view returns (uint256) {
-         INumaLeverageStrategy strat = INumaLeverageStrategy(
+        INumaLeverageStrategy strat = INumaLeverageStrategy(
             leverageStrategies.at(_strategyIndex)
         );
-        return strat.getAmountIn(_amount,_closePosition);
+        return strat.getAmountIn(_amount, _closePosition);
     }
 
     /**
@@ -188,7 +185,7 @@ contract CNumaToken is CErc20Immutable {
             msg.sender,
             receivedtokens
         );
-        
+
         // how much to we need to borrow to repay vault
         uint borrowAmount = strat.getAmountIn(_borrowAmount, false);
         //
@@ -198,14 +195,14 @@ contract CNumaToken is CErc20Immutable {
         borrowInternalNoTransfer(borrowAmount, msg.sender);
         //uint accountBorrowAfter = accountBorrows[msg.sender].principal;
         require(
-            (accountBorrows[msg.sender].principal - accountBorrowBefore) == borrowAmount,
+            (accountBorrows[msg.sender].principal - accountBorrowBefore) ==
+                borrowAmount,
             "borrow ko"
         );
 
-
         // swap
         EIP20Interface(underlying).approve(address(strat), borrowAmount);
-        (uint collateralReceived,uint unUsedInput) = strat.swap(
+        (uint collateralReceived, uint unUsedInput) = strat.swap(
             borrowAmount,
             _borrowAmount,
             false
@@ -227,8 +224,7 @@ contract CNumaToken is CErc20Immutable {
                 collateralReceived - _borrowAmount
             );
         }
-        if (unUsedInput > 0)
-        {
+        if (unUsedInput > 0) {
             // we did not use all that was borrowed
             // so we can repay that borrow
             repayBorrowFresh(address(this), msg.sender, unUsedInput);
@@ -240,7 +236,6 @@ contract CNumaToken is CErc20Immutable {
             borrowAmount
         );
     }
-
 
     function closeLeverageAmount(
         CNumaToken _collateral,
@@ -261,7 +256,6 @@ contract CNumaToken is CErc20Immutable {
         uint cTokenAmount = div_(swapAmountIn, exchangeRate);
         return (cTokenAmount, swapAmountIn);
     }
-  
 
     function closeLeverageStrategy(
         CNumaToken _collateral,
@@ -307,7 +301,11 @@ contract CNumaToken is CErc20Immutable {
             address(strat),
             swapAmountIn
         );
-        (uint bought,uint unusedAmount) = strat.swap(swapAmountIn, _borrowtorepay, true);
+        (uint bought, uint unusedAmount) = strat.swap(
+            swapAmountIn,
+            _borrowtorepay,
+            true
+        );
 
         // repay FLASHLOAN
         EIP20Interface(underlying).approve(address(vault), _borrowtorepay);
@@ -323,8 +321,7 @@ contract CNumaToken is CErc20Immutable {
             );
         }
         // send also collateral that was not needed
-        if (unusedAmount > 0)
-        {
+        if (unusedAmount > 0) {
             SafeERC20.safeTransfer(
                 IERC20(underlyingCollateral),
                 msg.sender,

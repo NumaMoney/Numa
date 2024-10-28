@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-
 interface INumaLeverageStrategy {
-
     function getAmountIn(
         uint256 _amount,
         bool _closePos
@@ -13,7 +11,5 @@ interface INumaLeverageStrategy {
         uint256 _inputAmount,
         uint256 _minAmount,
         bool _closePosition
-    ) external returns (uint256,uint256);
-
-
+    ) external returns (uint256, uint256);
 }

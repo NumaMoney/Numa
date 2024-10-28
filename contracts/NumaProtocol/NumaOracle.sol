@@ -61,20 +61,19 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         emit IntervalLong(intervalLong);
     }
 
-
     function setMaxSpotOffsetBps(uint _maxSpotOffsetBps) external onlyOwner {
-        require(
-            _maxSpotOffsetBps < 10000,
-            "percentage must be less than 100"
-        );
+        require(_maxSpotOffsetBps < 10000, "percentage must be less than 100");
 
-         maxSpotOffsetPlus1SqrtBps =  100*uint160(Math.sqrt(10000 + _maxSpotOffsetBps));
+        maxSpotOffsetPlus1SqrtBps =
+            100 *
+            uint160(Math.sqrt(10000 + _maxSpotOffsetBps));
 
-         maxSpotOffsetMinus1SqrtBps = 100*uint160(Math.sqrt(10000 - _maxSpotOffsetBps));
+        maxSpotOffsetMinus1SqrtBps =
+            100 *
+            uint160(Math.sqrt(10000 - _maxSpotOffsetBps));
 
         emit MaxSpotOffsetBps(_maxSpotOffsetBps);
     }
-
 
     function getTWAPPriceInEth(
         address _numaPool,
@@ -94,14 +93,10 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         );
 
         uint256 TokenPerNumaMulAmount = FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(
-                        denominator,
-                        denominator,
-                        numerator
-                    ),
-                    _numaAmount,
-                    numerator
-                );
+            FullMath.mulDivRoundingUp(denominator, denominator, numerator),
+            _numaAmount,
+            numerator
+        );
 
         uint EthPerNumaMulAmount = TokenPerNumaMulAmount;
         if (_converter != address(0)) {
@@ -131,19 +126,13 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         );
 
         uint256 TokenPerNumaMulAmount = FullMath.mulDiv(
-                    FullMath.mulDiv(
-                        denominator,
-                        denominator ,
-                        numerator
-                    ), // numa decimals
-                    _numaAmount,
-                    numerator
-                
+            FullMath.mulDiv(denominator, denominator, numerator), // numa decimals
+            _numaAmount,
+            numerator
         );
 
         return TokenPerNumaMulAmount;
     }
-
 
     function getV3SpotPrice(
         address _numaPool,
@@ -159,17 +148,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
 
-        uint256 TokenPerNumaMulAmount =  FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(
-                        denominator,
-                        denominator,
-                        numerator
-                    ),
-                    _numaAmount,
-                    numerator
-                );
-                
-    
+        uint256 TokenPerNumaMulAmount = FullMath.mulDivRoundingUp(
+            FullMath.mulDivRoundingUp(denominator, denominator, numerator),
+            _numaAmount,
+            numerator
+        );
 
         return TokenPerNumaMulAmount;
     }
@@ -192,21 +175,15 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
 
-        uint256 TokenPerNumaMulAmount =  FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(
-                        denominator,
-                        denominator,
-                        numerator
-                    ),
-                    _numaAmount,
-                    numerator
-                );
-                
-    
+        uint256 TokenPerNumaMulAmount = FullMath.mulDivRoundingUp(
+            FullMath.mulDivRoundingUp(denominator, denominator, numerator),
+            _numaAmount,
+            numerator
+        );
 
         return TokenPerNumaMulAmount;
     }
- 
+
     /**
      * @dev Fetch uniswap V3 pool average price over an interval
      * @notice Will revert if interval is older than oldest pool observation
@@ -227,7 +204,7 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         (int56[] memory tickCumulatives, ) = IUniswapV3Pool(_uniswapV3Pool)
             .observe(secondsAgo);
 
-        // tick(imprecise as it's an integer) to sqrtPriceX96   
+        // tick(imprecise as it's an integer) to sqrtPriceX96
         return
             TickMath.getSqrtRatioAtTick(
                 int24(
@@ -236,10 +213,6 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                 )
             );
     }
-
-
-   
-
 
     /**
      * @dev Get price using uniswap V3 pool returning lowest price from 2 intervals inputs
@@ -284,10 +257,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     : sqrtPriceX96Short
             );
 
-            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)           
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)
             // inverted because numa price is 1/sqrtPriceX96
-            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*10000)/maxSpotOffsetPlus1SqrtBps;
- 
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot * 10000) /
+                maxSpotOffsetPlus1SqrtBps;
+
             sqrtPriceX96 = (
                 sqrtPriceX96 >= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
@@ -299,15 +273,15 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     ? sqrtPriceX96Long
                     : sqrtPriceX96Short
             );
-            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)           
-            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*maxSpotOffsetPlus1SqrtBps)/10000;
-         
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot *
+                maxSpotOffsetPlus1SqrtBps) / 10000;
+
             sqrtPriceX96 = (
                 sqrtPriceX96 <= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
                     : sqrtPriceX96SpotModified
             );
-
         }
         return sqrtPriceX96;
     }
@@ -352,11 +326,12 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     ? sqrtPriceX96Long
                     : sqrtPriceX96Short
             );
-          
-            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)           
+
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)
             // inverted because numa price is 1/sqrtPriceX96
-            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*10000)/maxSpotOffsetMinus1SqrtBps;
-            
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot * 10000) /
+                maxSpotOffsetMinus1SqrtBps;
+
             sqrtPriceX96 = (
                 sqrtPriceX96 <= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
@@ -369,48 +344,44 @@ contract NumaOracle is Ownable2Step, INumaOracle {
                     : sqrtPriceX96Short
             );
 
-            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)                      
-            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot*maxSpotOffsetMinus1SqrtBps)/10000;
-            
+            // comparing to spot price with numaLPspotPrice*(1+maxSpotOffsetBps)
+            uint160 sqrtPriceX96SpotModified = (sqrtPriceX96Spot *
+                maxSpotOffsetMinus1SqrtBps) / 10000;
 
             sqrtPriceX96 = (
                 sqrtPriceX96 >= sqrtPriceX96SpotModified
                     ? sqrtPriceX96
                     : sqrtPriceX96SpotModified
             );
-
         }
         return sqrtPriceX96;
     }
-
 
     function ethToNuAsset(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 tokenAmount) {
-       
-        tokenAmount =  nuAManager.ethToNuAsset(_nuAsset,_amount);
+        tokenAmount = nuAManager.ethToNuAsset(_nuAsset, _amount);
     }
     function ethToNuAssetRoundUp(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 tokenAmount) {
-       
-        tokenAmount =  nuAManager.ethToNuAssetRoundUp(_nuAsset,_amount);
+        tokenAmount = nuAManager.ethToNuAssetRoundUp(_nuAsset, _amount);
     }
 
     function nuAssetToEthRoundUp(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 EthValue) {
-        EthValue = nuAManager.nuAssetToEthRoundUp(_nuAsset,_amount);
+        EthValue = nuAManager.nuAssetToEthRoundUp(_nuAsset, _amount);
     }
 
     function nuAssetToEth(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 EthValue) {
-        EthValue = nuAManager.nuAssetToEth(_nuAsset,_amount);
+        EthValue = nuAManager.nuAssetToEth(_nuAsset, _amount);
     }
 
     function ethToNuma(
@@ -419,33 +390,27 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         address _converter,
         PriceType _priceType
     ) external view returns (uint256 numaAmount) {
-
         // eth --> pool token
         uint tokenAmount = _ethAmount;
-         if (_converter != address(0)) {
+        if (_converter != address(0)) {
             tokenAmount = INumaTokenToEthConverter(_converter)
                 .convertEthToToken(_ethAmount);
         }
 
-
-        uint160 sqrtPriceX96;        
-        if (_priceType == PriceType.HighestPrice)
-        {
+        uint160 sqrtPriceX96;
+        if (_priceType == PriceType.HighestPrice) {
             sqrtPriceX96 = getV3SqrtHighestPrice(
-            _numaPool,
-            intervalShort,
-            intervalLong
+                _numaPool,
+                intervalShort,
+                intervalLong
             );
-        }
-        else
-        {
+        } else {
             sqrtPriceX96 = getV3SqrtLowestPrice(
-            _numaPool,
-            intervalShort,
-            intervalLong
+                _numaPool,
+                intervalShort,
+                intervalLong
             );
         }
-      
 
         uint256 numerator = (
             IUniswapV3Pool(_numaPool).token0() == token
@@ -457,38 +422,23 @@ contract NumaOracle is Ownable2Step, INumaOracle {
             numerator == sqrtPriceX96 ? FixedPoint96.Q96 : sqrtPriceX96
         );
 
-
-        if (_priceType == PriceType.HighestPrice)
-        {
+        if (_priceType == PriceType.HighestPrice) {
             // burning nuassets
             // numaAmount has to be minimized so rounding down
-                numaAmount = FullMath.mulDiv(
-                        FullMath.mulDiv(
-                            numerator,
-                            numerator,
-                            denominator
-                        ),
-                        tokenAmount,
-                        denominator  
-                    );                                         
-        }
-        else
-        {
+            numaAmount = FullMath.mulDiv(
+                FullMath.mulDiv(numerator, numerator, denominator),
+                tokenAmount,
+                denominator
+            );
+        } else {
             // minting nuassets
             // numaAmount has to be maximized so rounding up
             numaAmount = FullMath.mulDivRoundingUp(
-                        FullMath.mulDivRoundingUp(
-                            numerator,
-                            numerator,
-                            denominator
-                        ),
-                        tokenAmount,
-                        denominator  
-                    );  
+                FullMath.mulDivRoundingUp(numerator, numerator, denominator),
+                tokenAmount,
+                denominator
+            );
         }
-  
-
-       
     }
 
     function getNbOfNuAssetFromNuAsset(
@@ -507,10 +457,6 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         return tokensForAmount;
     }
 
-  
-
-   
-
     function numaToEth(
         uint256 _numaAmount,
         address _numaPool,
@@ -518,23 +464,19 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         PriceType _priceType
     ) external view returns (uint256) {
         uint160 sqrtPriceX96;
-        
-        if (_priceType == PriceType.HighestPrice)
-        {
+
+        if (_priceType == PriceType.HighestPrice) {
             sqrtPriceX96 = getV3SqrtHighestPrice(
-            _numaPool,
-            intervalShort,
-            intervalLong
+                _numaPool,
+                intervalShort,
+                intervalLong
             );
-        }
-        else
-        {
+        } else {
             sqrtPriceX96 = getV3SqrtLowestPrice(
-            _numaPool,
-            intervalShort,
-            intervalLong
+                _numaPool,
+                intervalShort,
+                intervalLong
             );
-    
         }
 
         uint256 numerator = (
@@ -547,45 +489,31 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         );
 
         uint256 TokenPerNumaMulAmount;
-        
-        
-        if (_priceType == PriceType.HighestPrice)
-        {
-            // we use numa highest price when burning nuassets to numa
-            // in that case rounding should be in favor of the protocol so we round UP 
-            TokenPerNumaMulAmount = FullMath.mulDivRoundingUp(
-                    FullMath.mulDivRoundingUp(
-                        denominator,
-                        denominator,
-                        numerator
-                    ),
-                    _numaAmount,
-                    numerator  // numa decimals
-                );
-     
-        }
-        else
-        {
-            // we use numa lowest price when minting nuassets from numa
-            // in that case rounding should be in favor of the protocol so we round DOWN 
-            TokenPerNumaMulAmount = FullMath.mulDiv(
-                    FullMath.mulDiv(
-                        denominator,
-                        denominator,
-                        numerator
-                    ),
-                    _numaAmount,
-                    numerator  // numa decimals
-                );
 
+        if (_priceType == PriceType.HighestPrice) {
+            // we use numa highest price when burning nuassets to numa
+            // in that case rounding should be in favor of the protocol so we round UP
+            TokenPerNumaMulAmount = FullMath.mulDivRoundingUp(
+                FullMath.mulDivRoundingUp(denominator, denominator, numerator),
+                _numaAmount,
+                numerator // numa decimals
+            );
+        } else {
+            // we use numa lowest price when minting nuassets from numa
+            // in that case rounding should be in favor of the protocol so we round DOWN
+            TokenPerNumaMulAmount = FullMath.mulDiv(
+                FullMath.mulDiv(denominator, denominator, numerator),
+                _numaAmount,
+                numerator // numa decimals
+            );
         }
-        
-        uint256 ethForAmount =  TokenPerNumaMulAmount;
+
+        uint256 ethForAmount = TokenPerNumaMulAmount;
         if (_converter != address(0)) {
             ethForAmount = INumaTokenToEthConverter(_converter)
                 .convertTokenToEth(TokenPerNumaMulAmount);
         }
- 
+
         return ethForAmount;
     }
 }

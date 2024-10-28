@@ -7,7 +7,6 @@ import "../lending/ExponentialNoError.sol";
 import "../interfaces/IVaultManager.sol";
 
 contract VaultBuySellFeeTest is Setup, ExponentialNoError {
-
     uint buy_fee_PID;
     function setUp() public virtual override {
         console2.log("VAULT TEST");
@@ -75,12 +74,12 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         rEth.approve(address(vault), RethInputAmount);
 
-
         // this would be in Eth, we need it in numa (using buyprice as in our function)
         // using buy price before buy so that we get buyPrice used before updating PID
-        uint _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
-
-
+        uint _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
 
         // slippage = 0.1% = 1/1000
         uint buyFeeBefore = vaultManager.getBuyFee();
@@ -95,10 +94,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         buy_fee_PID = vaultManager.buy_fee_PID();
 
         // we use amount in Eth
-        realBuy = (realBuy*_vaultBuyPrice)/1 ether;
-
-
-
+        realBuy = (realBuy * _vaultBuyPrice) / 1 ether;
 
         // assertEq(
         //     buy_fee_PID,
@@ -107,12 +103,10 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         assertApproxEqAbs(
             buy_fee_PID,
-           (realBuy * vaultManager.buyPID_incAmt()) / (1 ether),
+            (realBuy * vaultManager.buyPID_incAmt()) / (1 ether),
             0.00001 ether,
             "increment ko"
-        ); 
-
-
+        );
 
         uint newBuyFee = vaultManager.getBuyFee();
         assertEq(newBuyFee, buyFeeBefore - buy_fee_PID);
@@ -130,10 +124,14 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         uint maxAmountNumaIncreasePID = (maxDeltaxHours * 1 ether) / incAmount;
         // this would be in Eth, we need it in numa (using buyprice as in our function)
-        uint _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
+        uint _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
         // we use amount in Eth
-        maxAmountNumaIncreasePID = (maxAmountNumaIncreasePID*1 ether)/_vaultBuyPrice;
-
+        maxAmountNumaIncreasePID =
+            (maxAmountNumaIncreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         // these 2 buys should go beyond maxrate
         uint firstBuy = maxAmountNumaIncreasePID / 2;
@@ -187,10 +185,14 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         uint maxAmountNumaIncreasePID = (maxDeltaxHours * 1 ether) / incAmount;
         // this would be in Eth, we need it in numa (using buyprice as in our function)
-        uint _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
+        uint _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
         // we use amount in Eth
-        maxAmountNumaIncreasePID = (maxAmountNumaIncreasePID*1 ether)/_vaultBuyPrice;
-
+        maxAmountNumaIncreasePID =
+            (maxAmountNumaIncreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         // these 2 buys should go beyond maxrate
         uint firstBuy = maxAmountNumaIncreasePID / 2;
@@ -243,7 +245,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         // max rate 5% so that we can reach the limit
         uint maxRate = 0.05 ether;
         // incamount so that 100 numa buy increases to 4%
-        uint incAmount = 0.0004 ether * 6000;// 6000 to be in Eth
+        uint incAmount = 0.0004 ether * 6000; // 6000 to be in Eth
 
         vaultManager.setBuyFeeParameters(
             incAmount,
@@ -291,10 +293,15 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         uint maxAmountNumaIncreasePID = (maxDeltaxHours * 1 ether) / incAmount;
 
         // this would be in Eth, we need it in numa (using buyprice as in our function)
-        uint _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
+        uint _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
 
         // we use amount in Eth
-        maxAmountNumaIncreasePID = (maxAmountNumaIncreasePID*1 ether)/_vaultBuyPrice;
+        maxAmountNumaIncreasePID =
+            (maxAmountNumaIncreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         // these 2 buys should go beyond maxrate
         uint firstBuy = maxAmountNumaIncreasePID / 2;
@@ -327,10 +334,13 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         amountNumaDecreasePID = amountNumaDecreasePID / 4;
 
         // we use amount in Eth
-        _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
-        amountNumaDecreasePID = (amountNumaDecreasePID*1 ether)/_vaultBuyPrice;
-
-
+        _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
+        amountNumaDecreasePID =
+            (amountNumaDecreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         numa.approve(address(vault), amountNumaDecreasePID);
 
@@ -345,8 +355,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             maxDeltaxHours / 4,
             0.00001 ether,
             "decrement 1 ko"
-        ); 
-
+        );
 
         // synth burn/mint - decreases PID
         vm.stopPrank();
@@ -354,14 +363,18 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         vaultManager.setBuyFee(0.98 ether);
         vm.startPrank(userA);
 
-
         // need to recompute it as our buyprice has changed
         amountNumaDecreasePID = (maxDeltaxHours * 1 ether) / decAmount;
         amountNumaDecreasePID = amountNumaDecreasePID / 4;
 
         // we use amount in Eth
-        _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
-        amountNumaDecreasePID = (amountNumaDecreasePID*1 ether)/_vaultBuyPrice;
+        _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
+        amountNumaDecreasePID =
+            (amountNumaDecreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         // mint nuUSD
         numa.approve(address(moneyPrinter), amountNumaDecreasePID);
@@ -374,13 +387,12 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         );
         buy_fee_PID = vaultManager.buy_fee_PID();
         //assertEq(maxDeltaxHours - buy_fee_PID, maxDeltaxHours / 2);
-         assertApproxEqAbs(
+        assertApproxEqAbs(
             maxDeltaxHours - buy_fee_PID,
-            maxDeltaxHours /2,
+            maxDeltaxHours / 2,
             0.00001 ether,
             "decrement 2 ko"
-        ); 
-
+        );
 
         // burn
         //(uint256 nuAssetAmount,uint256 numaFee) = moneyPrinter.getNbOfnuAssetNeededForNuma(address(nuUSD),amountNumaDecreasePID);
@@ -396,9 +408,13 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         amountNumaDecreasePID = amountNumaDecreasePID / 4;
 
         // we use amount in Eth
-        _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
-        amountNumaDecreasePID = (amountNumaDecreasePID*1 ether)/_vaultBuyPrice;
-
+        _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
+        amountNumaDecreasePID =
+            (amountNumaDecreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         uint numaAmount = (amountNumaDecreasePID *
             (10000 - moneyPrinter.burnAssetFeeBps())) / 10000;
@@ -428,7 +444,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             (3 * maxDeltaxHours) / 4,
             0.00001 ether,
             "decrement 3 ko"
-        ); 
+        );
 
         // 1 more time with twice the amount, we should have PID = 0
 
@@ -475,12 +491,15 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         uint maxAmountNumaIncreasePID = (maxDeltaxHours * 1 ether) / incAmount;
         // this would be in Eth, we need it in numa (using buyprice as in our function)
-        uint _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
+        uint _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
 
         // we use amount in Eth
-        maxAmountNumaIncreasePID = (maxAmountNumaIncreasePID*1 ether)/_vaultBuyPrice;
-
-
+        maxAmountNumaIncreasePID =
+            (maxAmountNumaIncreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         // these 2 buys should go beyond maxrate
         uint firstBuy = maxAmountNumaIncreasePID / 2;
@@ -518,14 +537,19 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         uint mult = vaultManager.buyPID_decMultiplier();
 
- 
         //uint buyPID_multTriggerPct = (2*( 1 ether - vaultManager.buy_fee()) * 1000) / 1 ether;
- console2.log("buyPID_multTriggerPct", (2*( 1 ether - vaultManager.buy_fee()) * 1000) / 1 ether);
+        console2.log(
+            "buyPID_multTriggerPct",
+            (2 * (1 ether - vaultManager.buy_fee()) * 1000) / 1 ether
+        );
 
         //if (pctFromBuyPrice <= ((buy_fee_PID * 1000) / 1 ether)) mult = 1;
-        if (pctFromBuyPrice <= ( (2*( 1 ether - vaultManager.buy_fee()) * 1000) / 1 ether)) mult = 1;
-console2.log("pctFromBuyPrice",pctFromBuyPrice);
-console2.log("mult",mult);
+        if (
+            pctFromBuyPrice <=
+            ((2 * (1 ether - vaultManager.buy_fee()) * 1000) / 1 ether)
+        ) mult = 1;
+        console2.log("pctFromBuyPrice", pctFromBuyPrice);
+        console2.log("mult", mult);
 
         // decrease 1/4 of maxrate
         uint decAmount = vaultManager.buyPID_decAmt();
@@ -535,178 +559,194 @@ console2.log("mult",mult);
         amountNumaDecreasePID = amountNumaDecreasePID / 4;
 
         // this would be in Eth, we need it in numa (using buyprice as in our function)
-        _vaultBuyPrice = vaultManager.numaToEth(1 ether, IVaultManager.PriceType.BuyPrice);
+        _vaultBuyPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.BuyPrice
+        );
 
         // we use amount in Eth
-        amountNumaDecreasePID = (amountNumaDecreasePID*1 ether)/_vaultBuyPrice;
+        amountNumaDecreasePID =
+            (amountNumaDecreasePID * 1 ether) /
+            _vaultBuyPrice;
 
         numa.approve(address(vault), amountNumaDecreasePID);
         vault.sell(amountNumaDecreasePID, 0, userA);
         buy_fee_PID = vaultManager.buy_fee_PID();
 
         assertLt(buy_fee_PID, maxDeltaxHours);
-        if (((mult * maxDeltaxHours) / 4) <= maxDeltaxHours)
-        {
-                    console2.log("not reaching maxdelta");
+        if (((mult * maxDeltaxHours) / 4) <= maxDeltaxHours) {
+            console2.log("not reaching maxdelta");
             assertEq(maxDeltaxHours - buy_fee_PID, (mult * maxDeltaxHours) / 4);
-        }
-        else 
-        {
-                                console2.log("reaching maxdelta");
+        } else {
+            console2.log("reaching maxdelta");
             assertEq(maxDeltaxHours - buy_fee_PID, maxDeltaxHours);
         }
     }
 
-
-
-
-    function test_SellFee_Debase() public 
-    {
-        (uint sell_feePID, ,) = vaultManager.getSellFeeScaling();
+    function test_SellFee_Debase() public {
+        (uint sell_feePID, , ) = vaultManager.getSellFeeScaling();
         assertEq(vaultManager.getSellFeeOriginal(), sell_feePID);
-  
-        uint sellPrice = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.SellPrice);
- 
-    // setting cf_liquid_severe as 100001 so that we are below it at MAX_CF (= 100000)
-    vm.prank(deployer);
-        vaultManager.setSellFeeParameters(100001,
-        0.01 ether,// 1%
-        0.03 ether,// 3%
-        600,
-        1200, 
-        0.5 ether, // 50%
-        0.2 ether, // 80%
-        10000//10
-     );
-     //vm.warp(block.timestamp + 600*10);
-     // should debase by 10%
-      console2.log(block.timestamp);
-     (sell_feePID, ,) = vaultManager.getSellFeeScaling();
- //assertEq(sell_feePID, vaultManager.getSellFeeOriginal()-0.1 ether);
- // should not have changed since no delta time
- assertEq(sell_feePID, vaultManager.getSellFeeOriginal());
-vm.warp(block.timestamp + 600*10);
-// we need to simulate a new block too because we check the update_block_number
-vm.roll(block.number+1);
-(sell_feePID,, ) = vaultManager.getSellFeeScaling();
-     // should debase by 10%
-     assertEq(sell_feePID, vaultManager.getSellFeeOriginal()-0.1 ether);
 
+        uint sellPrice = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.SellPrice
+        );
 
-uint sellPrice2 = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.SellPrice);
-// sell price should be lower
-assertLt(sellPrice2, sellPrice);
-
-
-
-    // reach min 
-    vm.warp(block.timestamp + 600*41);
-// we need to simulate a new block too because we check the update_block_number
-vm.roll(block.number+1);
-(sell_feePID,, ) = vaultManager.getSellFeeScaling();
-     // should debase by 50% because it's the max
-     assertEq(sell_feePID, vaultManager.sell_fee_minimum());
-
-uint sellPrice3 = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.SellPrice);
-// sell price should be lower
-assertLt(sellPrice3, sellPrice2);
-
-
-
-    // rebase
+        // setting cf_liquid_severe as 100001 so that we are below it at MAX_CF (= 100000)
         vm.prank(deployer);
-        vaultManager.setSellFeeParameters(19000,
-        0.01 ether,// 1%
-        0.03 ether,// 3%
-        600,
-        1200,      
-        0.5 ether, // 50%
-        0.1 ether, // 90%
-        10000//10
-     );
-       vm.warp(block.timestamp + 1200*10);
-// we need to simulate a new block too because we check the update_block_number
-vm.roll(block.number+1);
+        vaultManager.setSellFeeParameters(
+            100001,
+            0.01 ether, // 1%
+            0.03 ether, // 3%
+            600,
+            1200,
+            0.5 ether, // 50%
+            0.2 ether, // 80%
+            10000 //10
+        );
+        //vm.warp(block.timestamp + 600*10);
+        // should debase by 10%
+        console2.log(block.timestamp);
+        (sell_feePID, , ) = vaultManager.getSellFeeScaling();
+        //assertEq(sell_feePID, vaultManager.getSellFeeOriginal()-0.1 ether);
+        // should not have changed since no delta time
+        assertEq(sell_feePID, vaultManager.getSellFeeOriginal());
+        vm.warp(block.timestamp + 600 * 10);
+        // we need to simulate a new block too because we check the update_block_number
+        vm.roll(block.number + 1);
+        (sell_feePID, , ) = vaultManager.getSellFeeScaling();
+        // should debase by 10%
+        assertEq(sell_feePID, vaultManager.getSellFeeOriginal() - 0.1 ether);
 
-(sell_feePID,, ) = vaultManager.getSellFeeScaling();
-     assertEq(sell_feePID, vaultManager.sell_fee_minimum() + 0.3 ether);
+        uint sellPrice2 = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.SellPrice
+        );
+        // sell price should be lower
+        assertLt(sellPrice2, sellPrice);
 
+        // reach min
+        vm.warp(block.timestamp + 600 * 41);
+        // we need to simulate a new block too because we check the update_block_number
+        vm.roll(block.number + 1);
+        (sell_feePID, , ) = vaultManager.getSellFeeScaling();
+        // should debase by 50% because it's the max
+        assertEq(sell_feePID, vaultManager.sell_fee_minimum());
 
-uint sellPrice4 = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.SellPrice);
-// sell price should be higher
-assertGt(sellPrice4, sellPrice3);
+        uint sellPrice3 = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.SellPrice
+        );
+        // sell price should be lower
+        assertLt(sellPrice3, sellPrice2);
 
-// 30% again
-       vm.warp(block.timestamp + 1200*10);
-// we need to simulate a new block too because we check the update_block_number
-vm.roll(block.number+1);
+        // rebase
+        vm.prank(deployer);
+        vaultManager.setSellFeeParameters(
+            19000,
+            0.01 ether, // 1%
+            0.03 ether, // 3%
+            600,
+            1200,
+            0.5 ether, // 50%
+            0.1 ether, // 90%
+            10000 //10
+        );
+        vm.warp(block.timestamp + 1200 * 10);
+        // we need to simulate a new block too because we check the update_block_number
+        vm.roll(block.number + 1);
 
-(sell_feePID,, ) = vaultManager.getSellFeeScaling();
-   
-     assertEq(sell_feePID, vaultManager.getSellFeeOriginal());
+        (sell_feePID, , ) = vaultManager.getSellFeeScaling();
+        assertEq(sell_feePID, vaultManager.sell_fee_minimum() + 0.3 ether);
 
+        uint sellPrice4 = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.SellPrice
+        );
+        // sell price should be higher
+        assertGt(sellPrice4, sellPrice3);
 
-uint sellPrice5 = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.SellPrice);
-// sell price should be higher
-assertGt(sellPrice5, sellPrice4);
+        // 30% again
+        vm.warp(block.timestamp + 1200 * 10);
+        // we need to simulate a new block too because we check the update_block_number
+        vm.roll(block.number + 1);
 
+        (sell_feePID, , ) = vaultManager.getSellFeeScaling();
 
-    console2.log("critical debase");
-    uint globalCF = vaultManager.getGlobalCF();
-    assertGt(globalCF,vaultManager.cf_critical());
- console2.log(globalCF);
-    vm.prank(deployer);
-    numa.approve(address(moneyPrinter),10000000 ether);
-    //     function mintAssetOutputFromNuma(
-    vm.prank(deployer);
-    moneyPrinter.mintAssetOutputFromNuma(address(nuUSD),4500000 ether,10000000 ether,userA);
+        assertEq(sell_feePID, vaultManager.getSellFeeOriginal());
 
-    uint globalCF2 = vaultManager.getGlobalCF();
-    console2.log(globalCF2);
-    assertLt(globalCF2,globalCF);
+        uint sellPrice5 = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.SellPrice
+        );
+        // sell price should be higher
+        assertGt(sellPrice5, sellPrice4);
 
-    // change criticalcf so that it's reached
-     vm.prank(deployer);
-     console2.log(deployer);
-          console2.log(vaultManager.owner());
-          vm.prank(deployer);
+        console2.log("critical debase");
+        uint globalCF = vaultManager.getGlobalCF();
+        assertGt(globalCF, vaultManager.cf_critical());
+        console2.log(globalCF);
+        vm.prank(deployer);
+        numa.approve(address(moneyPrinter), 10000000 ether);
+        //     function mintAssetOutputFromNuma(
+        vm.prank(deployer);
+        moneyPrinter.mintAssetOutputFromNuma(
+            address(nuUSD),
+            4500000 ether,
+            10000000 ether,
+            userA
+        );
 
- vm.stopPrank();
-          vm.startPrank(deployer);
-     vaultManager.setScalingParameters(
-        1200,
-        vaultManager.cf_warning(),
-        vaultManager.cf_severe(),
-        vaultManager.debaseValue(),
-        vaultManager.rebaseValue(),
-        vaultManager.deltaDebase(),
-        vaultManager.deltaRebase(),
-        vaultManager.minimumScale(),
-        vaultManager.criticalDebaseMult()
-    );
+        uint globalCF2 = vaultManager.getGlobalCF();
+        console2.log(globalCF2);
+        assertLt(globalCF2, globalCF);
 
-    uint scaleForPrice = (1000*globalCF2)/vaultManager.cf_critical();
-    console2.log("scaleForPrice",scaleForPrice);
+        // change criticalcf so that it's reached
+        vm.prank(deployer);
+        console2.log(deployer);
+        console2.log(vaultManager.owner());
+        vm.prank(deployer);
 
-    uint sell_fee_increaseCriticalCF = ((1000 - scaleForPrice) * 1 ether) /
-         1000;
-    // add a multiplier on top
-    sell_fee_increaseCriticalCF = (sell_fee_increaseCriticalCF * vaultManager.sell_fee_criticalMultiplier())/1000;
-    console2.log("sell_fee_increaseCriticalCF",sell_fee_increaseCriticalCF);
-    uint sell_fee_criticalCF;
+        vm.stopPrank();
+        vm.startPrank(deployer);
+        vaultManager.setScalingParameters(
+            1200,
+            vaultManager.cf_warning(),
+            vaultManager.cf_severe(),
+            vaultManager.debaseValue(),
+            vaultManager.rebaseValue(),
+            vaultManager.deltaDebase(),
+            vaultManager.deltaRebase(),
+            vaultManager.minimumScale(),
+            vaultManager.criticalDebaseMult()
+        );
 
-    if (vaultManager.getSellFeeOriginal() > sell_fee_increaseCriticalCF)
-            sell_fee_criticalCF = vaultManager.getSellFeeOriginal() - sell_fee_increaseCriticalCF;
+        uint criticalScaleForNumaPriceAndSellFee = (1000 * globalCF2) / vaultManager.cf_critical();
+        console2.log("scaleForPrice", criticalScaleForNumaPriceAndSellFee);
 
-    if (sell_fee_criticalCF < vaultManager.sell_fee_minimum_critical())
-        sell_fee_criticalCF = vaultManager.sell_fee_minimum_critical();
-    (sell_feePID, ,) = vaultManager.getSellFeeScaling();
-    console2.log("sell_feePID",sell_feePID);
+        uint sell_fee_increaseCriticalCF = ((1000 - criticalScaleForNumaPriceAndSellFee) * 1 ether) /
+            1000;
+        // add a multiplier on top
+        sell_fee_increaseCriticalCF =
+            (sell_fee_increaseCriticalCF *
+                vaultManager.sell_fee_criticalMultiplier()) /
+            1000;
+        console2.log(
+            "sell_fee_increaseCriticalCF",
+            sell_fee_increaseCriticalCF
+        );
+        uint sell_fee_criticalCF;
 
-    assertEq(sell_feePID,sell_fee_criticalCF);
-   
-  }
+        if (vaultManager.getSellFeeOriginal() > sell_fee_increaseCriticalCF)
+            sell_fee_criticalCF =
+                vaultManager.getSellFeeOriginal() -
+                sell_fee_increaseCriticalCF;
 
+        if (sell_fee_criticalCF < vaultManager.sell_fee_minimum_critical())
+            sell_fee_criticalCF = vaultManager.sell_fee_minimum_critical();
+        (sell_feePID, , ) = vaultManager.getSellFeeScaling();
+        console2.log("sell_feePID", sell_feePID);
 
-
+        assertEq(sell_feePID, sell_fee_criticalCF);
+    }
 }

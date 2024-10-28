@@ -29,7 +29,11 @@ contract LendingTest is Setup, ExponentialNoError {
         numaPoolReserve = numa.totalSupply() / 1000;
         rEthPoolReserve = rEth.balanceOf(address(vault)) / 1000;
 
-        deal({token: address(rEth), to: deployer, give: 10000*rEthPoolReserve});
+        deal({
+            token: address(rEth),
+            to: deployer,
+            give: 10000 * rEthPoolReserve
+        });
         // send some numa to userA
         vm.stopPrank();
         vm.startPrank(deployer);
@@ -52,20 +56,20 @@ contract LendingTest is Setup, ExponentialNoError {
 
         // check price
         //Spot price of the token
-        (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(NUMA_RETH_POOL_ADDRESS)
-            .slot0();
+        (uint160 sqrtPriceX96Spot, , , , , , ) = IUniswapV3Pool(
+            NUMA_RETH_POOL_ADDRESS
+        ).slot0();
 
         uint256 numerator = sqrtPriceX96Spot;
 
-
         uint256 denominator = FixedPoint96.Q96;
         uint256 price = FullMath.mulDivRoundingUp(
-                        numerator,
-                        numerator * 10 ** 18,
-                        denominator*denominator
-                    );
-                  
-               console2.log("price reth/numa");
+            numerator,
+            numerator * 10 ** 18,
+            denominator * denominator
+        );
+
+        console2.log("price reth/numa");
         console2.log(price);
 
         // deploy and add strategy
@@ -75,7 +79,7 @@ contract LendingTest is Setup, ExponentialNoError {
             address(vault)
         );
         cReth.addStrategy(address(strat1));
-         vm.stopPrank();
+        vm.stopPrank();
     }
     function test_CheckSetup() public {
         // test that numa price (without fees) is 1 reth
@@ -92,8 +96,6 @@ contract LendingTest is Setup, ExponentialNoError {
 
         // check fees
     }
-
-
 
     function test_LeverageAndCloseProfitStrategyStratVault() public {
         // user calls leverage x 5
@@ -189,9 +191,7 @@ contract LendingTest is Setup, ExponentialNoError {
         vm.stopPrank();
     }
 
-     function test_LeverageStratVaultDrainBug() public {
-
-
+    function test_LeverageStratVaultDrainBug() public {
         vm.prank(deployer);
         vault.setMaxBorrow(1000000000 ether);
 
@@ -247,11 +247,11 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(ltv);
 
         // vault balance
-        console2.log("vault balance",rEth.balanceOf(address(vault)));
-        console2.log("vault debt",vault.getDebt());
+        console2.log("vault balance", rEth.balanceOf(address(vault)));
+        console2.log("vault debt", vault.getDebt());
 
         // 2nd time
-         numa.approve(address(cReth), providedAmount2);
+        numa.approve(address(cReth), providedAmount2);
 
         // call strategy
         cReth.leverageStrategy(
@@ -266,7 +266,6 @@ contract LendingTest is Setup, ExponentialNoError {
         cNumaBal = cNuma.balanceOf(userA);
         console2.log(cNumaBal);
 
-
         // borrow balance
         borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
 
@@ -277,10 +276,10 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(ltv);
 
         // vault balance
-        console2.log("vault balance 2",rEth.balanceOf(address(vault)));
-        console2.log("vault debt 2",vault.getDebt());
-       
-               numa.approve(address(cReth), providedAmount2);
+        console2.log("vault balance 2", rEth.balanceOf(address(vault)));
+        console2.log("vault debt 2", vault.getDebt());
+
+        numa.approve(address(cReth), providedAmount2);
 
         // call strategy
         cReth.leverageStrategy(
@@ -295,7 +294,6 @@ contract LendingTest is Setup, ExponentialNoError {
         cNumaBal = cNuma.balanceOf(userA);
         console2.log(cNumaBal);
 
-
         // borrow balance
         borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
 
@@ -306,10 +304,10 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(ltv);
 
         // vault balance
-        console2.log("vault balance 3",rEth.balanceOf(address(vault)));
-        console2.log("vault debt 3",vault.getDebt());
-       
-                       numa.approve(address(cReth), providedAmount2);
+        console2.log("vault balance 3", rEth.balanceOf(address(vault)));
+        console2.log("vault debt 3", vault.getDebt());
+
+        numa.approve(address(cReth), providedAmount2);
 
         // call strategy
         cReth.leverageStrategy(
@@ -324,7 +322,6 @@ contract LendingTest is Setup, ExponentialNoError {
         cNumaBal = cNuma.balanceOf(userA);
         console2.log(cNumaBal);
 
-
         // borrow balance
         borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
 
@@ -335,12 +332,12 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(ltv);
 
         // vault balance
-        console2.log("vault balance 4",rEth.balanceOf(address(vault)));
-        console2.log("vault debt 4",vault.getDebt());
+        console2.log("vault balance 4", rEth.balanceOf(address(vault)));
+        console2.log("vault debt 4", vault.getDebt());
 
         providedAmount2 = 1000000 ether;
         leverageAmount2 = 4000000 ether;
-               numa.approve(address(cReth), providedAmount2);
+        numa.approve(address(cReth), providedAmount2);
 
         // call strategy
         cReth.leverageStrategy(
@@ -355,7 +352,6 @@ contract LendingTest is Setup, ExponentialNoError {
         cNumaBal = cNuma.balanceOf(userA);
         console2.log(cNumaBal);
 
-
         // borrow balance
         borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
 
@@ -366,8 +362,8 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(ltv);
 
         // vault balance
-        console2.log("vault balance 5",rEth.balanceOf(address(vault)));
-        console2.log("vault debt 5",vault.getDebt());
+        console2.log("vault balance 5", rEth.balanceOf(address(vault)));
+        console2.log("vault debt 5", vault.getDebt());
 
         vm.stopPrank();
     }
@@ -432,13 +428,13 @@ contract LendingTest is Setup, ExponentialNoError {
                 fee: 500,
                 recipient: deployer,
                 deadline: block.timestamp,
-                amountOut: numaPoolReserve/4,// 25% of reserve should be enough?
+                amountOut: numaPoolReserve / 4, // 25% of reserve should be enough?
                 amountInMaximum: type(uint).max,
                 sqrtPriceLimitX96: 0
             });
 
         // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
-        rEth.approve(address(swapRouter),type(uint).max);
+        rEth.approve(address(swapRouter), type(uint).max);
         // ERC20InsufficientAllowance(0xE592427A0AEce92De3Edee1F18E0157C05861564, 36934311772498674553 [3.693e19], 2548408988412747955903073076714761369303 [2.548e39])
         swapRouter.exactOutputSingle(params);
         vm.stopPrank();
@@ -485,9 +481,7 @@ contract LendingTest is Setup, ExponentialNoError {
         vm.stopPrank();
     }
 
-
-
-     function test_LeverageAndCloseProfitStrategyChoice1() public {
+    function test_LeverageAndCloseProfitStrategyChoice1() public {
         // user calls leverage x 5
         vm.startPrank(userA);
         address[] memory t = new address[](1);
@@ -499,21 +493,20 @@ contract LendingTest is Setup, ExponentialNoError {
         uint totalCollateral = providedAmount + leverageAmount;
         numa.approve(address(cReth), providedAmount);
 
-
         // choose strategy
         //address[] memory strategies = cReth.getLeverageStrategies();
 
         console2.log("comparing strategies: amount to borrow");
-        console2.log(cReth.getAmountIn(leverageAmount,false,0));
-        console2.log(cReth.getAmountIn(leverageAmount,false,1));
-
-
+        console2.log(cReth.getAmountIn(leverageAmount, false, 0));
+        console2.log(cReth.getAmountIn(leverageAmount, false, 1));
 
         // call strategy
         uint strategyindex = 0;
 
-        if (cReth.getAmountIn(leverageAmount,false,1) < cReth.getAmountIn(leverageAmount,false,0))
-            strategyindex = 1;
+        if (
+            cReth.getAmountIn(leverageAmount, false, 1) <
+            cReth.getAmountIn(leverageAmount, false, 0)
+        ) strategyindex = 1;
 
         console2.log("strategy for open");
         console2.log(strategyindex);
@@ -564,13 +557,13 @@ contract LendingTest is Setup, ExponentialNoError {
                 fee: 500,
                 recipient: deployer,
                 deadline: block.timestamp,
-                amountOut: numaPoolReserve/4,// 25% of reserve should be enough?
+                amountOut: numaPoolReserve / 4, // 25% of reserve should be enough?
                 amountInMaximum: type(uint).max,
                 sqrtPriceLimitX96: 0
             });
 
         // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
-        rEth.approve(address(swapRouter),type(uint).max);
+        rEth.approve(address(swapRouter), type(uint).max);
         // ERC20InsufficientAllowance(0xE592427A0AEce92De3Edee1F18E0157C05861564, 36934311772498674553 [3.693e19], 2548408988412747955903073076714761369303 [2.548e39])
         swapRouter.exactOutputSingle(params);
         vm.stopPrank();
@@ -583,8 +576,10 @@ contract LendingTest is Setup, ExponentialNoError {
         //close position
 
         strategyindex = 0;
-        if (cReth.getAmountIn(borrowrEThBalance,true,1) < cReth.getAmountIn(borrowrEThBalance,true,0))
-            strategyindex = 1;
+        if (
+            cReth.getAmountIn(borrowrEThBalance, true, 1) <
+            cReth.getAmountIn(borrowrEThBalance, true, 0)
+        ) strategyindex = 1;
 
         console2.log("strategy for close");
         console2.log(strategyindex);
@@ -624,8 +619,7 @@ contract LendingTest is Setup, ExponentialNoError {
         vm.stopPrank();
     }
 
-
-     function test_LeverageAndCloseProfitStrategyChoice0() public {
+    function test_LeverageAndCloseProfitStrategyChoice0() public {
         // user calls leverage x 5
         vm.startPrank(userA);
         address[] memory t = new address[](1);
@@ -637,30 +631,28 @@ contract LendingTest is Setup, ExponentialNoError {
         uint totalCollateral = providedAmount + leverageAmount;
         numa.approve(address(cReth), providedAmount);
 
-
         // choose strategy
         //address[] memory strategies = cReth.getLeverageStrategies();
-
 
         // reduce buyfee so that swapping through vault is more profitable
         vm.stopPrank();
         vm.prank(deployer);
 
-        vaultManager.setBuyFee(0.996 ether);// 0.4%
+        vaultManager.setBuyFee(0.996 ether); // 0.4%
 
         vm.startPrank(userA);
 
         console2.log("comparing strategies: amount to borrow");
-        console2.log(cReth.getAmountIn(leverageAmount,false,0));
-        console2.log(cReth.getAmountIn(leverageAmount,false,1));
-
-
+        console2.log(cReth.getAmountIn(leverageAmount, false, 0));
+        console2.log(cReth.getAmountIn(leverageAmount, false, 1));
 
         // call strategy
         uint strategyindex = 0;
 
-        if (cReth.getAmountIn(leverageAmount,false,1) < cReth.getAmountIn(leverageAmount,false,0))
-            strategyindex = 1;
+        if (
+            cReth.getAmountIn(leverageAmount, false, 1) <
+            cReth.getAmountIn(leverageAmount, false, 0)
+        ) strategyindex = 1;
 
         console2.log("strategy for open");
         console2.log(strategyindex);
@@ -711,13 +703,13 @@ contract LendingTest is Setup, ExponentialNoError {
                 fee: 500,
                 recipient: deployer,
                 deadline: block.timestamp,
-                amountOut: numaPoolReserve/20,// 5% of reserve should be enough?
+                amountOut: numaPoolReserve / 20, // 5% of reserve should be enough?
                 amountInMaximum: type(uint).max,
                 sqrtPriceLimitX96: 0
             });
 
         // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
-        rEth.approve(address(swapRouter),type(uint).max);
+        rEth.approve(address(swapRouter), type(uint).max);
         // ERC20InsufficientAllowance(0xE592427A0AEce92De3Edee1F18E0157C05861564, 36934311772498674553 [3.693e19], 2548408988412747955903073076714761369303 [2.548e39])
         swapRouter.exactOutputSingle(params);
         vm.stopPrank();
@@ -727,16 +719,17 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log("ltv after");
         console2.log(ltv);
 
-
         //close position
 
         strategyindex = 0;
-        if (cReth.getAmountIn(borrowrEThBalance,true,1) < cReth.getAmountIn(borrowrEThBalance,true,0))
-            strategyindex = 1;
+        if (
+            cReth.getAmountIn(borrowrEThBalance, true, 1) <
+            cReth.getAmountIn(borrowrEThBalance, true, 0)
+        ) strategyindex = 1;
 
         console2.log("strategy for close");
-        console2.log(cReth.getAmountIn(borrowrEThBalance,true,0));
-        console2.log(cReth.getAmountIn(borrowrEThBalance,true,1));
+        console2.log(cReth.getAmountIn(borrowrEThBalance, true, 0));
+        console2.log(cReth.getAmountIn(borrowrEThBalance, true, 1));
         console2.log(strategyindex);
         assertEq(strategyindex, 0);
         (uint cnumaAmount, uint swapAmountIn) = cReth.closeLeverageAmount(

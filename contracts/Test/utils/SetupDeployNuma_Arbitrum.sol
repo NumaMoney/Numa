@@ -57,7 +57,6 @@ contract Setup is SetupBase {
     address public vaultRwdReceiver = makeAddr("vaultRwdReceiver");
 
     function setUp() public virtual {
-
         // setup fork
         //string memory ARBI_RPC_URL = vm.envString("URL7");
         string memory ARBI_RPC_URL = vm.envString("URL6");
@@ -87,7 +86,6 @@ contract Setup is SetupBase {
         );
         (, usdcusd, , , ) = dataFeedUSDCUSD.latestRoundData();
 
-        
         //console.log(ethusd);
         // RETHETH
         AggregatorV2V3Interface dataFeedRETHETH = AggregatorV2V3Interface(
@@ -129,7 +127,7 @@ contract Setup is SetupBase {
         );
 
         // advance in time for avg prices to work
-        skip(INTERVAL_LONG*2);
+        skip(INTERVAL_LONG * 2);
         vm.roll(block.number + 1);
         IUniswapV3Pool(NUMA_USDC_POOL_ADDRESS)
             .increaseObservationCardinalityNext(100);
@@ -219,7 +217,7 @@ contract Setup is SetupBase {
         // nuAssets
         nuUSD = new NuAsset2("nuUSD", "NUSD", deployer, deployer);
         // register nuAsset
-        nuAssetMgr.addNuAsset(address(nuUSD), PRICEFEEDETHUSD_ARBI, HEART_BEAT);
+        nuAssetMgr.addNuAsset(address(nuUSD), PRICEFEEDETHUSD_ARBI, HEART_BEAT_CUSTOM);
         // set printer as a NuUSD minter
         nuUSD.grantRole(MINTER_ROLE, address(moneyPrinter)); // owner is NuUSD deployer
 
@@ -320,8 +318,6 @@ contract Setup is SetupBase {
             address(vault)
         );
         cReth.addStrategy(address(strat0));
-
-      
     }
 
     function SwapNumaToUSDC() public {

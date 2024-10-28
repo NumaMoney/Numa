@@ -9,6 +9,4 @@ interface INumaTokenToEthConverter {
     function convertTokenToEth(
         uint256 _tokenAmount
     ) external view returns (uint256);
-
-
 }

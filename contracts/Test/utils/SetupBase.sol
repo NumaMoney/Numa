@@ -102,8 +102,6 @@ contract SetupBase is
         uint _rethAmount,
         NUMA numa
     ) internal {
-       
-       
         // nuAssetManager
         nuAssetMgr = new nuAssetManager(UPTIME_FEED_ARBI);
 
@@ -117,7 +115,6 @@ contract SetupBase is
         numa.grantRole(MINTER_ROLE, address(numaMinter));
         vm.stopPrank();
         vm.startPrank(deployer);
-
 
         // vault manager
         vaultManager = new VaultManager(address(numa), address(nuAssetMgr));

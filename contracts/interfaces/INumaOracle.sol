@@ -10,20 +10,20 @@ interface INumaOracle {
     function nuAssetToEthRoundUp(
         address _nuAsset,
         uint256 _amount
-    ) external view returns (uint256 EthValue) ;
+    ) external view returns (uint256 EthValue);
 
     function nuAssetToEth(
         address _nuAsset,
         uint256 _amount
-    ) external view returns (uint256 EthValue) ;
+    ) external view returns (uint256 EthValue);
     function ethToNuAsset(
         address _nuAsset,
         uint256 _amount
-    ) external view returns (uint256 TokenAmount) ;
-     function ethToNuAssetRoundUp(
+    ) external view returns (uint256 TokenAmount);
+    function ethToNuAssetRoundUp(
         address _nuAsset,
         uint256 _amount
-    ) external view returns (uint256 TokenAmount) ;
+    ) external view returns (uint256 TokenAmount);
     function ethToNuma(
         uint256 _ethAmount,
         address _numaPool,
@@ -31,9 +31,7 @@ interface INumaOracle {
         PriceType _priceType
     ) external view returns (uint256 numaAmount);
 
-
-
-     function numaToEth(
+    function numaToEth(
         uint256 _amount,
         address _numaPool,
         address _converter,

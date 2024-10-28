@@ -6,7 +6,6 @@ import "./INumaLeverageStrategy.sol";
 import "./CNumaToken.sol";
 import "../NumaProtocol/NumaVault.sol";
 
-
 contract NumaLeverageVaultSwap is INumaLeverageStrategy {
     NumaVault vault;
     uint slippage = 10000; // 1e4/1e18
@@ -21,32 +20,31 @@ contract NumaLeverageVaultSwap is INumaLeverageStrategy {
     ) external view returns (uint256) {
         CNumaToken cNuma = vault.cNuma();
         CNumaToken cLstToken = vault.cLstToken();
-     
-         if (
+
+        if (
             ((msg.sender == address(cLstToken)) && (!_closePosition)) ||
             ((msg.sender == address(cNuma)) && (_closePosition))
         ) {
             uint amountIn = vault.getBuyNumaAmountIn(_amount);
-            amountIn = amountIn + (amountIn * slippage)/1 ether;
+            amountIn = amountIn + (amountIn * slippage) / 1 ether;
             return amountIn;
         } else if (
             ((msg.sender == address(cNuma)) && (!_closePosition)) ||
             ((msg.sender == address(cLstToken)) && (_closePosition))
         ) {
             uint amountIn = vault.getSellNumaAmountIn(_amount);
-            amountIn = amountIn + (amountIn * slippage)/1 ether;
+            amountIn = amountIn + (amountIn * slippage) / 1 ether;
             return amountIn;
         } else {
             revert("not allowed");
         }
-    
     }
 
     function swap(
         uint256 _inputAmount,
         uint256 _minAmount,
         bool _closePosition
-    ) external returns (uint256,uint256) {
+    ) external returns (uint256, uint256) {
         CNumaToken cNuma = vault.cNuma();
         CNumaToken cLst = vault.cLstToken();
         if (
@@ -62,7 +60,7 @@ contract NumaLeverageVaultSwap is INumaLeverageStrategy {
             );
             input.approve(address(vault), _inputAmount);
             uint result = vault.buy(_inputAmount, _minAmount, msg.sender);
-            return (result,0);// no excess input for vault as we swap from amountIn
+            return (result, 0); // no excess input for vault as we swap from amountIn
         } else if (
             ((msg.sender == address(cNuma)) && (!_closePosition)) ||
             ((msg.sender == address(cLst)) && (_closePosition))
@@ -76,11 +74,9 @@ contract NumaLeverageVaultSwap is INumaLeverageStrategy {
             );
             input.approve(address(vault), _inputAmount);
             uint result = vault.sell(_inputAmount, _minAmount, msg.sender);
-            return (result,0);// no excess input for vault as we swap from amountIn
+            return (result, 0); // no excess input for vault as we swap from amountIn
         } else {
             revert("not allowed");
         }
     }
-
-
 }

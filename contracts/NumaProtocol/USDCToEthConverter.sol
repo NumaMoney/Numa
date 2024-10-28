@@ -29,9 +29,7 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         decimals = _decimals;
     }
 
-   
-
-     function convertEthToToken(
+    function convertEthToToken(
         uint256 _ethAmount
     ) public view checkSequencerActive returns (uint256 tokenAmount) {
         // 1st oracle
@@ -59,8 +57,7 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
             "min/max reached"
         );
 
-
-        console2.log("USDC/USD price",price);
+        console2.log("USDC/USD price", price);
         require(answeredInRound >= roundID, "Answer given before round");
 
         // 2nd oracle
@@ -87,32 +84,25 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
                 (price2 < int256(aggregator2.maxAnswer()))),
             "min/max reached"
         );
-        console2.log("ETH/USD price",price2);
+        console2.log("ETH/USD price", price2);
         require(answeredInRound2 >= roundID2, "Answer given before round");
-
 
         // compose oracles
 
-            tokenAmount = FullMath.mulDiv(
-                _ethAmount,
-                10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
-                    uint256(price2),
-                uint256(price) *
-                    10 ** AggregatorV3Interface(pricefeedETH_USD).decimals()
-            );
+        tokenAmount = FullMath.mulDiv(
+            _ethAmount,
+            10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
+                uint256(price2),
+            uint256(price) *
+                10 ** AggregatorV3Interface(pricefeedETH_USD).decimals()
+        );
 
-       
+        if (decimals < 18) tokenAmount = tokenAmount / (10 ** (18 - decimals));
+        else tokenAmount = tokenAmount / (10 ** (decimals - 18));
 
-        if (decimals < 18)
-            tokenAmount = tokenAmount / (10 ** (18 - decimals));
-        else
-            tokenAmount = tokenAmount / (10 ** (decimals-18));
-
-              console2.log(tokenAmount);
-
+        console2.log(tokenAmount);
     }
 
-   
     function convertTokenToEth(
         uint256 _tokenAmount
     ) public view checkSequencerActive returns (uint256 ethValue) {
@@ -170,18 +160,17 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
 
         require(answeredInRound2 >= roundID2, "Answer given before round");
 
-
         // compose oracles
         // no need to check oracles direction as we can't change the oracles anyway
         // if feeds need to be changed a new converter will need to be deployed
-         ethValue = FullMath.mulDiv(
-                _tokenAmount,
-                uint256(price) *
-                    10 ** AggregatorV3Interface(pricefeedETH_USD).decimals()*10 ** (18 - decimals),
-                10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
-                    uint256(price2)
-            );
-
+        ethValue = FullMath.mulDiv(
+            _tokenAmount,
+            uint256(price) *
+                10 ** AggregatorV3Interface(pricefeedETH_USD).decimals() *
+                10 ** (18 - decimals),
+            10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
+                uint256(price2)
+        );
     }
     // function usdcLeftSide(address _chainlinkFeed) internal view returns (bool) {
     //     string memory description = AggregatorV3Interface(_chainlinkFeed)
