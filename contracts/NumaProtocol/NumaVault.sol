@@ -20,7 +20,7 @@ import "../lending/CNumaToken.sol";
 import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "../utils/constants.sol";
 
-import "hardhat/console.sol";
+
 
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
@@ -86,7 +86,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     uint leverageDebt;
 
     uint public minLiquidationPc = 1000;
-
+    // for reth borrowers only
+    uint public minBorrowAmountAllowPartialLiquidation = 10 ether;
     // Events
     event SetOracle(address oracle);
     event SetVaultManager(address vaultManager);
@@ -120,7 +121,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         address _tokenAddress,
         uint256 _decimals,
         address _oracleAddress,
-        address _minterAddress
+        address _minterAddress,
+        uint _existingDebt,// in case of migration
+        uint _existingRwdFromDebt// in case of migration
     ) Ownable(msg.sender) {
         minterContract = NumaMinter(_minterAddress);
         numa = NUMA(_numaAddress);
@@ -132,6 +135,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         last_extracttimestamp = block.timestamp;
         last_lsttokenvalueWei = oracle.getTokenPrice(decimals);
 
+        // debt for migration
+        debt = _existingDebt;
+        rewardsFromDebt = _existingRwdFromDebt;
         // paused by default because might be empty
         _pause();
     }
@@ -178,12 +184,28 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     }
 
     /**
+     * @dev minimum reth borrow balance needed to allow partial liquidations
+     */
+    function setMinBorrowAmountAllowPartialLiquidation(uint _minBorrowAmountAllowPartialLiquidation) external onlyOwner {
+        minBorrowAmountAllowPartialLiquidation = _minBorrowAmountAllowPartialLiquidation;
+    }
+
+    /**
      * @dev set the IVaultOracle address (used to compute token price in Eth)
      */
     function setCTokens(address _cNuma, address _clstToken) external onlyOwner {
         cNuma = CNumaToken(_cNuma);
         cLstToken = CNumaToken(_clstToken);
         emit SetCTokens(_cNuma, _clstToken);
+    }
+
+    function getcNumaAddress() external view returns (address)
+    {
+        return address(cNuma);
+    }
+    function getcLstAddress() external view returns (address)
+    {
+        return address(cLstToken);
     }
 
     function setCFLiquidWarning(uint _cFLiquidWarning) external onlyOwner {
@@ -411,7 +433,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint _inputAmount,
         uint _minNumaAmount,
         address _receiver
-    ) public whenNotPaused returns (uint _numaOut) {
+    ) external whenNotPaused returns (uint _numaOut) {
         // CF will change so we need to update interest rates
         // Note that we call that function from vault and not vaultManager, because in multi vault case, we don't need to accrue interest on
         // other vaults as we use a "local CF"
@@ -421,13 +443,15 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
         uint256 vaultsBalance = getVaultBalance();
         uint256 MAX = (max_percent * vaultsBalance) / BASE_1000;
+     
         require(_inputAmount <= MAX, "must trade under max");
 
         _numaOut = buyNoMax(
             _inputAmount,
             _minNumaAmount,
             _receiver,
-            criticalScaleForNumaPriceAndSellFee
+            criticalScaleForNumaPriceAndSellFee,
+            true
         );
     }
 
@@ -435,7 +459,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint _inputAmount,
         uint _minNumaAmount,
         address _receiver,
-        uint criticalScaleForNumaPriceAndSellFee
+        uint _criticalScaleForNumaPriceAndSellFee,
+        bool _transferREth
     ) internal nonReentrant whenNotPaused returns (uint _numaOut) {
         // SAME CODE AS buy() but no max amount (used for liquidations)
         // buys can be paused if we want to force people to buy from other vaults
@@ -447,14 +472,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             _inputAmount,
             last_lsttokenvalueWei,
             decimals,
-            criticalScaleForNumaPriceAndSellFee
+            _criticalScaleForNumaPriceAndSellFee
         );
 
         require(numaAmount > 0, "amount of numa is <= 0");
 
-        // don't transfer to ourselves
-        // function is internal so it will be sent from ourselves always
-        if (msg.sender != address(this)) {
+
+        if (_transferREth) {
             SafeERC20.safeTransferFrom(
                 lstToken,
                 msg.sender,
@@ -470,8 +494,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
         _numaOut = (numaAmount * fee) / 1 ether;
 
-        console2.log(_minNumaAmount);
-        console2.log(_numaOut);
+
         require(_numaOut >= _minNumaAmount, "Min NUMA");
 
         // mint numa
@@ -532,7 +555,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint256 _numaAmount,
         uint256 _minTokenAmount,
         address _receiver
-    ) public nonReentrant whenNotPaused returns (uint _tokenOut) {
+    ) external nonReentrant whenNotPaused returns (uint _tokenOut) {
         require(_numaAmount > MIN, "must trade over min");
         // CF will change so we need to update interest rates
         // Note that we call that function from vault and not vaultManager, because in multi vault case, we don't need to accrue interest on
@@ -693,7 +716,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev max borrowable amount from vault, will also impact utilization rate of lending protocol
      */
-    function GetMaxBorrow() public view returns (uint256) {
+    function getMaxBorrow() public view returns (uint256) {
         uint synthValueInEth = vaultManager.getTotalSynthValueEth();
 
         // single vault balance
@@ -712,10 +735,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 decimals,
                 last_lsttokenvalueWei
             );
-            console2.log("maxBorrowableAmountFromVault", resultToken);
+
             // clamp it with our parameter
+            console2.log("resultToken",resultToken);
             if (resultToken > maxBorrow) resultToken = maxBorrow;
-            console2.log("maxBorrowableAmountFromVault", resultToken);
+                        console2.log("resultToken2",resultToken);
+
             return resultToken;
         }
     }
@@ -780,7 +805,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function borrow(uint _amount) external {
         require(msg.sender == address(cLstToken));
         updateVaultAndUpdateDebasing();
-        uint maxAmount = GetMaxBorrow();
+        uint maxAmount = getMaxBorrow();
         require(_amount <= maxAmount, "max borrow");
 
         debt = debt + _amount;
@@ -832,14 +857,20 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
         startLiquidation();
 
-        IERC20 underlyingCollateral = IERC20(address(numa));
-        IERC20 underlyingBorrow = IERC20(lstToken);
-        CNumaToken borrowToken = cLstToken;
+        IERC20 underlyingCollateral;
+        IERC20 underlyingBorrow;
+        CNumaToken borrowToken;
 
         if (address(collateralToken) == address(cLstToken)) {
             underlyingCollateral = IERC20(lstToken);
             underlyingBorrow = IERC20(address(numa));
             borrowToken = cNuma;
+        }
+        else
+        {
+            underlyingCollateral = IERC20(address(numa));
+            underlyingBorrow = IERC20(lstToken);
+            borrowToken = cLstToken;
         }
 
         // AUDITV2FIX using borrowBalanceCurrent to get an up to date debt
@@ -898,6 +929,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             "invalid param"
         );
 
+        uint criticalScaleForNumaPriceAndSellFee = startLiquidation();
+
+
         uint numaAmount = _numaAmount;
 
         // we need to liquidate at least minLiquidationPc of position
@@ -907,12 +941,24 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         if (_numaAmount == type(uint256).max) {
             numaAmount = borrowAmount;
         }
+        else
+        {
+            // min liquidation amount
+            // convert minimum amount for partial liquidations in numa
+            uint minBorrowAmountAllowPartialLiquidationNuma = vaultManager.tokenToNuma(
+                minBorrowAmountAllowPartialLiquidation,
+                last_lsttokenvalueWei,
+                decimals,
+                criticalScaleForNumaPriceAndSellFee
+            );
+            uint minAmount = minBorrowAmountAllowPartialLiquidationNuma;
+            if (borrowAmount < minAmount)
+                minAmount = borrowAmount;
 
-        uint minLiquidationAmount = (borrowAmount * minLiquidationPc) /
-            BASE_1000;
-        require(numaAmount >= minLiquidationAmount, "min liquidation");
-
-        uint criticalScaleForNumaPriceAndSellFee = startLiquidation();
+            uint minLiquidationAmount = (minAmount * minLiquidationPc) /
+                BASE_1000;
+            require(numaAmount >= minLiquidationAmount, "min liquidation");
+        }
 
         if (_flashloan) {
             // mint
@@ -946,12 +992,15 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
         if (_swapToInput) {
             // sell rEth to numa
+            console2.log("before swapping");
             uint numaReceived = buyNoMax(
                 receivedlst,
                 numaAmount,
                 address(this),
-                criticalScaleForNumaPriceAndSellFee
+                criticalScaleForNumaPriceAndSellFee,
+                false
             );
+                        console2.log("after swapping");
 
             // liquidation profit
             uint numaLiquidatorProfit = numaReceived - numaAmount;
@@ -1038,9 +1087,18 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             lstAmount = borrowAmount;
         }
 
-        uint minLiquidationAmount = (borrowAmount * minLiquidationPc) /
+       
+        uint minAmount = minBorrowAmountAllowPartialLiquidation;
+        if (borrowAmount < minAmount)
+            minAmount = borrowAmount;
+
+ 
+        uint minLiquidationAmount = (minAmount * minLiquidationPc) /
             BASE_1000;
         require(lstAmount >= minLiquidationAmount, "min liquidation");
+        
+
+
 
         uint criticalScaleForNumaPriceAndSellFee = startLiquidation();
 
@@ -1062,8 +1120,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             CTokenInterface(address(cNuma))
         );
 
-        // we should have received crEth with discount
-        // redeem rEth
+
+        // we should have received cNuma with discount
+        // redeem numa
         uint balcToken = IERC20(address(cNuma)).balanceOf(address(this));
         uint balBefore = numa.balanceOf(address(this));
         cNuma.redeem(balcToken);
@@ -1112,6 +1171,11 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 numaLiquidatorProfit = receivedNuma - numaProvidedEstimate;
             }
 
+            console2.log("receivedNuma",receivedNuma);
+console2.log("numaProvidedEstimate",numaProvidedEstimate);
+console2.log("numaLiquidatorProfit",numaLiquidatorProfit);
+
+console2.log("maxNumaProfitForLiquidations",maxNumaProfitForLiquidations);
             uint vaultProfit;
             if (numaLiquidatorProfit > maxNumaProfitForLiquidations) {
                 vaultProfit =
@@ -1119,6 +1183,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                     maxNumaProfitForLiquidations;
             }
 
+console2.log("vaultProfit",vaultProfit);
             uint numaToSend = receivedNuma - vaultProfit;
             // send to liquidator
             SafeERC20.safeTransfer(
@@ -1126,6 +1191,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 msg.sender,
                 numaToSend
             );
+                        console2.log("numaToSend",numaToSend);
 
             // AUDITV2FIX: excess vault profit numa is burnt
             if (vaultProfit > 0) numa.burn(vaultProfit);
@@ -1149,10 +1215,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             // lock numa supply
             lockNumaSupply(true);
             // borrow numa
-            uint balBefore = numa.balanceOf(msg.sender);
-            minterContract.mint(msg.sender, _amount);
-            uint balAfter = numa.balanceOf(msg.sender);
-            require((balAfter - balBefore) == _amount, "flashloan failed");
+            minterContract.mint(msg.sender, _amount);          
             leverageDebt = _amount;
         } else if (
             ((msg.sender == address(cNuma)) && (!_closePosition)) ||
@@ -1160,11 +1223,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         ) {
             // lock lst balance
             lockLstBalance(true);
-            // borrow lst
-            uint balBefore = lstToken.balanceOf(msg.sender);
+            // borrow lst           
             SafeERC20.safeTransfer(lstToken, msg.sender, _amount);
-            uint balAfter = lstToken.balanceOf(msg.sender);
-            require((balAfter - balBefore) == _amount, "flashloan failed");
             leverageDebt = _amount;
         } else {
             revert("not allowed");
@@ -1219,6 +1279,16 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function revokeWithdraw() external onlyOwner {
         isWithdrawRevoked = true;
     }
+
+    // // to initialize the lending debt in case of vault migration
+    // function overrideDebt(
+    //     uint _debt,
+    //     uint _rewardsFromDebt
+    // ) external onlyOwner {
+    //     debt = _debt;
+    //     rewardsFromDebt = _rewardsFromDebt;
+        
+    // }
 
     function isContract(address addr) internal view returns (bool) {
         uint extSize;
