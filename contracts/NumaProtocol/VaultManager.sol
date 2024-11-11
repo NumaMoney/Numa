@@ -13,7 +13,7 @@ import "../interfaces/INuAssetManager.sol";
 import "../interfaces/INumaPrinter.sol";
 
 import "../utils/constants.sol";
-import "hardhat/console.sol";
+
 import "forge-std/console2.sol";
 contract VaultManager is IVaultManager, Ownable2Step {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -356,7 +356,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
             } else if (
                 (pctFromBuyPrice > buyPID_decTriggerPct) && (!_isVaultBuy)
             ) {
-                console2.log("decreasing PID");
+                
                 //LP15minTWAP is below decTriggerPct% from buyPrice.
 
                 // if pctFromBuyPrice is more than 2 x buyfee, we use our decrease multiplier
@@ -654,6 +654,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
         synthValueInEth = (synthValueInEth * _synthScaling) / BASE_1000;
         uint circulatingNuma = getNumaSupply();
 
+     
+        
         uint result;
         if (EthBalance <= synthValueInEth) {
             // extreme case use minim numa price in Eth
@@ -704,6 +706,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         synthValueInEth = (synthValueInEth * _synthScaling) / BASE_1000;
 
         uint circulatingNuma = getNumaSupply();
+
 
         require(circulatingNuma > 0, "no numa in circulation");
 

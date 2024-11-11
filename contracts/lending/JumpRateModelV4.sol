@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import "./InterestRateModel.sol";
 import "@openzeppelin/contracts_5.0.2/access/Ownable.sol";
-
+import "forge-std/console2.sol";
 /**
  * @title Compound's JumpRateModel Contract V3
  * @author Compound (modified by Dharma Labs)
@@ -144,10 +144,11 @@ contract JumpRateModelV4 is InterestRateModel, Ownable {
     ) public view override returns (uint newRatePerBlock, uint) {
         uint util = utilizationRate(cash, borrows, reserves);
 
-        if (util <= kink) {
+        if (util <= kink) {                    
             newRatePerBlock =
                 ((util * multiplierPerBlock) / 1e18) +
                 baseRatePerBlock;
+           
         } else {
             uint normalRate = ((kink * multiplierPerBlock) / 1e18) +
                 baseRatePerBlock;
