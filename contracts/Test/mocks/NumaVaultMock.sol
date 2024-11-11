@@ -34,7 +34,9 @@ contract NumaVaultMock is NumaVault {
             _tokenAddress,
             _decimals,
             _oracleAddress,
-            _minter
+            _minter,
+            0,
+            0
         )
     {}
     /**

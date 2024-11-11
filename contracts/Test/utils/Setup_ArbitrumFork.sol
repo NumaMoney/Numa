@@ -53,7 +53,7 @@ import "./SetupBase.sol";
 contract Setup is SetupBase {
     // Contract instances that we will use repeatedly.
     // Tokens
-    NUMA numa;
+    //NUMA numa;
 
     nuAssetManagerOld nuAssetMgrOld;
     VaultManagerOld vaultManagerOld;
@@ -64,35 +64,27 @@ contract Setup is SetupBase {
         // setup fork
         string memory ARBI_RPC_URL = vm.envString("URL6");
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);
+       
         vm.selectFork(arbitrumFork);
+        vm.rollFork(269602000);
+
+
+        deal({token: address(rEth), to: userA, give: 100000 ether});
+        deal({token: address(rEth), to: userB, give: 100000 ether});
+        deal({token: address(rEth), to: userC, give: 100000 ether});
+
         // prank deployer
         vm.startPrank(deployer);
         // setups
         _setUpTokens();
         _setupOldVaultAndAssetManager();
 
-        // deploy new vault/vaultmanager/nuAssetManager
-        uint AmountTODO = 0;
-        // TODO
-        address feereceiver = deployer;
-        address rwdreceiver = deployer;
-        _setupVaultAndAssetManager(
-            402 * 86400,
-            feereceiver,
-            rwdreceiver,
-            AmountTODO,
-            numa
-        );
-
-        // _setupPool_Numa_Usdc();
-        // _setupPrinter();
-        // _setupLending();
     }
 
     function _setUpTokens() internal override {
         SetupBase._setUpTokens();
         // Numa
-        numa = NUMA(NUMA_ADDRESS_ARBI); // admin, pauser, minter
+        numa = INuma(NUMA_ADDRESS_ARBI); // admin, pauser, minter
     }
 
     function _setupOldVaultAndAssetManager() internal {

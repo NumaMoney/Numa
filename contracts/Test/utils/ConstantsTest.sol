@@ -2,6 +2,7 @@
 pragma solidity 0.8.20;
 contract ConstantsTest {
     // ARBITRUM ADDRESSES
+    address constant VAULT_ADMIN = 0xFC4B72FD6309d2E68B595c56EAcb256D2fE9b881;
     address constant NUMA_ADMIN = 0x7B224b19b2b26d1b329723712eC5f60C3f7877E3;
     address constant UPTIME_FEED_ARBI =
         0xFdB631F5EE196F0ed6FAa767959853A9F217697D;
@@ -32,6 +33,11 @@ contract ConstantsTest {
         0xc5a90A6d7e4Af242dA238FFe279e9f2BA0c64B2e;
     address constant PRICEFEEDUSDCUSD_ARBI =
         0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3;
+    address constant PRICEFEEDBTCUSD_ARBI =
+        0x6ce185860a4963106506C203335A2910413708e9;
+
+
+
     // SEPOLIA
     // no uptime feed
     address constant UPTIME_FEED_NULL =
@@ -53,6 +59,11 @@ contract ConstantsTest {
 
     // lending protocol
     uint blocksPerYear = 2102400; // TODO here eth values for test
+    uint baseRatePerYear = 0.02 ether;// 2%
+    uint multiplierPerYear = 0.01 ether;// 1%
+    uint jumpMultiplierPerYear = 4 ether;//400%
+    uint kink = 0.8 ether;//80%
+
     uint maxUtilizationRatePerYear = 1000000000000000000; //100%
 
     // Variable interest rate model

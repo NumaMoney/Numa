@@ -22,6 +22,7 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 import {ConstantsTest} from "./ConstantsTest.sol";
 //
 import {FakeNuma} from "../mocks/FakeNuma.sol";
+import {INuma} from "../mocks/INuma.sol";
 import {LstTokenMock} from "../mocks/LstTokenMock.sol";
 import {nuAssetManager} from "../../nuAssets/nuAssetManager.sol";
 import {NumaMinter} from "../../NumaProtocol/NumaMinter.sol";
@@ -37,6 +38,7 @@ import "../../NumaProtocol/USDCToEthConverter.sol";
 import {NumaLeverageVaultSwap} from "../../lending/NumaLeverageVaultSwap.sol";
 import {NumaComptroller} from "../../lending/NumaComptroller.sol";
 import "../../lending/JumpRateModelVariable.sol";
+import "../../lending/JumpRateModelV4.sol";
 import "../../lending/CNumaLst.sol";
 import "../../lending/CNumaToken.sol";
 import "../../lending/NumaPriceOracleNew.sol";
@@ -51,6 +53,7 @@ contract SetupBase is
 {
     // Contract instances that we will use repeatedly.
     // Tokens
+    INuma numa;
     address numa_admin;
     ERC20 rEth;
     ERC20 usdc;
@@ -74,13 +77,17 @@ contract SetupBase is
     NumaComptroller comptroller;
     NumaPriceOracleNew numaPriceOracle;
     JumpRateModelVariable rateModel;
+    JumpRateModelV4 rateModelV4;
     CNumaLst cReth;
     CNumaToken cNuma;
 
     // Addresses for different roles we will use repeatedly.
     address public deployer = makeAddr("deployer");
-    address public userA = makeAddr("userA");
 
+    address public feeAddressPrinter = makeAddr("feePrinterAddy");
+    address public userA = makeAddr("userA");
+    address public userB = makeAddr("userB");
+    address public userC = makeAddr("userC");
     // uniswap
     INonfungiblePositionManager internal nonfungiblePositionManager;
     IUniswapV3Factory internal factory;
@@ -88,6 +95,8 @@ contract SetupBase is
 
     //
     int ethusd;
+    int btcusd;
+    int btceth;
     int usdcusd;
     function _setUpTokens() internal virtual {
         //
@@ -100,52 +109,245 @@ contract SetupBase is
         address _feereceiver,
         address _rwdreceiver,
         uint _rethAmount,
-        NUMA numa
-    ) internal {
+        INuma _numa,
+        uint _debt,
+        uint _rwdfromDebt
+    ) internal returns(nuAssetManager nuAM,NumaMinter minter,VaultManager vaultm,VaultOracleSingle vo,NumaVault v) {
         // nuAssetManager
-        nuAssetMgr = new nuAssetManager(UPTIME_FEED_ARBI);
+        nuAM = new nuAssetManager(UPTIME_FEED_ARBI);
 
         // numaMinter
-        numaMinter = new NumaMinter();
-        numaMinter.setTokenAddress(address(numa));
+        minter = new NumaMinter();
+        minter.setTokenAddress(address(_numa));
 
         vm.stopPrank();
         vm.startPrank(numa_admin);
 
-        numa.grantRole(MINTER_ROLE, address(numaMinter));
+        _numa.grantRole(MINTER_ROLE, address(minter));
         vm.stopPrank();
         vm.startPrank(deployer);
 
         // vault manager
-        vaultManager = new VaultManager(address(numa), address(nuAssetMgr));
+        vaultm = new VaultManager(address(_numa), address(nuAM));
         // custom heartbeat to support advance in time
-        vaultOracle = new VaultOracleSingle(
+        vo = new VaultOracleSingle(
             address(rEth),
             PRICEFEEDRETHETH_ARBI,
             _heartbeat,
             UPTIME_FEED_NULL
         );
         // vault
-        vault = new NumaVault(
-            address(numa),
+        v = new NumaVault(
+            address(_numa),
             address(rEth),
             1 ether,
-            address(vaultOracle),
-            address(numaMinter)
+            address(vo),
+            address(minter),
+            _debt,
+            _rwdfromDebt
         );
-        vaultManager.addVault(address(vault));
-        vault.setVaultManager(address(vaultManager));
-        vault.setFeeAddress(_feereceiver, false);
-        vault.setRwdAddress(_rwdreceiver, false);
+        // add vault as a numa minter
+        minter.addToMinters(address(v));
+        vaultm.addVault(address(v));
+        v.setVaultManager(address(vaultm));
+        v.setFeeAddress(_feereceiver, false);
+        v.setRwdAddress(_rwdreceiver, false);
 
-        // // setup V2 decay to match V1
-        // // TODO
 
         // transfer rEth to vault to initialize price
-        rEth.transfer(address(vault), _rethAmount);
-        // unpause V2
-        vault.unpause();
+        if (_rethAmount > 0)
+        {
+            rEth.transfer(address(v), _rethAmount);
+            // unpause V2
+            v.unpause();
+        }
     }
+
+    function _setupPrinter(address nuassetMgrAddress,address numaMinterAddress,address vaultManagerAddress) internal
+    returns(NumaOracle o,USDCToEthConverter c,NumaPrinter p)
+    {
+        console2.log("pool address: ", NUMA_USDC_POOL_ADDRESS);
+        o = new NumaOracle(
+            USDC_ARBI,
+            INTERVAL_SHORT,
+            INTERVAL_LONG,
+            deployer,
+            //address(nuAssetMgr)
+            nuassetMgrAddress
+        );
+
+        c = new USDCToEthConverter(
+            PRICEFEEDUSDCUSD_ARBI,
+            HEART_BEAT_CUSTOM,
+            PRICEFEEDETHUSD_ARBI,
+            HEART_BEAT_CUSTOM,
+            UPTIME_FEED_ARBI//,
+            //usdc.decimals()
+        );
+
+        p = new NumaPrinter(
+            address(numa),
+            //address(numaMinter),
+            numaMinterAddress,
+            NUMA_USDC_POOL_ADDRESS,
+            address(c),
+            INumaOracle(o),
+            //address(vaultManager)
+            vaultManagerAddress
+        );
+        p.setPrintAssetFeeBps(printFee);
+        p.setBurnAssetFeeBps(burnFee);
+        p.setSwapAssetFeeBps(swapFee);
+
+        p.setFeeAddress(payable(feeAddressPrinter),6000);//60%
+
+        // add moneyPrinter as a numa minter
+        NumaMinter(numaMinterAddress).addToMinters(address(p));
+  
+        // set printer to vaultManager
+        VaultManager(vaultManagerAddress).setPrinter(address(p));
+    }
+
+    function _createNuAssets() internal 
+    {
+        // nuAssets
+        nuUSD = new NuAsset2("nuUSD", "NUSD", deployer, deployer);
+        nuBTC = new NuAsset2("nuBTC", "NUBTC", deployer, deployer);
+
+    }
+
+    function _linkNuAssets(address _nuAssetMgrAddress,address _printerAddress) internal
+    {
+        // register nuAsset
+        nuAssetManager(_nuAssetMgrAddress).addNuAsset(address(nuUSD), PRICEFEEDETHUSD_ARBI, HEART_BEAT_CUSTOM);
+        // set printer as a NuUSD minter
+        nuUSD.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer
+
+        
+        // register nuAsset
+        nuAssetManager(_nuAssetMgrAddress).addNuAsset(address(nuBTC), PRICEFEEDBTCETH_ARBI, HEART_BEAT);
+        // set printer as a NuUSD minter
+        nuBTC.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer 
+
+    }
+
+    function _setupPool_Numa_Usdc() internal {
+        uint USDCAmount = 200000;
+        uint USDCAmountNumaPool = USDCAmount * 1000000; //6 decimals
+        uint NumaAmountNumaPoolUSDC = USDTONUMA * USDCAmount * 1 ether; // 18 decimals
+
+        NUMA_USDC_POOL_ADDRESS = _setupUniswapPool(
+            usdc,
+            ERC20(address(numa)),
+            USDCAmountNumaPool,
+            NumaAmountNumaPoolUSDC
+        );
+
+        // advance in time for avg prices to work
+        skip(INTERVAL_LONG * 2);
+        vm.roll(block.number + 1);
+        IUniswapV3Pool(NUMA_USDC_POOL_ADDRESS)
+            .increaseObservationCardinalityNext(100);
+    }
+
+
+    function _setupLending(NumaVault _vault) internal {
+        // COMPTROLLER
+        comptroller = new NumaComptroller();
+
+        // PRICE ORACLE
+        numaPriceOracle = new NumaPriceOracleNew();
+        //numaPriceOracle.setVault(address(vault));
+        comptroller._setPriceOracle((numaPriceOracle));
+        // INTEREST RATE MODEL
+        uint maxUtilizationRatePerBlock = maxUtilizationRatePerYear /
+            blocksPerYear;
+
+   
+
+    // standard jump rate model V4
+    rateModelV4 = new JumpRateModelV4(blocksPerYear,baseRatePerYear,multiplierPerYear,jumpMultiplierPerYear,kink,deployer,"numaJumpRateModel");
+
+
+
+        uint _zeroUtilizationRatePerBlock = (_zeroUtilizationRate /
+            blocksPerYear);
+        uint _minFullUtilizationRatePerBlock = (_minFullUtilizationRate /
+            blocksPerYear);
+        uint _maxFullUtilizationRatePerBlock = (_maxFullUtilizationRate /
+            blocksPerYear);
+
+        rateModel = new JumpRateModelVariable(
+            "numaRateModel",
+            _vertexUtilization,
+            _vertexRatePercentOfDelta,
+            _minUtil,
+            _maxUtil,
+            _zeroUtilizationRatePerBlock,
+            _minFullUtilizationRatePerBlock,
+            _maxFullUtilizationRatePerBlock,
+            _rateHalfLife,
+            deployer
+        );
+
+        // CTOKENS
+        cReth = new CNumaLst(
+            address(rEth),
+            comptroller,
+            rateModel,
+            200000000000000000000000000,
+            "rEth CToken",
+            "crEth",
+            8,
+            maxUtilizationRatePerBlock,
+            payable(deployer),
+            address(_vault)
+        );
+
+        cNuma = new CNumaToken(
+            address(numa),
+            comptroller,
+            rateModelV4,
+            200000000000000000000000000,
+            "numa CToken",
+            "cNuma",
+            8,
+            maxUtilizationRatePerBlock,
+            payable(deployer),
+            address(_vault)
+        );
+
+        _vault.setMaxBorrow(1000 ether);
+        _vault.setCTokens(address(cNuma), address(cReth));
+        _vault.setMinLiquidationsPc(250); //25% min
+        // add markets (has to be done before _setcollateralFactor)
+        comptroller._supportMarket((cNuma));
+        comptroller._supportMarket((cReth));
+
+        // collateral factors
+        comptroller._setCollateralFactor((cNuma), numaCollateralFactor);
+        comptroller._setCollateralFactor((cReth), rEthCollateralFactor);
+
+
+
+        //ExponentialNoError.Exp memory collateralFactor = ExponentialNoError.Exp({mantissa: markets[address(cNuma)].collateralFactorMantissa});
+        uint collateralFactor = comptroller.collateralFactor(cNuma);
+        console2.log(collateralFactor);
+
+        // 100% liquidation close factor
+        comptroller._setCloseFactor(1 ether);
+        comptroller._setLiquidationIncentive(1.02 ether);
+        vault.setMaxLiquidationsProfit(10 ether);
+
+        // strategies
+        // deploy strategy
+        NumaLeverageVaultSwap strat0 = new NumaLeverageVaultSwap(
+            address(_vault)
+        );
+        cReth.addStrategy(address(strat0));
+        cNuma.addStrategy(address(strat0));
+    }
+   
 
     function mintNewPool(
         address token0,
