@@ -7,7 +7,6 @@ import "./PriceOracleCollateralBorrow.sol";
 import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
-import "hardhat/console.sol";
 
 import "forge-std/console2.sol";
 /**
@@ -357,6 +356,8 @@ contract NumaComptroller is
         address redeemer,
         uint redeemTokens
     ) internal view returns (uint) {
+
+        require(!redeemGuardianPaused, "redeem is paused");
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
@@ -444,7 +445,7 @@ contract NumaComptroller is
             assert(markets[cToken].accountMembership[borrower]);
         }
 
-        if (oracle.getUnderlyingPriceAsBorrowed(CToken(cToken)) == 0) {
+        if (oracle.getUnderlyingPriceAsBorrowed(CNumaToken(cToken)) == 0) {
             return uint(Error.PRICE_ERROR);
         }
 
@@ -512,7 +513,7 @@ contract NumaComptroller is
         payer;
         borrower;
         repayAmount;
-
+        require(!repayGuardianPaused, "repay is paused");
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
@@ -591,8 +592,8 @@ contract NumaComptroller is
                 uint badDebt
             ) = getAccountLiquidityIsolateInternal(
                     borrower,
-                    CToken(cTokenCollateral),
-                    CToken(cTokenBorrowed)
+                    CNumaToken(cTokenCollateral),
+                    CNumaToken(cTokenBorrowed)
                 );
             if (err != Error.NO_ERROR) {
                 return uint(err);
@@ -655,8 +656,8 @@ contract NumaComptroller is
                 uint badDebt
             ) = getAccountLiquidityIsolateInternal(
                     borrower,
-                    CToken(cTokenCollateral),
-                    CToken(cTokenBorrowed)
+                    CNumaToken(cTokenCollateral),
+                    CNumaToken(cTokenBorrowed)
                 );
             if (err != Error.NO_ERROR) {
                 return uint(err);
@@ -859,8 +860,8 @@ contract NumaComptroller is
 
     function getAccountLiquidityIsolate(
         address account,
-        CToken collateral,
-        CToken borrow
+        CNumaToken collateral,
+        CNumaToken borrow
     ) public view returns (uint, uint, uint, uint) {
         (
             Error err,
@@ -873,8 +874,8 @@ contract NumaComptroller is
 
     function getAccountLTVIsolate(
         address account,
-        CToken collateral,
-        CToken borrow
+        CNumaToken collateral,
+        CNumaToken borrow
     ) public view returns (uint, uint) {
         (Error err, uint ltv) = getAccountLTVIsolateInternal(
             account,
@@ -892,8 +893,8 @@ contract NumaComptroller is
      */
     function getAccountLiquidityIsolateInternal(
         address account,
-        CToken collateral,
-        CToken borrow
+        CNumaToken collateral,
+        CNumaToken borrow
     ) internal view returns (Error, uint, uint, uint) {
         AccountLiquidityLocalVars memory vars; // Holds all our calculation results
         uint oErr;
@@ -1014,8 +1015,8 @@ contract NumaComptroller is
 
     function getAccountLTVIsolateInternal(
         address account,
-        CToken collateral,
-        CToken borrow
+        CNumaToken collateral,
+        CNumaToken borrow
     ) internal view returns (Error, uint) {
         AccountLiquidityLocalVars memory vars; // Holds all our calculation results
         uint oErr;
@@ -1246,15 +1247,14 @@ contract NumaComptroller is
             }
         }
 
-        CToken collateral = cTokenModify;
-        CToken borrow = otherToken;
+        CNumaToken collateral = CNumaToken(address(cTokenModify));
+        CNumaToken borrow = CNumaToken(address(otherToken));
 
         if (borrowAmount > 0) {
-            collateral = otherToken;
-            borrow = cTokenModify;
+            collateral = CNumaToken(address(otherToken));
+            borrow = CNumaToken(address(cTokenModify));
         }
-        console2.log("collateral IS");
-        console2.log(address(collateral));
+
 
         // collateral
         if (
@@ -1299,13 +1299,6 @@ contract NumaComptroller is
             // sumCollateral += tokensToDenom * cTokenBalance
 
             // NUMALENDING: use collateral price
-            console2.log("collateral balance");
-            console2.log(vars.cTokenBalance);
-            console2.log(vars.collateralFactor.mantissa);
-            console2.log(vars.exchangeRate.mantissa);
-
-            console2.log(vars.oraclePriceCollateral.mantissa);
-
             vars.sumCollateral = mul_ScalarTruncateAddUInt(
                 vars.tokensToDenomCollateral,
                 vars.cTokenBalance,
@@ -1489,10 +1482,10 @@ contract NumaComptroller is
         /* Read oracle prices for borrowed and collateral markets */
         // NUMALENDING: different oracle functions depending on the token is borrowed or collateral
         uint priceBorrowedMantissa = oracle.getUnderlyingPriceAsBorrowed(
-            CToken(cTokenBorrowed)
+            CNumaToken(cTokenBorrowed)
         );
         uint priceCollateralMantissa = oracle.getUnderlyingPriceAsCollateral(
-            CToken(cTokenCollateral)
+            CNumaToken(cTokenCollateral)
         );
         if (priceBorrowedMantissa == 0 || priceCollateralMantissa == 0) {
             return (uint(Error.PRICE_ERROR), 0);
@@ -1519,27 +1512,9 @@ contract NumaComptroller is
             Exp({mantissa: priceCollateralMantissa}),
             Exp({mantissa: exchangeRateMantissa})
         );
+     
         ratio = div_(numerator, denominator);
-
-        console.log("check seize rETh amount");
-        Exp memory numerator2;
-        Exp memory denominator2;
-        Exp memory ratio2;
-
-        numerator2 = mul_(
-            Exp({mantissa: liquidationIncentiveMantissa}),
-            Exp({mantissa: priceBorrowedMantissa})
-        );
-        denominator2 = mul_(
-            Exp({mantissa: priceCollateralMantissa}),
-            Exp({mantissa: 1e18})
-        );
-        ratio2 = div_(numerator2, denominator2);
-
-        console.logUint(mul_ScalarTruncate(ratio2, actualRepayAmount));
         seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
-        console.logUint(seizeTokens);
-        console.logUint(exchangeRateMantissa);
         return (uint(Error.NO_ERROR), seizeTokens);
     }
 
@@ -1601,7 +1576,7 @@ contract NumaComptroller is
      * @return uint 0=success, otherwise a failure. (See ErrorReporter for details)
      */
     function _setCollateralFactor(
-        CToken cToken,
+        CNumaToken cToken,
         uint newCollateralFactorMantissa
     ) external returns (uint) {
         // Check caller is admin
@@ -1895,6 +1870,33 @@ contract NumaComptroller is
         emit ActionPaused("Seize", state);
         return state;
     }
+
+    function _setRedeemPaused(bool state) public returns (bool) {
+        require(
+            msg.sender == pauseGuardian || msg.sender == admin,
+            "only pause guardian and admin can pause"
+        );
+        require(msg.sender == admin || state == true, "only admin can unpause");
+
+       redeemGuardianPaused = state;
+        emit ActionPaused("Redeem", state);
+        return state;
+    }
+
+
+    function _setRepayPaused(bool state) public returns (bool) {
+        require(
+            msg.sender == pauseGuardian || msg.sender == admin,
+            "only pause guardian and admin can pause"
+        );
+        require(msg.sender == admin || state == true, "only admin can unpause");
+
+        repayGuardianPaused = state;
+        emit ActionPaused("Repay", state);
+        return state;
+    }
+
+
 
     function _become(Unitroller unitroller) public {
         require(

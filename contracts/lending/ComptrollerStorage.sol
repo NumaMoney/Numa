@@ -77,10 +77,12 @@ contract ComptrollerV2Storage is ComptrollerV1Storage {
      *  Liquidation / seizing / transfer can only be paused globally, not by market.
      */
     address public pauseGuardian;
-    bool public _mintGuardianPaused;
-    bool public _borrowGuardianPaused;
+    //bool public _mintGuardianPaused;
+    //bool public _borrowGuardianPaused;
     bool public transferGuardianPaused;
     bool public seizeGuardianPaused;
+    bool public redeemGuardianPaused;
+    bool public repayGuardianPaused;
     mapping(address => bool) public mintGuardianPaused;
     mapping(address => bool) public borrowGuardianPaused;
 }
