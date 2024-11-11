@@ -11,7 +11,7 @@ import "../interfaces/INuAsset.sol";
 import "../interfaces/INumaOracle.sol";
 import "../interfaces/IVaultManager.sol";
 import "../utils/constants.sol";
-import "hardhat/console.sol";
+
 import "forge-std/console2.sol";
 
 /// @title NumaPrinter
@@ -84,6 +84,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         INumaOracle _oracle,
         address _vaultManagerAddress
     ) Ownable(msg.sender) {
+        require(_numaPool != address(0),"no pool");
         numa = NUMA(_numaAddress);
         minterContract = NumaMinter(_numaMinterAddress);
 
@@ -93,6 +94,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
             tokenToEthConverter = _tokenToEthConverter;
         oracle = _oracle;
         vaultManager = IVaultManager(_vaultManagerAddress);
+
+        // pause by default
+        _pause();
     }
 
     function pause() external onlyOwner {
@@ -389,12 +393,16 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         // burn price is the max between vault sell price and LP price
         uint costWithoutFee = numaAmountPool;
+        console2.log("numaAmountVault",numaAmountVault);
+        console2.log("numaAmountPool",numaAmountPool);
         if (numaAmountVault < numaAmountPool) costWithoutFee = numaAmountVault;
 
         (uint scaleSynthBurn, , , ) = vaultManager.getSynthScaling();
         // apply scale
+        console2.log("scaleSynthBurn",scaleSynthBurn);
+                console2.log("costWithoutFee",costWithoutFee);
         costWithoutFee = (costWithoutFee * scaleSynthBurn) / BASE_1000;
-
+ console2.log("costWithoutFee",costWithoutFee);
         // burn fee
         uint256 amountToBurn = computeFeeAmountIn(
             costWithoutFee,
@@ -647,7 +655,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // fees are 100% sent
         if (fee_address != address(0)) {
             SafeERC20.safeTransferFrom(
-                IERC20(address(numa)),
+                IERC20(_nuAssetFrom),
                 msg.sender,
                 fee_address,
                 amountInFee
@@ -705,7 +713,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         // fees are 100% sent
         if (fee_address != address(0)) {
             SafeERC20.safeTransferFrom(
-                IERC20(address(numa)),
+                IERC20(_nuAssetFrom),
                 msg.sender,
                 fee_address,
                 fee
