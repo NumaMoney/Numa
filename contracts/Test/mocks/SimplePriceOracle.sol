@@ -30,13 +30,13 @@ contract SimplePriceOracle is PriceOracleCollateralBorrow {
     }
 
     function getUnderlyingPriceAsCollateral(
-        CToken cToken
+        CNumaToken cToken
     ) public view override returns (uint) {
         return getUnderlyingPrice(cToken);
     }
 
     function getUnderlyingPriceAsBorrowed(
-        CToken cToken
+        CNumaToken cToken
     ) public view override returns (uint) {
         return getUnderlyingPrice(cToken);
     }

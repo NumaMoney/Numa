@@ -15,7 +15,7 @@ import "forge-std/console2.sol";
  * @author
  */
 contract CNumaToken is CErc20Immutable {
-    INumaVault vault;
+    INumaVault public vault;
 
     uint constant max_strategy = 10;
 
@@ -145,6 +145,10 @@ contract CNumaToken is CErc20Immutable {
         CNumaToken _collateral,
         uint _strategyIndex
     ) external {
+        // AUDITV2FIX if we don't do that, borrow balance might change when calling borrowinternal
+        accrueInterest();
+        _collateral.accrueInterest();
+
         INumaLeverageStrategy strat = INumaLeverageStrategy(
             leverageStrategies.at(_strategyIndex)
         );
@@ -262,14 +266,21 @@ contract CNumaToken is CErc20Immutable {
         uint _borrowtorepay,
         uint _strategyIndex
     ) external {
+        // AUDITV2FIX
+         accrueInterest();
+        _collateral.accrueInterest();
+
         INumaLeverageStrategy strat = INumaLeverageStrategy(
             leverageStrategies.at(_strategyIndex)
         );
         address underlyingCollateral = _collateral.underlying();
-        // get borrowed amount
-        accrueInterest();
+        // get borrowed amount       
         uint borrowAmountFull = borrowBalanceStored(msg.sender);
         require(borrowAmountFull >= _borrowtorepay, "no borrow");
+
+        // clip to borrowed amount
+        if (_borrowtorepay > borrowAmountFull)
+            _borrowtorepay = borrowAmountFull;
 
         // flashloan
         vault.borrowLeverage(_borrowtorepay, true);

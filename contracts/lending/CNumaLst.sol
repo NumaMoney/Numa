@@ -46,12 +46,15 @@ contract CNumaLst is CNumaToken {
         // borrow rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
-            maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+            maxBorrowableAmountFromVault = vault.getMaxBorrow();
 
         uint currentTimestamp = block.timestamp;
         uint timestampPrior = accrualBlockTimestamp;
         uint deltaTime = currentTimestamp - timestampPrior;
 
+        console2.log("totalBorrows",totalBorrows);
+                console2.log("getCashPrior()+ maxBorrowableAmountFromVault",getCashPrior() + maxBorrowableAmountFromVault);
+                 console2.log("maxBorrowableAmountFromVault", maxBorrowableAmountFromVault);
         (uint ratePerBlock, ) = interestRateModel.getBorrowRate(
             getCashPrior() + maxBorrowableAmountFromVault,
             totalBorrows,
@@ -71,7 +74,7 @@ contract CNumaLst is CNumaToken {
         // supply rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
-            maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+            maxBorrowableAmountFromVault = vault.getMaxBorrow();
 
         uint currentTimestamp = block.timestamp;
         uint timestampPrior = accrualBlockTimestamp;
@@ -107,7 +110,7 @@ contract CNumaLst is CNumaToken {
         // interest rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
-            maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+            maxBorrowableAmountFromVault = vault.getMaxBorrow();
 
         uint cashPrior = getCashPrior() + maxBorrowableAmountFromVault;
         uint borrowsPrior = totalBorrows;
@@ -216,13 +219,7 @@ contract CNumaLst is CNumaToken {
             //
             if (address(vault) != address(0)) {
                 uint amountNeeded = borrowAmount - cashPrior;
-                uint maxBorrowableAmountFromVault = vault.GetMaxBorrow();
-
-                console2.log(
-                    "maxBorrowableAmountFromVault",
-                    maxBorrowableAmountFromVault
-                );
-                console2.log("amountNeeded", amountNeeded);
+                uint maxBorrowableAmountFromVault = vault.getMaxBorrow();                
                 if (amountNeeded <= maxBorrowableAmountFromVault) {
                     // if ok, borrow from vault
                     vault.borrow(amountNeeded);
@@ -362,7 +359,7 @@ contract CNumaLst is CNumaToken {
             uint amountNeeded = redeemAmount - getCashPrior();
             uint maxBorrowableAmountFromVault;
             if (address(vault) != address(0))
-                maxBorrowableAmountFromVault = vault.GetMaxBorrow();
+                maxBorrowableAmountFromVault = vault.getMaxBorrow();
             if (amountNeeded <= maxBorrowableAmountFromVault) {
                 // if ok, borrow from vault
                 vault.borrow(amountNeeded);

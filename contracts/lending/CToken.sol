@@ -1021,7 +1021,7 @@ abstract contract CToken is
             cTokenCollateral.balanceOf(borrower) >= seizeTokens,
             "LIQUIDATE_SEIZE_TOO_MUCH"
         );
-
+   
         // If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
         if (address(cTokenCollateral) == address(this)) {
             seizeInternal(address(this), liquidator, borrower, seizeTokens);

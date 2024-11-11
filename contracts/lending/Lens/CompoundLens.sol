@@ -163,7 +163,7 @@ contract CompoundLens {
     }
 
     function cTokenUnderlyingPrice(
-        CToken cToken
+        CNumaToken cToken
     ) public returns (CTokenUnderlyingPrice memory) {
         ComptrollerLensInterface comptroller = ComptrollerLensInterface(
             address(cToken.comptroller())
@@ -181,7 +181,7 @@ contract CompoundLens {
     }
 
     function cTokenUnderlyingPriceAll(
-        CToken[] calldata cTokens
+        CNumaToken[] calldata cTokens
     ) external returns (CTokenUnderlyingPrice[] memory) {
         uint cTokenCount = cTokens.length;
         CTokenUnderlyingPrice[] memory res = new CTokenUnderlyingPrice[](
