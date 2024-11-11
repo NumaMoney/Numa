@@ -6,27 +6,27 @@ import "../libraries/OracleUtils.sol";
 
 import "forge-std/console2.sol";
 contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
-    address public pricefeedUSDC_USD;
-    uint128 chainlink_heartbeatUSDC_USD;
+    address public immutable pricefeedUSDC_USD;
+    uint128 immutable chainlink_heartbeatUSDC_USD;
 
-    address public pricefeedETH_USD;
-    uint128 chainlink_heartbeatETH_USD;
+    address public immutable pricefeedETH_USD;
+    uint128 immutable chainlink_heartbeatETH_USD;
 
-    uint decimals;
+    //uint decimals;
 
     constructor(
         address _pricefeedUSDC_USD,
         uint128 _chainlink_heartbeatUSDC_USD,
         address _pricefeedETH_USD,
         uint128 _chainlink_heartbeatETH_USD,
-        address _uptimeFeedAddress,
-        uint _decimals
+        address _uptimeFeedAddress//,
+        //uint _decimals
     ) OracleUtils(_uptimeFeedAddress) {
         pricefeedUSDC_USD = _pricefeedUSDC_USD;
         chainlink_heartbeatUSDC_USD = _chainlink_heartbeatUSDC_USD;
         pricefeedETH_USD = _pricefeedETH_USD;
         chainlink_heartbeatETH_USD = _chainlink_heartbeatETH_USD;
-        decimals = _decimals;
+        //decimals = _decimals;
     }
 
     function convertEthToToken(
@@ -57,7 +57,6 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
             "min/max reached"
         );
 
-        console2.log("USDC/USD price", price);
         require(answeredInRound >= roundID, "Answer given before round");
 
         // 2nd oracle
@@ -84,23 +83,25 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
                 (price2 < int256(aggregator2.maxAnswer()))),
             "min/max reached"
         );
-        console2.log("ETH/USD price", price2);
         require(answeredInRound2 >= roundID2, "Answer given before round");
 
         // compose oracles
 
         tokenAmount = FullMath.mulDiv(
             _ethAmount,
-            10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
+            10 ** 8 *// hardcoding decimals as they are constant
                 uint256(price2),
             uint256(price) *
-                10 ** AggregatorV3Interface(pricefeedETH_USD).decimals()
+                10 ** 8// hardcoding decimals as they are constant
         );
 
-        if (decimals < 18) tokenAmount = tokenAmount / (10 ** (18 - decimals));
-        else tokenAmount = tokenAmount / (10 ** (decimals - 18));
+        // if (decimals < 18) tokenAmount = tokenAmount / (10 ** (18 - decimals));
+        // else tokenAmount = tokenAmount / (10 ** (decimals - 18));
 
-        console2.log(tokenAmount);
+        // decimals are 6 for usdc (18 - 6 = 12)
+        tokenAmount = tokenAmount / (10 ** 12);
+
+
     }
 
     function convertTokenToEth(
@@ -163,22 +164,24 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         // compose oracles
         // no need to check oracles direction as we can't change the oracles anyway
         // if feeds need to be changed a new converter will need to be deployed
+        // ethValue = FullMath.mulDiv(
+        //     _tokenAmount,
+        //     uint256(price) *
+        //         10 ** 8 *// hardcoding decimals as they are constant
+        //         10 ** (18 - decimals),
+        //     10 ** 8 *// hardcoding decimals as they are constant
+        //         uint256(price2)
+        // );
+
+        
         ethValue = FullMath.mulDiv(
             _tokenAmount,
             uint256(price) *
-                10 ** AggregatorV3Interface(pricefeedETH_USD).decimals() *
-                10 ** (18 - decimals),
-            10 ** AggregatorV3Interface(pricefeedUSDC_USD).decimals() *
+                10 ** 8 *// hardcoding decimals as they are constant
+                10 ** 12,// decimals are 6 for usdc (18 - 6 = 12)
+            10 ** 8 *// hardcoding decimals as they are constant
                 uint256(price2)
         );
     }
-    // function usdcLeftSide(address _chainlinkFeed) internal view returns (bool) {
-    //     string memory description = AggregatorV3Interface(_chainlinkFeed)
-    //         .description();
-    //     bytes memory descriptionBytes = bytes(description);
-    //     bytes memory usdcBytes = bytes("USDC");
-    //     for (uint i = 0; i < 3; i++)
-    //         if (descriptionBytes[i] != usdcBytes[i]) return false;
-    //     return true;
-    // }
+
 }
