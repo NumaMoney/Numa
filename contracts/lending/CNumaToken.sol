@@ -7,8 +7,7 @@ import "@openzeppelin/contracts_5.0.2/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "../interfaces/INumaVault.sol";
 import "./INumaLeverageStrategy.sol";
-import "forge-std/console2.sol";
-//import "forge-std/console.sol";
+
 /**
  * @title CNumaToken
  * @notice CTokens used with numa vault
@@ -267,14 +266,14 @@ contract CNumaToken is CErc20Immutable {
         uint _strategyIndex
     ) external {
         // AUDITV2FIX
-         accrueInterest();
+        accrueInterest();
         _collateral.accrueInterest();
 
         INumaLeverageStrategy strat = INumaLeverageStrategy(
             leverageStrategies.at(_strategyIndex)
         );
         address underlyingCollateral = _collateral.underlying();
-        // get borrowed amount       
+        // get borrowed amount
         uint borrowAmountFull = borrowBalanceStored(msg.sender);
         require(borrowAmountFull >= _borrowtorepay, "no borrow");
 

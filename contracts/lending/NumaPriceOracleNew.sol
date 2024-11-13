@@ -7,18 +7,15 @@ import "../interfaces/INumaVault.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
 contract NumaPriceOracleNew is PriceOracleCollateralBorrow {
-
     constructor() {}
 
     function getUnderlyingPriceAsCollateral(
         CNumaToken cToken
     ) public view override returns (uint) {
-
         INumaVault vault = cToken.vault();
         require((address(vault) != address(0)), "no vault");
 
-        if (address(cToken) == vault.getcNumaAddress())
-        {
+        if (address(cToken) == vault.getcNumaAddress()) {
             // numa price from vault
             return vault.numaToLst(1e18);
         } else if (address(cToken) == vault.getcLstAddress()) {

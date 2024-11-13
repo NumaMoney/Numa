@@ -2,8 +2,8 @@
 pragma solidity 0.8.20;
 
 interface INumaVault {
-    function buy(uint,uint,address) external returns (uint);
-    function sell(uint,uint,address) external returns (uint);
+    function buy(uint, uint, address) external returns (uint);
+    function sell(uint, uint, address) external returns (uint);
     function getDebt() external view returns (uint);
     function repay(uint amount) external;
     function borrow(uint amount) external;

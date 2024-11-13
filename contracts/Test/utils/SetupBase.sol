@@ -22,7 +22,8 @@ import {ExtendedTest} from "./ExtendedTest.sol";
 import {ConstantsTest} from "./ConstantsTest.sol";
 //
 import {FakeNuma} from "../mocks/FakeNuma.sol";
-import {INuma} from "../mocks/INuma.sol";
+import "../../interfaces/INuma.sol";
+
 import {LstTokenMock} from "../mocks/LstTokenMock.sol";
 import {nuAssetManager} from "../../nuAssets/nuAssetManager.sol";
 import {NumaMinter} from "../../NumaProtocol/NumaMinter.sol";
@@ -46,10 +47,13 @@ import "../../lending/ExponentialNoError.sol";
 import "../../lending/ComptrollerStorage.sol";
 import {NUMA} from "../../Numa.sol";
 
+import "../../deployment/utils.sol";
+
 // forge test --fork-url <your_rpc_url>
 contract SetupBase is
     ExtendedTest,
-    ConstantsTest //, IEvents {
+    ConstantsTest,
+    deployUtils //, IEvents {
 {
     // Contract instances that we will use repeatedly.
     // Tokens
@@ -108,64 +112,97 @@ contract SetupBase is
         uint128 _heartbeat,
         address _feereceiver,
         address _rwdreceiver,
-        uint _rethAmount,
+        INuma _numa,
+        uint _debt,
+        uint _rwdfromDebt,
+        address _existingAssetManager,
+        address _existingNumaminter
+    )
+        internal
+        returns (
+            nuAssetManager nuAM,
+            NumaMinter minter,
+            VaultManager vaultm,
+            VaultOracleSingle vo,
+            NumaVault v
+        )
+    {
+        deployVaultParameters memory parameters = deployVaultParameters(
+            _heartbeat,
+            UPTIME_FEED_ARBI,
+            PRICEFEEDRETHETH_ARBI,
+            _feereceiver,
+            _rwdreceiver,
+            _numa,
+            _debt,
+            _rwdfromDebt,
+            _existingAssetManager,
+            _existingNumaminter,
+            address(rEth)
+        );
+
+        (nuAM, minter, vaultm, vo, v) = setupVaultAndAssetManager(parameters);
+
+        // // nuAssetManager
+        // if (_existingAssetManager != address(0))
+        // {
+        //     nuAM = nuAssetManager(_existingAssetManager);
+        // }
+        // else
+        // {
+        //     nuAM = new nuAssetManager(UPTIME_FEED_ARBI);
+        // }
+
+        // // numaMinter
+        // if (_existingNumaminter != address(0))
+        // {
+        //     minter = NumaMinter(_existingNumaminter);
+        // }
+        // else
+        // {
+        //     minter = new NumaMinter();
+        //     minter.setTokenAddress(address(_numa));
+        //     // vm.stopPrank();
+        //     // vm.startPrank(numa_admin);
+        //     // _numa.grantRole(MINTER_ROLE, address(minter));
+        //     // vm.stopPrank();
+
+        // }
+        // //vm.startPrank(deployer);
+        // // vault manager
+        // vaultm = new VaultManager(address(_numa), address(nuAM));
+
+        // vo = new VaultOracleSingle(
+        //     address(rEth),
+        //     PRICEFEEDRETHETH_ARBI,
+        //     _heartbeat,
+        //     UPTIME_FEED_NULL
+        // );
+
+        // v = _setupVault(vo,
+        // address(minter),address(vaultm),_numa,
+        // _debt,_rwdfromDebt);
+        // v.setFeeAddress(_feereceiver, false);
+        // v.setRwdAddress(_rwdreceiver, false);
+    }
+
+    function _setupVault(
+        VaultOracleSingle _vo,
+        address _minter,
+        address _vaultm,
         INuma _numa,
         uint _debt,
         uint _rwdfromDebt
-    ) internal returns(nuAssetManager nuAM,NumaMinter minter,VaultManager vaultm,VaultOracleSingle vo,NumaVault v) {
-        // nuAssetManager
-        nuAM = new nuAssetManager(UPTIME_FEED_ARBI);
-
-        // numaMinter
-        minter = new NumaMinter();
-        minter.setTokenAddress(address(_numa));
-
-        vm.stopPrank();
-        vm.startPrank(numa_admin);
-
-        _numa.grantRole(MINTER_ROLE, address(minter));
-        vm.stopPrank();
-        vm.startPrank(deployer);
-
-        // vault manager
-        vaultm = new VaultManager(address(_numa), address(nuAM));
-        // custom heartbeat to support advance in time
-        vo = new VaultOracleSingle(
-            address(rEth),
-            PRICEFEEDRETHETH_ARBI,
-            _heartbeat,
-            UPTIME_FEED_NULL
-        );
+    ) internal returns (NumaVault v) {
         // vault
-        v = new NumaVault(
-            address(_numa),
-            address(rEth),
-            1 ether,
-            address(vo),
-            address(minter),
-            _debt,
-            _rwdfromDebt
-        );
-        // add vault as a numa minter
-        minter.addToMinters(address(v));
-        vaultm.addVault(address(v));
-        v.setVaultManager(address(vaultm));
-        v.setFeeAddress(_feereceiver, false);
-        v.setRwdAddress(_rwdreceiver, false);
-
-
-        // transfer rEth to vault to initialize price
-        if (_rethAmount > 0)
-        {
-            rEth.transfer(address(v), _rethAmount);
-            // unpause V2
-            v.unpause();
-        }
+        v = setupVault(_vo, _minter, _vaultm, _numa, _debt, _rwdfromDebt);
     }
 
-    function _setupPrinter(address nuassetMgrAddress,address numaMinterAddress,address vaultManagerAddress) internal
-    returns(NumaOracle o,USDCToEthConverter c,NumaPrinter p)
-    {
+    function _setupPrinter(
+        address nuassetMgrAddress,
+        address numaMinterAddress,
+        address vaultManagerAddress
+    ) internal returns (NumaOracle o, USDCToEthConverter c, NumaPrinter p) {
         console2.log("pool address: ", NUMA_USDC_POOL_ADDRESS);
         o = new NumaOracle(
             USDC_ARBI,
@@ -181,7 +218,7 @@ contract SetupBase is
             HEART_BEAT_CUSTOM,
             PRICEFEEDETHUSD_ARBI,
             HEART_BEAT_CUSTOM,
-            UPTIME_FEED_ARBI//,
+            UPTIME_FEED_ARBI //,
             //usdc.decimals()
         );
 
@@ -199,36 +236,42 @@ contract SetupBase is
         p.setBurnAssetFeeBps(burnFee);
         p.setSwapAssetFeeBps(swapFee);
 
-        p.setFeeAddress(payable(feeAddressPrinter),6000);//60%
+        p.setFeeAddress(payable(feeAddressPrinter), 6000); //60%
 
         // add moneyPrinter as a numa minter
         NumaMinter(numaMinterAddress).addToMinters(address(p));
-  
+
         // set printer to vaultManager
         VaultManager(vaultManagerAddress).setPrinter(address(p));
     }
 
-    function _createNuAssets() internal 
-    {
+    function _createNuAssets() internal {
         // nuAssets
         nuUSD = new NuAsset2("nuUSD", "NUSD", deployer, deployer);
         nuBTC = new NuAsset2("nuBTC", "NUBTC", deployer, deployer);
-
     }
 
-    function _linkNuAssets(address _nuAssetMgrAddress,address _printerAddress) internal
-    {
+    function _linkNuAssets(
+        address _nuAssetMgrAddress,
+        address _printerAddress
+    ) internal {
         // register nuAsset
-        nuAssetManager(_nuAssetMgrAddress).addNuAsset(address(nuUSD), PRICEFEEDETHUSD_ARBI, HEART_BEAT_CUSTOM);
+        nuAssetManager(_nuAssetMgrAddress).addNuAsset(
+            address(nuUSD),
+            PRICEFEEDETHUSD_ARBI,
+            HEART_BEAT_CUSTOM
+        );
         // set printer as a NuUSD minter
         nuUSD.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer
 
-        
         // register nuAsset
-        nuAssetManager(_nuAssetMgrAddress).addNuAsset(address(nuBTC), PRICEFEEDBTCETH_ARBI, HEART_BEAT);
+        nuAssetManager(_nuAssetMgrAddress).addNuAsset(
+            address(nuBTC),
+            PRICEFEEDBTCETH_ARBI,
+            HEART_BEAT
+        );
         // set printer as a NuUSD minter
-        nuBTC.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer 
-
+        nuBTC.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer
     }
 
     function _setupPool_Numa_Usdc() internal {
@@ -250,7 +293,6 @@ contract SetupBase is
             .increaseObservationCardinalityNext(100);
     }
 
-
     function _setupLending(NumaVault _vault) internal {
         // COMPTROLLER
         comptroller = new NumaComptroller();
@@ -263,12 +305,16 @@ contract SetupBase is
         uint maxUtilizationRatePerBlock = maxUtilizationRatePerYear /
             blocksPerYear;
 
-   
-
-    // standard jump rate model V4
-    rateModelV4 = new JumpRateModelV4(blocksPerYear,baseRatePerYear,multiplierPerYear,jumpMultiplierPerYear,kink,deployer,"numaJumpRateModel");
-
-
+        // standard jump rate model V4
+        rateModelV4 = new JumpRateModelV4(
+            blocksPerYear,
+            baseRatePerYear,
+            multiplierPerYear,
+            jumpMultiplierPerYear,
+            kink,
+            deployer,
+            "numaJumpRateModel"
+        );
 
         uint _zeroUtilizationRatePerBlock = (_zeroUtilizationRate /
             blocksPerYear);
@@ -319,7 +365,7 @@ contract SetupBase is
 
         _vault.setMaxBorrow(1000 ether);
         _vault.setCTokens(address(cNuma), address(cReth));
-        _vault.setMinLiquidationsPc(250); //25% min
+
         // add markets (has to be done before _setcollateralFactor)
         comptroller._supportMarket((cNuma));
         comptroller._supportMarket((cReth));
@@ -327,8 +373,6 @@ contract SetupBase is
         // collateral factors
         comptroller._setCollateralFactor((cNuma), numaCollateralFactor);
         comptroller._setCollateralFactor((cReth), rEthCollateralFactor);
-
-
 
         //ExponentialNoError.Exp memory collateralFactor = ExponentialNoError.Exp({mantissa: markets[address(cNuma)].collateralFactorMantissa});
         uint collateralFactor = comptroller.collateralFactor(cNuma);
@@ -347,7 +391,6 @@ contract SetupBase is
         cReth.addStrategy(address(strat0));
         cNuma.addStrategy(address(strat0));
     }
-   
 
     function mintNewPool(
         address token0,

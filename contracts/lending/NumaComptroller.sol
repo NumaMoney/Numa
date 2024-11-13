@@ -8,7 +8,6 @@ import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
 
-import "forge-std/console2.sol";
 /**
  * @title Numa's Comptroller Contract (forked from compound)
  * @author
@@ -291,7 +290,7 @@ contract NumaComptroller is
         address cToken,
         address minter,
         uint mintAmount
-    ) external override returns (uint) {
+    ) external view override returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
         require(!mintGuardianPaused[cToken], "mint is paused");
 
@@ -356,7 +355,6 @@ contract NumaComptroller is
         address redeemer,
         uint redeemTokens
     ) internal view returns (uint) {
-
         require(!redeemGuardianPaused, "redeem is paused");
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
@@ -401,7 +399,7 @@ contract NumaComptroller is
         address redeemer,
         uint redeemAmount,
         uint redeemTokens
-    ) external override {
+    ) external pure override {
         // Shh - currently unused
         cToken;
         redeemer;
@@ -717,7 +715,7 @@ contract NumaComptroller is
         address liquidator,
         address borrower,
         uint seizeTokens
-    ) external override returns (uint) {
+    ) external view override returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
         require(!seizeGuardianPaused, "seize is paused");
 
@@ -1255,7 +1253,6 @@ contract NumaComptroller is
             borrow = CNumaToken(address(cTokenModify));
         }
 
-
         // collateral
         if (
             address(collateral) != address(0)
@@ -1369,10 +1366,6 @@ contract NumaComptroller is
             if (
                 vars.sumCollateralNoCollateralFactor > vars.sumBorrowPlusEffects
             ) {
-                console2.log("underwater");
-                console2.log(vars.sumBorrowPlusEffects);
-                console2.log(vars.sumCollateral);
-
                 return (
                     Error.NO_ERROR,
                     0,
@@ -1512,7 +1505,7 @@ contract NumaComptroller is
             Exp({mantissa: priceCollateralMantissa}),
             Exp({mantissa: exchangeRateMantissa})
         );
-     
+
         ratio = div_(numerator, denominator);
         seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
         return (uint(Error.NO_ERROR), seizeTokens);
@@ -1878,11 +1871,10 @@ contract NumaComptroller is
         );
         require(msg.sender == admin || state == true, "only admin can unpause");
 
-       redeemGuardianPaused = state;
+        redeemGuardianPaused = state;
         emit ActionPaused("Redeem", state);
         return state;
     }
-
 
     function _setRepayPaused(bool state) public returns (bool) {
         require(
@@ -1895,8 +1887,6 @@ contract NumaComptroller is
         emit ActionPaused("Repay", state);
         return state;
     }
-
-
 
     function _become(Unitroller unitroller) public {
         require(

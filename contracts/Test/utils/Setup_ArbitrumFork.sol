@@ -64,10 +64,9 @@ contract Setup is SetupBase {
         // setup fork
         string memory ARBI_RPC_URL = vm.envString("URL6");
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);
-       
+
         vm.selectFork(arbitrumFork);
         vm.rollFork(269602000);
-
 
         deal({token: address(rEth), to: userA, give: 100000 ether});
         deal({token: address(rEth), to: userB, give: 100000 ether});
@@ -78,7 +77,6 @@ contract Setup is SetupBase {
         // setups
         _setUpTokens();
         _setupOldVaultAndAssetManager();
-
     }
 
     function _setUpTokens() internal override {

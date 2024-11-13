@@ -153,6 +153,7 @@ contract nuAssetManager is INuAssetManager, OracleUtils, Ownable2Step {
                     heartbeat,
                     IERC20Metadata(nuAsset).decimals()
                 );
+
                 result += EthValue;
             }
         }

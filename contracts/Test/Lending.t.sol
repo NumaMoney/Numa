@@ -314,7 +314,6 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log("vault balance 3", rEth.balanceOf(address(vault)));
         console2.log("vault debt 3", vault.getDebt());
         console2.log("lst borrow rate per block 3", cReth.borrowRatePerBlock());
-       
 
         numa.approve(address(cReth), providedAmount2);
 
@@ -375,42 +374,34 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log("vault balance 5", rEth.balanceOf(address(vault)));
         console2.log("vault debt 5", vault.getDebt());
         console2.log("lst borrow rate per block 5", cReth.borrowRatePerBlock());
-        (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
-        console2.log("liquidity:",liquidity);
-        console2.log("shortfall:",shortfall);
-        console2.log("badDebt:",badDebt);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
+        console2.log("liquidity:", liquidity);
+        console2.log("shortfall:", shortfall);
+        console2.log("badDebt:", badDebt);
 
         // make it liquiditable
         // 2 years later (NOT ENOUGH)
         // vm.roll(block.number + blocksPerYear*2);
         // cReth.accrueInterest();
         vm.startPrank(deployer);
-        vaultManager.setSellFee(0.85 ether); 
-        
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
-        console2.log("liquidity:",liquidity);
-        console2.log("shortfall:",shortfall);
-        console2.log("badDebt:",badDebt);
+        vaultManager.setSellFee(0.85 ether);
+
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
+        console2.log("liquidity:", liquidity);
+        console2.log("shortfall:", shortfall);
+        console2.log("badDebt:", badDebt);
 
         // liquidate
         vm.startPrank(userC);
         uint balC = rEth.balanceOf(userC);
         // should revert as we don't have enough reth in the vault
-        vault.liquidateLstBorrower(userA,500 ether,true,true);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        vault.liquidateLstBorrower(userA, 500 ether, true, true);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
         balC = rEth.balanceOf(userC);
-        vault.liquidateLstBorrower(userA,500 ether,true,true);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        vault.liquidateLstBorrower(userA, 500 ether, true, true);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
         vm.stopPrank();
     }
@@ -814,8 +805,7 @@ contract LendingTest is Setup, ExponentialNoError {
         vm.stopPrank();
     }
 
-
-   function test_LeverageAndCloseProfitStrategyStratVault2() public {
+    function test_LeverageAndCloseProfitStrategyStratVault2() public {
         // user calls leverage x 5
         vm.startPrank(userA);
         address[] memory t = new address[](2);
@@ -827,7 +817,6 @@ contract LendingTest is Setup, ExponentialNoError {
         uint depositAmount = 1000 ether;
         numa.approve(address(cNuma), depositAmount);
         cNuma.mint(depositAmount);
-
 
         uint rethBalBefore = rEth.balanceOf(userA);
 
@@ -916,12 +905,10 @@ contract LendingTest is Setup, ExponentialNoError {
         vm.stopPrank();
     }
 
-
-     function prepare_LstBorrowSuppliedLst_JRV4() public 
-     {
+    function prepare_LstBorrowSuppliedLst_JRV4() public {
         vm.startPrank(deployer);
         vault.setMaxBorrow(0);
-        
+
         cReth._setInterestRateModel(rateModelV4);
         vm.startPrank(userB);
         uint rethAmount = 1000 ether;
@@ -939,8 +926,8 @@ contract LendingTest is Setup, ExponentialNoError {
         uint rethBalBefore = rEth.balanceOf(userA);
         numa.approve(address(cNuma), depositAmount);
         cNuma.mint(depositAmount);
-        assertEq(numaBalBefore - numa.balanceOf(userA),depositAmount);
-        assertEq(cNuma.balanceOf(userA),(depositAmount*50 * 1e8)/1 ether);
+        assertEq(numaBalBefore - numa.balanceOf(userA), depositAmount);
+        assertEq(cNuma.balanceOf(userA), (depositAmount * 50 * 1e8) / 1 ether);
 
         // borrow reth
         // should revert
@@ -949,14 +936,17 @@ contract LendingTest is Setup, ExponentialNoError {
         // needs a delta because of pricings (price as colateral vs price as borrow)
         //uint borrowAmount = (depositAmount * (numaCollateralFactor - 0.05 ether))/ 1 ether;
         // around 50% UR
-        uint borrowAmount = (depositAmount * numaCollateralFactor)/ (2*1 ether);
+        uint borrowAmount = (depositAmount * numaCollateralFactor) /
+            (2 * 1 ether);
         cReth.borrow(borrowAmount);
-        assertEq(rEth.balanceOf(userA) - rethBalBefore,borrowAmount);
+        assertEq(rEth.balanceOf(userA) - rethBalBefore, borrowAmount);
 
         // check interest rate
         // per block
-        uint estimateBR = rateModelV4.baseRatePerBlock() + (borrowAmount*rateModelV4.multiplierPerBlock())/rethAmount;
-        assertEq(cReth.borrowRatePerBlock(),estimateBR);
+        uint estimateBR = rateModelV4.baseRatePerBlock() +
+            (borrowAmount * rateModelV4.multiplierPerBlock()) /
+            rethAmount;
+        assertEq(cReth.borrowRatePerBlock(), estimateBR);
 
         // todo kink
         // check balances after 1 year to compare per year values
@@ -965,43 +955,29 @@ contract LendingTest is Setup, ExponentialNoError {
         //console2.log(borrowAmount);
         uint borrowBalanceAfter = cReth.borrowBalanceCurrent(userA);
 
-        // not exact because of compounding interests 
+        // not exact because of compounding interests
         //assertApproxEqAbs(borrowBalanceAfter - borrowAmount,((baseRatePerYear+ (borrowAmount*multiplierPerYear)/rethAmount)*borrowAmount)/1 ether,0.0000001 ether);
-        
 
         // make it liquiditable, check shortfall
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-        cReth.borrow((borrowAmount*8)/10);
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        cReth.borrow((borrowAmount * 8) / 10);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-     }
+    }
 
-     function test_LstBorrowSuppliedLst_JRV4_liquidateFL() public {
-      
+    function test_LstBorrowSuppliedLst_JRV4_liquidateFL() public {
         prepare_LstBorrowSuppliedLst_JRV4();
-        vm.roll(block.number + blocksPerYear/4);
+        vm.roll(block.number + blocksPerYear / 4);
         cReth.accrueInterest();
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
@@ -1009,155 +985,111 @@ contract LendingTest is Setup, ExponentialNoError {
 
         vm.startPrank(userC);
         uint balC = rEth.balanceOf(userC);
-        vault.liquidateLstBorrower(userA,type(uint256).max,true,true);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        vault.liquidateLstBorrower(userA, type(uint256).max, true, true);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
 
-     }
-
-
-     function test_LstBorrowSuppliedLst_JRV4_liquidateSwap() public {
-      
+    function test_LstBorrowSuppliedLst_JRV4_liquidateSwap() public {
         prepare_LstBorrowSuppliedLst_JRV4();
         //vm.roll(block.number + blocksPerYear/4);
         //cReth.accrueInterest();
         // make it liquiditable by changing vault fees
         vm.startPrank(deployer);
-        vaultManager.setSellFee(0.90 ether); 
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        vaultManager.setSellFee(0.90 ether);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-        rEth.approve(address(vault),rEth.balanceOf(userC));
+        rEth.approve(address(vault), rEth.balanceOf(userC));
         uint balC = rEth.balanceOf(userC);
-        vault.liquidateLstBorrower(userA,type(uint256).max,true,false);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        vault.liquidateLstBorrower(userA, type(uint256).max, true, false);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
 
-     }
-
-       function test_LstBorrowSuppliedLst_JRV4_liquidateNoSwap() public {
-      
+    function test_LstBorrowSuppliedLst_JRV4_liquidateNoSwap() public {
         prepare_LstBorrowSuppliedLst_JRV4();
         //vm.roll(block.number + blocksPerYear/4);
         //cReth.accrueInterest();
         // make it liquiditable by changing vault fees
         vm.startPrank(deployer);
-        vaultManager.setSellFee(0.90 ether); 
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        vaultManager.setSellFee(0.90 ether);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-        rEth.approve(address(vault),rEth.balanceOf(userC));
-        vault.liquidateLstBorrower(userA,type(uint256).max,false,false);
-        console2.log("liquidator profit + input:",numa.balanceOf(userC));
+        rEth.approve(address(vault), rEth.balanceOf(userC));
+        vault.liquidateLstBorrower(userA, type(uint256).max, false, false);
+        console2.log("liquidator profit + input:", numa.balanceOf(userC));
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-
-     }
-
+    }
 
     function test_LstBorrowSuppliedLst_JRV4_liquidateBadDebt() public {
-      
         prepare_LstBorrowSuppliedLst_JRV4();
         //vm.roll(block.number + blocksPerYear/4);
         //cReth.accrueInterest();
         // make it liquiditable by changing vault fees
         vm.startPrank(deployer);
-        vaultManager.setSellFee(0.85 ether); 
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        vaultManager.setSellFee(0.85 ether);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-        rEth.approve(address(vault),rEth.balanceOf(userC));
+        rEth.approve(address(vault), rEth.balanceOf(userC));
         // bad debt
         vm.expectRevert();
-        vault.liquidateLstBorrower(userA,type(uint256).max,false,false);
-        vault.liquidateBadDebt(userA,500,cNuma);
+        vault.liquidateLstBorrower(userA, type(uint256).max, false, false);
+        vault.liquidateBadDebt(userA, 500, cNuma);
 
-        assertEq(numa.balanceOf(userC),500 ether);
+        assertEq(numa.balanceOf(userC), 500 ether);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
 
-     }
-
-
-
-      function prepare_numaBorrow_JRV4() public 
-     {
+    function prepare_numaBorrow_JRV4() public {
         vm.startPrank(deployer);
         vault.setMaxBorrow(0);
-        
-    
+
         vm.startPrank(userB);
         // buy numa
         uint numaAmount = 1000 ether;
-        rEth.approve(address(vault), 2*numaAmount);
-        vault.buy(2*numaAmount,numaAmount,userB);
-       
+        rEth.approve(address(vault), 2 * numaAmount);
+        vault.buy(2 * numaAmount, numaAmount, userB);
+
         numa.approve(address(cNuma), numaAmount);
         cNuma.mint(numaAmount);
-
-
-
 
         // deposit collateral
         uint depositAmount = 1000 ether;
@@ -1166,14 +1098,12 @@ contract LendingTest is Setup, ExponentialNoError {
         t[0] = address(cReth);
         comptroller.enterMarkets(t);
 
-      
         uint rethBalBefore = rEth.balanceOf(userA);
         uint numaBalBefore = numa.balanceOf(userA);
         rEth.approve(address(cReth), depositAmount);
         cReth.mint(depositAmount);
-        assertEq(rethBalBefore - rEth.balanceOf(userA),depositAmount);
-        assertEq(cReth.balanceOf(userA),(depositAmount*50 * 1e8)/1 ether);
-
+        assertEq(rethBalBefore - rEth.balanceOf(userA), depositAmount);
+        assertEq(cReth.balanceOf(userA), (depositAmount * 50 * 1e8) / 1 ether);
 
         // borrow numa
         // should revert
@@ -1182,14 +1112,17 @@ contract LendingTest is Setup, ExponentialNoError {
         // needs a delta because of pricings (price as colateral vs price as borrow)
         //uint borrowAmount = (depositAmount * (numaCollateralFactor - 0.05 ether))/ 1 ether;
         // around 50% UR
-        uint borrowAmount = (depositAmount * rEthCollateralFactor)/ (2*1 ether);
+        uint borrowAmount = (depositAmount * rEthCollateralFactor) /
+            (2 * 1 ether);
         cNuma.borrow(borrowAmount);
-        assertEq(numa.balanceOf(userA) - numaBalBefore,borrowAmount);
+        assertEq(numa.balanceOf(userA) - numaBalBefore, borrowAmount);
 
         // check interest rate
         // per block
-        uint estimateBR = rateModelV4.baseRatePerBlock() + (borrowAmount*rateModelV4.multiplierPerBlock())/numaAmount;
-        assertEq(cNuma.borrowRatePerBlock(),estimateBR);
+        uint estimateBR = rateModelV4.baseRatePerBlock() +
+            (borrowAmount * rateModelV4.multiplierPerBlock()) /
+            numaAmount;
+        assertEq(cNuma.borrowRatePerBlock(), estimateBR);
 
         // todo kink
         // check balances after 1 year to compare per year values
@@ -1198,43 +1131,29 @@ contract LendingTest is Setup, ExponentialNoError {
         //console2.log(borrowAmount);
         uint borrowBalanceAfter = cNuma.borrowBalanceCurrent(userA);
 
-        // not exact because of compounding interests 
+        // not exact because of compounding interests
         //assertApproxEqAbs(borrowBalanceAfter - borrowAmount,((baseRatePerYear+ (borrowAmount*multiplierPerYear)/rethAmount)*borrowAmount)/1 ether,0.0000001 ether);
-        
 
         // make it liquiditable, check shortfall
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-        cNuma.borrow((borrowAmount*8)/10);
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        cNuma.borrow((borrowAmount * 8) / 10);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-     }
+    }
 
-     function test_NumaBorrow_JRV4_liquidateFL() public {
-      
+    function test_NumaBorrow_JRV4_liquidateFL() public {
         prepare_numaBorrow_JRV4();
-        vm.roll(block.number + blocksPerYear/4);
+        vm.roll(block.number + blocksPerYear / 4);
         cNuma.accrueInterest();
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
@@ -1242,34 +1161,23 @@ contract LendingTest is Setup, ExponentialNoError {
 
         vm.startPrank(userC);
         uint balC = numa.balanceOf(userC);
-    
-        vault.liquidateNumaBorrower(userA,type(uint256).max,true,true);
-        console2.log("liquidator profit:",numa.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        vault.liquidateNumaBorrower(userA, type(uint256).max, true, true);
+        console2.log("liquidator profit:", numa.balanceOf(userC) - balC);
+
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
 
-     }
-
-
-     function test_NumaBorrow_JRV4_liquidateSwap() public {
-      
+    function test_NumaBorrow_JRV4_liquidateSwap() public {
         prepare_numaBorrow_JRV4();
-        vm.roll(block.number + blocksPerYear/4);
+        vm.roll(block.number + blocksPerYear / 4);
         cNuma.accrueInterest();
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
@@ -1277,123 +1185,92 @@ contract LendingTest is Setup, ExponentialNoError {
 
         vm.startPrank(userC);
         uint balC = numa.balanceOf(userC);
-    
 
         uint numaAmountBuy = 1000 ether;
-        rEth.approve(address(vault), 2*numaAmountBuy);
-        vault.buy(2*numaAmountBuy,numaAmountBuy,userC);
+        rEth.approve(address(vault), 2 * numaAmountBuy);
+        vault.buy(2 * numaAmountBuy, numaAmountBuy, userC);
 
-        numa.approve(address(vault),numa.balanceOf(userC));
-        vault.liquidateNumaBorrower(userA,type(uint256).max,true,false);
-        console2.log("liquidator profit:",numa.balanceOf(userC) - balC);
+        numa.approve(address(vault), numa.balanceOf(userC));
+        vault.liquidateNumaBorrower(userA, type(uint256).max, true, false);
+        console2.log("liquidator profit:", numa.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-
-     }
+    }
 
     function test_NumaBorrow_JRV4_liquidateNoSwap() public {
-      
         prepare_numaBorrow_JRV4();
-        vm.roll(block.number + blocksPerYear/4);
+        vm.roll(block.number + blocksPerYear / 4);
         cNuma.accrueInterest();
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-       
-       
+
         uint numaAmountBuy = 1000 ether;
-        rEth.approve(address(vault), 2*numaAmountBuy);
-        vault.buy(2*numaAmountBuy,numaAmountBuy,userC);
+        rEth.approve(address(vault), 2 * numaAmountBuy);
+        vault.buy(2 * numaAmountBuy, numaAmountBuy, userC);
 
         uint balC = rEth.balanceOf(userC);
-        numa.approve(address(vault),numa.balanceOf(userC));
-        vault.liquidateNumaBorrower(userA,type(uint256).max,false,false);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        numa.approve(address(vault), numa.balanceOf(userC));
+        vault.liquidateNumaBorrower(userA, type(uint256).max, false, false);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
 
-     }
-
-
-      function test_NumaBorrow_JRV4_liquidateBadDebt() public {
-      
+    function test_NumaBorrow_JRV4_liquidateBadDebt() public {
         prepare_numaBorrow_JRV4();
         // make it bad debt
         // vm.roll(block.number + blocksPerYear/4);
         // cNuma.accrueInterest();
         vm.startPrank(deployer);
-        vaultManager.setBuyFee(0.85 ether); 
+        vaultManager.setBuyFee(0.85 ether);
 
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-       
-       
+
         uint numaAmountBuy = 1000 ether;
-        rEth.approve(address(vault), 2*numaAmountBuy);
-        vault.buy(2*numaAmountBuy,numaAmountBuy,userC);
+        rEth.approve(address(vault), 2 * numaAmountBuy);
+        vault.buy(2 * numaAmountBuy, numaAmountBuy, userC);
 
         uint balC = rEth.balanceOf(userC);
-        numa.approve(address(vault),numa.balanceOf(userC));
+        numa.approve(address(vault), numa.balanceOf(userC));
         vm.expectRevert();
-        vault.liquidateNumaBorrower(userA,type(uint256).max,false,false);
+        vault.liquidateNumaBorrower(userA, type(uint256).max, false, false);
 
-        vault.liquidateBadDebt(userA,1000,cReth);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        vault.liquidateBadDebt(userA, 1000, cReth);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cReth,cNuma);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cReth, cNuma);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
 
-     }
-
-
-     function prepare_LstBorrowLstVault_JRV4() public 
-     {
+    function prepare_LstBorrowLstVault_JRV4() public {
         vm.startPrank(deployer);
         vault.setMaxBorrow(0);
         cReth._setInterestRateModel(rateModelV4);
-    
+
         // deposit collateral
         uint depositAmount = 1000 ether;
         vm.startPrank(userA);
@@ -1405,8 +1282,8 @@ contract LendingTest is Setup, ExponentialNoError {
         uint rethBalBefore = rEth.balanceOf(userA);
         numa.approve(address(cNuma), depositAmount);
         cNuma.mint(depositAmount);
-        assertEq(numaBalBefore - numa.balanceOf(userA),depositAmount);
-        assertEq(cNuma.balanceOf(userA),(depositAmount*50 * 1e8)/1 ether);
+        assertEq(numaBalBefore - numa.balanceOf(userA), depositAmount);
+        assertEq(cNuma.balanceOf(userA), (depositAmount * 50 * 1e8) / 1 ether);
 
         // borrow reth
         // should revert not enough collat
@@ -1415,7 +1292,8 @@ contract LendingTest is Setup, ExponentialNoError {
         // needs a delta because of pricings (price as colateral vs price as borrow)
         //uint borrowAmount = (depositAmount * (numaCollateralFactor - 0.05 ether))/ 1 ether;
         // around 50% UR
-        uint borrowAmount = (depositAmount * numaCollateralFactor)/ (2*1 ether);
+        uint borrowAmount = (depositAmount * numaCollateralFactor) /
+            (2 * 1 ether);
         // should revert because maxborrow = 0
         vm.expectRevert();
         cReth.borrow(borrowAmount);
@@ -1425,22 +1303,24 @@ contract LendingTest is Setup, ExponentialNoError {
 
         vm.startPrank(userA);
         cReth.borrow(borrowAmount);
-        assertEq(rEth.balanceOf(userA) - rethBalBefore,borrowAmount);
+        assertEq(rEth.balanceOf(userA) - rethBalBefore, borrowAmount);
 
         // check interest rate
         // per block
         console2.log("TEST");
         console2.log(borrowAmount);
-                console2.log(borrowAmount+rEth.balanceOf(address(vault)));
+        console2.log(borrowAmount + rEth.balanceOf(address(vault)));
 
-                
-                      console2.log("multiplierPerBlock2",rateModelV4.multiplierPerBlock());
-                                 console2.log("baseRatePerBlock2",rateModelV4.baseRatePerBlock());
-        uint util = (borrowAmount*1 ether)/(borrowAmount+rEth.balanceOf(address(vault)));
+        console2.log("multiplierPerBlock2", rateModelV4.multiplierPerBlock());
+        console2.log("baseRatePerBlock2", rateModelV4.baseRatePerBlock());
+        uint util = (borrowAmount * 1 ether) /
+            (borrowAmount + rEth.balanceOf(address(vault)));
 
-         console2.log("util2",util);
-        uint estimateBR = rateModelV4.baseRatePerBlock() + (borrowAmount*rateModelV4.multiplierPerBlock())/(borrowAmount + rEth.balanceOf(address(vault)));
-        assertEq(cReth.borrowRatePerBlock(),estimateBR);
+        console2.log("util2", util);
+        uint estimateBR = rateModelV4.baseRatePerBlock() +
+            (borrowAmount * rateModelV4.multiplierPerBlock()) /
+            (borrowAmount + rEth.balanceOf(address(vault)));
+        assertEq(cReth.borrowRatePerBlock(), estimateBR);
 
         // todo kink
         // check balances after 1 year to compare per year values
@@ -1449,52 +1329,38 @@ contract LendingTest is Setup, ExponentialNoError {
         //console2.log(borrowAmount);
         uint borrowBalanceAfter = cReth.borrowBalanceCurrent(userA);
 
-        // not exact because of compounding interests 
+        // not exact because of compounding interests
         //assertApproxEqAbs(borrowBalanceAfter - borrowAmount,((baseRatePerYear+ (borrowAmount*multiplierPerYear)/rethAmount)*borrowAmount)/1 ether,0.0000001 ether);
-        
 
         // make it liquiditable, check shortfall
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-        cReth.borrow((borrowAmount*8)/10);
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        cReth.borrow((borrowAmount * 8) / 10);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-     }
+    }
 
-     function test_LstBorrowLstVault_JRV4_liquidateFL() public {
-      
+    function test_LstBorrowLstVault_JRV4_liquidateFL() public {
         prepare_LstBorrowLstVault_JRV4();
-         vm.startPrank(deployer);
+        vm.startPrank(deployer);
 
-         // not liquiditable
+        // not liquiditable
         //vault.setMaxBorrow(200 ether);
         // bad debt
         //vault.setMaxBorrow(100 ether);
         // TODO: confirm these 3 values
         vault.setMaxBorrow(150 ether);
 
-          vm.roll(block.number + blocksPerYear/4);
+        vm.roll(block.number + blocksPerYear / 4);
         cReth.accrueInterest();
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
@@ -1502,138 +1368,96 @@ contract LendingTest is Setup, ExponentialNoError {
 
         vm.startPrank(userC);
         uint balC = rEth.balanceOf(userC);
-        vault.liquidateLstBorrower(userA,type(uint256).max,true,true);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        vault.liquidateLstBorrower(userA, type(uint256).max, true, true);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-     }
+    }
 
-      
-
-  
-
-
-     function test_LstBorrowLstVault_JRV4_liquidateSwap() public {
-      
+    function test_LstBorrowLstVault_JRV4_liquidateSwap() public {
         prepare_LstBorrowLstVault_JRV4();
         //vm.roll(block.number + blocksPerYear/4);
         //cReth.accrueInterest();
         // make it liquiditable by changing vault fees
         vm.startPrank(deployer);
-        vaultManager.setSellFee(0.90 ether); 
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        vaultManager.setSellFee(0.90 ether);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-        rEth.approve(address(vault),rEth.balanceOf(userC));
+        rEth.approve(address(vault), rEth.balanceOf(userC));
         uint balC = rEth.balanceOf(userC);
-        vault.liquidateLstBorrower(userA,type(uint256).max,true,false);
-        console2.log("liquidator profit:",rEth.balanceOf(userC) - balC);
+        vault.liquidateLstBorrower(userA, type(uint256).max, true, false);
+        console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
 
-     }
-
-       function test_LstBorrowLstVault_JRV4_liquidateNoSwap() public {
-      
+    function test_LstBorrowLstVault_JRV4_liquidateNoSwap() public {
         prepare_LstBorrowLstVault_JRV4();
         //vm.roll(block.number + blocksPerYear/4);
         //cReth.accrueInterest();
         // make it liquiditable by changing vault fees
         vm.startPrank(deployer);
-        vaultManager.setSellFee(0.90 ether); 
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        vaultManager.setSellFee(0.90 ether);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-        rEth.approve(address(vault),rEth.balanceOf(userC));
-        vault.liquidateLstBorrower(userA,type(uint256).max,false,false);
-        console2.log("liquidator profit + input:",numa.balanceOf(userC));
+        rEth.approve(address(vault), rEth.balanceOf(userC));
+        vault.liquidateLstBorrower(userA, type(uint256).max, false, false);
+        console2.log("liquidator profit + input:", numa.balanceOf(userC));
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-
-     }
-
+    }
 
     function test_LstBorrowLstVault_JRV4_liquidateBadDebt() public {
-      
         prepare_LstBorrowLstVault_JRV4();
         //vm.roll(block.number + blocksPerYear/4);
         //cReth.accrueInterest();
         // make it liquiditable by changing vault fees
         vm.startPrank(deployer);
-        vaultManager.setSellFee(0.85 ether); 
-         (
-            ,
-            uint liquidity,
-            uint shortfall,
-            uint badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        vaultManager.setSellFee(0.85 ether);
+        (, uint liquidity, uint shortfall, uint badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
         // liquidate
 
         vm.startPrank(userC);
-        rEth.approve(address(vault),rEth.balanceOf(userC));
+        rEth.approve(address(vault), rEth.balanceOf(userC));
         // bad debt
         vm.expectRevert();
-        vault.liquidateLstBorrower(userA,type(uint256).max,false,false);
-        vault.liquidateBadDebt(userA,500,cNuma);
+        vault.liquidateLstBorrower(userA, type(uint256).max, false, false);
+        vault.liquidateBadDebt(userA, 500, cNuma);
 
-        assertEq(numa.balanceOf(userC),500 ether);
+        assertEq(numa.balanceOf(userC), 500 ether);
 
-        (
-            ,
-            liquidity,
-            shortfall,
-            badDebt
-        ) = comptroller.getAccountLiquidityIsolate(userA, cNuma, cReth);
+        (, liquidity, shortfall, badDebt) = comptroller
+            .getAccountLiquidityIsolate(userA, cNuma, cReth);
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
-
-     }
-
-
+    }
 }

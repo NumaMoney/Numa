@@ -68,12 +68,12 @@ contract PrinterTest is Setup {
         numaPricePoolL = numaPricePoolL * 10 ** 12;
         numaPricePoolH = numaPricePoolH * 10 ** 12;
         numaPricePoolSpot = numaPricePoolSpot * 10 ** 12;
-        console.log("pool price HIGH", numaPricePoolH);
-        console.log("pool price LOW", numaPricePoolL);
-        console.log("pool price SPOT", numaPricePoolSpot);
-        console.log("vault price SELL", numaPriceVaultS);
-        console.log("vault price BUY", numaPriceVaultB);
-        console.log("vault price ", numaPriceVault);
+        console2.log("pool price HIGH", numaPricePoolH);
+        console2.log("pool price LOW", numaPricePoolL);
+        console2.log("pool price SPOT", numaPricePoolSpot);
+        console2.log("vault price SELL", numaPriceVaultS);
+        console2.log("vault price BUY", numaPriceVaultB);
+        console2.log("vault price ", numaPriceVault);
     }
 
     function test_CheckSetup() public view {
@@ -142,7 +142,7 @@ contract PrinterTest is Setup {
             address(nuUSD),
             numaAmount
         );
-         assertEq(fee2, fee, "fee ko");
+        assertEq(fee2, fee, "fee ko");
         assertEq(nuUSDAmount2, nuUSDAmount, "fee ko");
     }
 
@@ -169,9 +169,9 @@ contract PrinterTest is Setup {
         assertEq(fee, fee2, "fee ko");
         assertApproxEqAbs(nuUSDAmount2, nuUsdAmount, 0.001 ether, "amount ko");
 
-         // synth scaling
+        // synth scaling
         forceSynthDebasing();
-         (uint numaNeeded2, uint fee3) = moneyPrinter.getNbOfNumaNeededAndFee(
+        (uint numaNeeded2, uint fee3) = moneyPrinter.getNbOfNumaNeededAndFee(
             address(nuUSD),
             nuUsdAmount
         );
@@ -188,7 +188,6 @@ contract PrinterTest is Setup {
         // should not change anything
         assertEq(fee3, fee, "fee ko");
         assertEq(numaNeeded2, numaNeeded, "fee ko");
-
     }
 
     function test_getNbOfNumaFromAssetWithFee() external {
@@ -226,24 +225,20 @@ contract PrinterTest is Setup {
 
         // as the mint made price from the vault increase, the burning price will change
         // for this test, I will artificially decrease price from the vault
-        numa.mint(deployer,10000000 ether);
+        numa.mint(deployer, 10000000 ether);
 
-         (uint numaOut2, uint fee2) = moneyPrinter.getNbOfNumaFromAssetWithFee(
+        (uint numaOut2, uint fee2) = moneyPrinter.getNbOfNumaFromAssetWithFee(
             address(nuUSD),
             nuUsdAmount
         );
 
-
-
-
         // to compare, we scale amount with fees
         uint totalOut = numaOut + fee;
-        totalOut = (totalOut * 800)/1000;
-        uint feeEstim2 = totalOut * (moneyPrinter.burnAssetFeeBps())/10000;
+        totalOut = (totalOut * 800) / 1000;
+        uint feeEstim2 = (totalOut * (moneyPrinter.burnAssetFeeBps())) / 10000;
 
         assertEq(numaOut2, totalOut - feeEstim2, "amount ko");
         assertEq(fee2, feeEstim2, "fee ko");
-        
 
         // synth scaling critical debase
         forceSynthDebasingCritical();
@@ -253,22 +248,21 @@ contract PrinterTest is Setup {
         );
 
         // compute critical debase factor
-        uint criticalDebaseFactor = (vaultManager.getGlobalCF() * 1000) / vaultManager.cf_critical();
+        uint criticalDebaseFactor = (vaultManager.getGlobalCF() * 1000) /
+            vaultManager.cf_critical();
         // we apply this multiplier on the factor for when it's used on synthetics burning price
-        criticalDebaseFactor =(criticalDebaseFactor * 1000) /
-                vaultManager.criticalDebaseMult();
-        assertLt(criticalDebaseFactor,1000);
-        (uint scaleSynthBurn2,) = vaultManager.getSynthScalingUpdate();
-        assertEq(scaleSynthBurn2,criticalDebaseFactor);
+        criticalDebaseFactor =
+            (criticalDebaseFactor * 1000) /
+            vaultManager.criticalDebaseMult();
+        assertLt(criticalDebaseFactor, 1000);
+        (uint scaleSynthBurn2, ) = vaultManager.getSynthScalingUpdate();
+        assertEq(scaleSynthBurn2, criticalDebaseFactor);
         totalOut = numaOut + fee;
-        totalOut = (criticalDebaseFactor * totalOut)/1000;
-        feeEstim2 = totalOut * (moneyPrinter.burnAssetFeeBps())/10000;
+        totalOut = (criticalDebaseFactor * totalOut) / 1000;
+        feeEstim2 = (totalOut * (moneyPrinter.burnAssetFeeBps())) / 10000;
 
         assertEq(numaOut2, totalOut - feeEstim2, "amount ko");
         assertEq(fee2, feeEstim2, "fee ko");
-        
-
-
     }
 
     function test_getNbOfnuAssetNeededForNuma() external {
@@ -294,28 +288,27 @@ contract PrinterTest is Setup {
         assertApproxEqAbs(fee, fee2, 0.0001 ether, "fee ko");
         assertApproxEqAbs(numaOut, numaAmount, 0.001 ether, "amount ko");
 
-
         // synth scaling
         forceSynthDebasing();
 
         // as the mint made price from the vault increase, the burning price will change
         // for this test, I will artificially decrease price from the vault
-        numa.mint(deployer,10000000 ether);
+        numa.mint(deployer, 10000000 ether);
 
-        (uint256 nuUSDAmount2,) = moneyPrinter
-            .getNbOfnuAssetNeededForNuma(address(nuUSD), numaAmount);
-
+        (uint256 nuUSDAmount2, ) = moneyPrinter.getNbOfnuAssetNeededForNuma(
+            address(nuUSD),
+            numaAmount
+        );
 
         assertGt(nuUSDAmount2, nuUSDAmount, "amount ko 1");
         // synth scaling critical debase
         forceSynthDebasingCritical();
-        (uint256 nuUSDAmount3,) = moneyPrinter
-            .getNbOfnuAssetNeededForNuma(address(nuUSD), numaAmount);
-
+        (uint256 nuUSDAmount3, ) = moneyPrinter.getNbOfnuAssetNeededForNuma(
+            address(nuUSD),
+            numaAmount
+        );
 
         assertGt(nuUSDAmount3, nuUSDAmount2, "amount ko 2");
-       
-
     }
 
     function test_getNbOfNuAssetFromNuAsset() external {
@@ -332,18 +325,18 @@ contract PrinterTest is Setup {
         );
         console2.log("nuBTC out: ", nuBTCOut);
 
-        uint feeEstim = (moneyPrinter.swapAssetFeeBps() * nuUsdAmount)/10000;
-        uint nuBtcEstim = ((nuUsdAmount - feeEstim)*1e8)/uint(btcusd);
+        uint feeEstim = (moneyPrinter.swapAssetFeeBps() * nuUsdAmount) / 10000;
+        uint nuBtcEstim = ((nuUsdAmount - feeEstim) * 1e8) / uint(btcusd);
 
         console2.log(btcusd);
-                console2.log(btceth);
-                                console2.log(ethusd);
-        uint nuBtcEstim2 = ((nuUsdAmount - feeEstim)*1e18*1e8)/(uint(btceth)*uint(ethusd));
-        assertEq(fee,feeEstim,"fee nuusd ko");
+        console2.log(btceth);
+        console2.log(ethusd);
+        uint nuBtcEstim2 = ((nuUsdAmount - feeEstim) * 1e18 * 1e8) /
+            (uint(btceth) * uint(ethusd));
+        assertEq(fee, feeEstim, "fee nuusd ko");
         // KO
         //assertApproxEqAbs(nuBTCOut,nuBtcEstim,0.001 ether);
-        assertApproxEqAbs(nuBTCOut,nuBtcEstim2,0.00001 ether);
-
+        assertApproxEqAbs(nuBTCOut, nuBtcEstim2, 0.00001 ether);
     }
 
     function test_getNbOfNuAssetNeededForNuAsset() external {
@@ -354,27 +347,23 @@ contract PrinterTest is Setup {
 
         // compare getNbOfNuAssetFromNuma
         (uint256 nuUSDAmount, uint fee0) = moneyPrinter
-            .getNbOfNuAssetNeededForNuAsset(address(nuUSD),
-            address(nuBTC),
-            nuBTCAmount);
-       
+            .getNbOfNuAssetNeededForNuAsset(
+                address(nuUSD),
+                address(nuBTC),
+                nuBTCAmount
+            );
 
-
-       
-       (uint nuBTCOut, uint fee1) = moneyPrinter.getNbOfNuAssetFromNuAsset(
+        (uint nuBTCOut, uint fee1) = moneyPrinter.getNbOfNuAssetFromNuAsset(
             address(nuUSD),
             address(nuBTC),
             nuUSDAmount
         );
 
-        assertApproxEqAbs(nuBTCOut,nuBTCAmount,0.000000001 ether);
-        assertEq(fee0,fee1);
- 
-
+        assertApproxEqAbs(nuBTCOut, nuBTCAmount, 0.000000001 ether);
+        assertEq(fee0, fee1);
     }
 
-    function test_mintAssetFromNumaInput() public
-    {
+    function test_mintAssetFromNumaInput() public {
         uint numaAmount = 1000001e18;
 
         vm.startPrank(deployer);
@@ -386,18 +375,16 @@ contract PrinterTest is Setup {
         //vm.stopPrank();
         vm.startPrank(userA);
 
- 
-
         // compare getNbOfNuAssetFromNuma
         (uint256 nuUSDAmount, uint fee) = moneyPrinter.getNbOfNuAssetFromNuma(
             address(nuUSD),
             numaAmount
         );
-        numa.approve(address(moneyPrinter),numaAmount);
+        numa.approve(address(moneyPrinter), numaAmount);
 
         // warning cf test block mint
         uint globalCF = vaultManager.getGlobalCF();
-        
+
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
@@ -412,14 +399,17 @@ contract PrinterTest is Setup {
         );
         vm.startPrank(userA);
         vm.expectRevert("minting forbidden");
-        moneyPrinter.mintAssetFromNumaInput(address(nuUSD),
+        moneyPrinter.mintAssetFromNumaInput(
+            address(nuUSD),
             numaAmount,
-        nuUSDAmount,userA);
+            nuUSDAmount,
+            userA
+        );
         // put back warning cf
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            globalCF-1,
+            globalCF - 1,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -431,9 +421,12 @@ contract PrinterTest is Setup {
         vm.startPrank(userA);
         // slippage test
         vm.expectRevert("min amount");
-        moneyPrinter.mintAssetFromNumaInput(address(nuUSD),
+        moneyPrinter.mintAssetFromNumaInput(
+            address(nuUSD),
             numaAmount,
-        nuUSDAmount+1,userA);
+            nuUSDAmount + 1,
+            userA
+        );
 
         // pause test
         vm.stopPrank();
@@ -441,10 +434,13 @@ contract PrinterTest is Setup {
         moneyPrinter.pause();
         vm.stopPrank();
         vm.startPrank(userA);
-        vm.expectRevert(0xd93c0665);       
-        moneyPrinter.mintAssetFromNumaInput(address(nuUSD),
+        vm.expectRevert(0xd93c0665);
+        moneyPrinter.mintAssetFromNumaInput(
+            address(nuUSD),
             numaAmount,
-        nuUSDAmount,userA);
+            nuUSDAmount,
+            userA
+        );
         vm.stopPrank();
         vm.startPrank(deployer);
         moneyPrinter.unpause();
@@ -454,14 +450,17 @@ contract PrinterTest is Setup {
         // slippage ok
         uint balnuUSD = nuUSD.balanceOf(userA);
         uint balnuma = numa.balanceOf(userA);
-        
-        moneyPrinter.mintAssetFromNumaInput(address(nuUSD),
+
+        moneyPrinter.mintAssetFromNumaInput(
+            address(nuUSD),
             numaAmount,
-        nuUSDAmount,userA);
+            nuUSDAmount,
+            userA
+        );
         uint balnuUSDAfter = nuUSD.balanceOf(userA);
         uint balnumaAfter = numa.balanceOf(userA);
-        assertEq(balnuUSDAfter - balnuUSD,nuUSDAmount);
-        assertEq(balnuma - balnumaAfter,numaAmount);
+        assertEq(balnuUSDAfter - balnuUSD, nuUSDAmount);
+        assertEq(balnuma - balnumaAfter, numaAmount);
 
         // 60% of the fees sent to fee address
         uint feeSentEstim = (fee * 6000) / 10000;
@@ -470,13 +469,11 @@ contract PrinterTest is Setup {
         uint burntAmount = numaAmount;
 
         uint numaBal = numa.balanceOf(feeAddressPrinter);
-        assertEq(numaBal,feeSentEstim);
-        assertEq(numa.totalSupply(),numaSupply - burntAmount+feeSentEstim);
-
+        assertEq(numaBal, feeSentEstim);
+        assertEq(numa.totalSupply(), numaSupply - burntAmount + feeSentEstim);
     }
 
-    function test_mintAssetOutputFromNuma() public
-    {
+    function test_mintAssetOutputFromNuma() public {
         vm.startPrank(deployer);
         numa.transfer(userA, 500000 ether);
 
@@ -489,13 +486,16 @@ contract PrinterTest is Setup {
         // how much numa should we burn to get this nuAsset amount
         uint256 numaCost;
         uint256 numaFee;
-        (numaCost, numaFee) = moneyPrinter.getNbOfNumaNeededAndFee(address(nuUSD), nuAssetamount);
+        (numaCost, numaFee) = moneyPrinter.getNbOfNumaNeededAndFee(
+            address(nuUSD),
+            nuAssetamount
+        );
 
-        numa.approve(address(moneyPrinter),numaCost);
+        numa.approve(address(moneyPrinter), numaCost);
 
-         // warning cf test block mint
+        // warning cf test block mint
         uint globalCF = vaultManager.getGlobalCF();
-        
+
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
@@ -510,12 +510,17 @@ contract PrinterTest is Setup {
         );
         vm.startPrank(userA);
         vm.expectRevert("minting forbidden");
-        moneyPrinter.mintAssetOutputFromNuma(address(nuUSD), nuAssetamount,numaCost,userA);
+        moneyPrinter.mintAssetOutputFromNuma(
+            address(nuUSD),
+            nuAssetamount,
+            numaCost,
+            userA
+        );
         // put back warning level
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            globalCF-1,
+            globalCF - 1,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -527,15 +532,25 @@ contract PrinterTest is Setup {
         vm.startPrank(userA);
         // slippage test
         vm.expectRevert("max numa");
-        moneyPrinter.mintAssetOutputFromNuma(address(nuUSD), nuAssetamount,numaCost-1,userA);
+        moneyPrinter.mintAssetOutputFromNuma(
+            address(nuUSD),
+            nuAssetamount,
+            numaCost - 1,
+            userA
+        );
         // slippage ok
         uint balnuUSD = nuUSD.balanceOf(userA);
         uint balnuma = numa.balanceOf(userA);
-        moneyPrinter.mintAssetOutputFromNuma(address(nuUSD), nuAssetamount,numaCost,userA);
+        moneyPrinter.mintAssetOutputFromNuma(
+            address(nuUSD),
+            nuAssetamount,
+            numaCost,
+            userA
+        );
         uint balnuUSDAfter = nuUSD.balanceOf(userA);
         uint balnumaAfter = numa.balanceOf(userA);
-        assertEq(balnuUSDAfter - balnuUSD,nuAssetamount);
-        assertEq(balnuma - balnumaAfter,numaCost);
+        assertEq(balnuUSDAfter - balnuUSD, nuAssetamount);
+        assertEq(balnuma - balnumaAfter, numaCost);
 
         // 60% of the fees sent to fee address
         uint feeSentEstim = (numaFee * 6000) / 10000;
@@ -544,14 +559,11 @@ contract PrinterTest is Setup {
         uint burntAmount = numaCost;
 
         uint numaBal = numa.balanceOf(feeAddressPrinter);
-        assertEq(numaBal,feeSentEstim);
-        assertEq(numa.totalSupply(),numaSupply - burntAmount+feeSentEstim);
-
-
+        assertEq(numaBal, feeSentEstim);
+        assertEq(numa.totalSupply(), numaSupply - burntAmount + feeSentEstim);
     }
 
-    function test_burnAssetInputToNuma() public
-    {
+    function test_burnAssetInputToNuma() public {
         vm.startPrank(deployer);
         numa.transfer(userA, 500000 ether);
 
@@ -562,8 +574,13 @@ contract PrinterTest is Setup {
         //vm.stopPrank();
         vm.startPrank(userA);
         // mint some to be able to burn
-        numa.approve(address(moneyPrinter),500000 ether);
-        moneyPrinter.mintAssetOutputFromNuma(address(nuUSD), nuAssetAmount,500000 ether,userA);
+        numa.approve(address(moneyPrinter), 500000 ether);
+        moneyPrinter.mintAssetOutputFromNuma(
+            address(nuUSD),
+            nuAssetAmount,
+            500000 ether,
+            userA
+        );
 
         uint256 _output;
         uint256 amountToBurn;
@@ -571,11 +588,11 @@ contract PrinterTest is Setup {
             address(nuUSD),
             nuAssetAmount
         );
-        nuUSD.approve(address(moneyPrinter),nuAssetAmount);
+        nuUSD.approve(address(moneyPrinter), nuAssetAmount);
 
         // warning cf test not blocking burn
         uint globalCF = vaultManager.getGlobalCF();
-        
+
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
@@ -592,32 +609,41 @@ contract PrinterTest is Setup {
 
         // slippage test
         vm.expectRevert("minimum amount");
-        moneyPrinter.burnAssetInputToNuma(address(nuUSD),
-            nuAssetAmount,_output+1,userA);
+        moneyPrinter.burnAssetInputToNuma(
+            address(nuUSD),
+            nuAssetAmount,
+            _output + 1,
+            userA
+        );
         // slippage ok
         uint balnuUSD = nuUSD.balanceOf(userA);
         uint balnuma = numa.balanceOf(userA);
         uint numaBalBefore = numa.balanceOf(feeAddressPrinter);
         uint supplyBefore = numa.totalSupply();
-        moneyPrinter.burnAssetInputToNuma(address(nuUSD),
-        nuAssetAmount,_output,userA);
+        moneyPrinter.burnAssetInputToNuma(
+            address(nuUSD),
+            nuAssetAmount,
+            _output,
+            userA
+        );
         uint balnuUSDAfter = nuUSD.balanceOf(userA);
         uint balnumaAfter = numa.balanceOf(userA);
-        assertEq(balnuUSD - balnuUSDAfter ,nuAssetAmount);
-        assertEq(balnumaAfter - balnuma,_output);
+        assertEq(balnuUSD - balnuUSDAfter, nuAssetAmount);
+        assertEq(balnumaAfter - balnuma, _output);
 
         // 60% of the fees sent to fee address
         uint feeSentEstim = (amountToBurn * 6000) / 10000;
 
-
         uint numaBal = numa.balanceOf(feeAddressPrinter);
-        assertEq(numaBal - numaBalBefore,feeSentEstim,"fee sent ko");
-        assertEq(numa.totalSupply(),supplyBefore + _output+feeSentEstim,"supply ko");
-
+        assertEq(numaBal - numaBalBefore, feeSentEstim, "fee sent ko");
+        assertEq(
+            numa.totalSupply(),
+            supplyBefore + _output + feeSentEstim,
+            "supply ko"
+        );
     }
 
-    function test_burnAssetToNumaOutput() public
-    {
+    function test_burnAssetToNumaOutput() public {
         vm.startPrank(deployer);
         numa.transfer(userA, 500000 ether);
 
@@ -628,19 +654,22 @@ contract PrinterTest is Setup {
         //vm.stopPrank();
         vm.startPrank(userA);
         // mint some to be able to burn
-        numa.approve(address(moneyPrinter),500000 ether);
-        moneyPrinter.mintAssetOutputFromNuma(address(nuUSD), numaAmount*3,500000 ether,userA);
-
-        (uint256 nuUSDAmount,uint fee ) = moneyPrinter.getNbOfnuAssetNeededForNuma(
+        numa.approve(address(moneyPrinter), 500000 ether);
+        moneyPrinter.mintAssetOutputFromNuma(
             address(nuUSD),
-            numaAmount
+            numaAmount * 3,
+            500000 ether,
+            userA
         );
 
-        nuUSD.approve(address(moneyPrinter),nuUSDAmount);
+        (uint256 nuUSDAmount, uint fee) = moneyPrinter
+            .getNbOfnuAssetNeededForNuma(address(nuUSD), numaAmount);
+
+        nuUSD.approve(address(moneyPrinter), nuUSDAmount);
 
         // warning cf test not blocking burn
         uint globalCF = vaultManager.getGlobalCF();
-        
+
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
@@ -657,39 +686,48 @@ contract PrinterTest is Setup {
 
         // slippage test
         vm.expectRevert("max amount");
-        moneyPrinter.burnAssetToNumaOutput(address(nuUSD),
-            numaAmount,nuUSDAmount-1,userA);
+        moneyPrinter.burnAssetToNumaOutput(
+            address(nuUSD),
+            numaAmount,
+            nuUSDAmount - 1,
+            userA
+        );
         // slippage ok
         uint balnuUSD = nuUSD.balanceOf(userA);
         uint balnuma = numa.balanceOf(userA);
         uint numaBalBefore = numa.balanceOf(feeAddressPrinter);
         uint supplyBefore = numa.totalSupply();
-        moneyPrinter.burnAssetToNumaOutput(address(nuUSD),
-            numaAmount,nuUSDAmount,userA);
-            
+        moneyPrinter.burnAssetToNumaOutput(
+            address(nuUSD),
+            numaAmount,
+            nuUSDAmount,
+            userA
+        );
+
         uint balnuUSDAfter = nuUSD.balanceOf(userA);
         uint balnumaAfter = numa.balanceOf(userA);
-        assertEq(balnuUSD - balnuUSDAfter ,nuUSDAmount);
-        assertEq(balnumaAfter - balnuma,numaAmount);
+        assertEq(balnuUSD - balnuUSDAfter, nuUSDAmount);
+        assertEq(balnumaAfter - balnuma, numaAmount);
 
         // 60% of the fees sent to fee address
         uint feeSentEstim = (fee * 6000) / 10000;
 
-
         uint numaBal = numa.balanceOf(feeAddressPrinter);
-        assertEq(numaBal - numaBalBefore,feeSentEstim,"fee sent ko");
-        assertEq(numa.totalSupply(),supplyBefore + numaAmount+feeSentEstim,"supply ko");
+        assertEq(numaBal - numaBalBefore, feeSentEstim, "fee sent ko");
+        assertEq(
+            numa.totalSupply(),
+            supplyBefore + numaAmount + feeSentEstim,
+            "supply ko"
+        );
     }
 
-
-    function test_swapExactInput() public
-    {
+    function test_swapExactInput() public {
         uint numaAmount = 1000001e18;
         uint nuUSDAmount = 40001e18;
 
         vm.startPrank(deployer);
         numa.transfer(userA, numaAmount);
-      
+
         vm.stopPrank();
         vm.startPrank(userA);
         // get some nuUSD
@@ -701,16 +739,16 @@ contract PrinterTest is Setup {
             userA
         );
 
-
-        (uint256 nuBTCAmount, uint fee) = moneyPrinter.getNbOfNuAssetFromNuAsset(
-            address(nuUSD),
-            address(nuBTC),
-            nuUSDAmount
-        );
-        nuUSD.approve(address(moneyPrinter),nuUSDAmount);
+        (uint256 nuBTCAmount, uint fee) = moneyPrinter
+            .getNbOfNuAssetFromNuAsset(
+                address(nuUSD),
+                address(nuBTC),
+                nuUSDAmount
+            );
+        nuUSD.approve(address(moneyPrinter), nuUSDAmount);
 
         // warning cf test block swaps
-        uint globalCF = vaultManager.getGlobalCF();  
+        uint globalCF = vaultManager.getGlobalCF();
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
@@ -730,12 +768,13 @@ contract PrinterTest is Setup {
             address(nuBTC),
             userA,
             nuUSDAmount,
-            nuBTCAmount);
+            nuBTCAmount
+        );
         // put back warning cf
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            globalCF-1,
+            globalCF - 1,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -752,7 +791,8 @@ contract PrinterTest is Setup {
             address(nuBTC),
             userA,
             nuUSDAmount,
-            nuBTCAmount+1);
+            nuBTCAmount + 1
+        );
 
         // pause test
         vm.stopPrank();
@@ -760,13 +800,14 @@ contract PrinterTest is Setup {
         moneyPrinter.pause();
         vm.stopPrank();
         vm.startPrank(userA);
-        vm.expectRevert(0xd93c0665); 
+        vm.expectRevert(0xd93c0665);
         moneyPrinter.swapExactInput(
             address(nuUSD),
             address(nuBTC),
             userA,
             nuUSDAmount,
-            nuBTCAmount);
+            nuBTCAmount
+        );
         vm.stopPrank();
         vm.startPrank(deployer);
         moneyPrinter.unpause();
@@ -783,34 +824,31 @@ contract PrinterTest is Setup {
             address(nuBTC),
             userA,
             nuUSDAmount,
-            nuBTCAmount);
-        assertEq(balnuUSD - nuUSD.balanceOf(userA),nuUSDAmount);
-        assertEq(nuBTC.balanceOf(userA) - balnuBTC,nuBTCAmount);
-        assertEq(supplynuUSD + fee - nuUSD.totalSupply(),nuUSDAmount);
-        assertEq(nuBTC.totalSupply() - supplynuBTC,nuBTCAmount);
-        assertEq(nuUSD.balanceOf(feeAddressPrinter),fee);
-
-
+            nuBTCAmount
+        );
+        assertEq(balnuUSD - nuUSD.balanceOf(userA), nuUSDAmount);
+        assertEq(nuBTC.balanceOf(userA) - balnuBTC, nuBTCAmount);
+        assertEq(supplynuUSD + fee - nuUSD.totalSupply(), nuUSDAmount);
+        assertEq(nuBTC.totalSupply() - supplynuBTC, nuBTCAmount);
+        assertEq(nuUSD.balanceOf(feeAddressPrinter), fee);
     }
 
-
-    function test_swapExactOutput() public
-    {
-
+    function test_swapExactOutput() public {
         uint numaAmount = 2000000e18;
         uint nuBTCAmount = 11e18;
 
         vm.startPrank(deployer);
         numa.transfer(userA, numaAmount);
-      
+
         vm.stopPrank();
         vm.startPrank(userA);
 
-        (uint256 nuUSDAmount, uint fee) = moneyPrinter.getNbOfNuAssetNeededForNuAsset(
-            address(nuUSD),
-            address(nuBTC),
-            nuBTCAmount
-        );
+        (uint256 nuUSDAmount, uint fee) = moneyPrinter
+            .getNbOfNuAssetNeededForNuAsset(
+                address(nuUSD),
+                address(nuBTC),
+                nuBTCAmount
+            );
 
         // get some nuUSD
         numa.approve(address(moneyPrinter), numaAmount);
@@ -821,11 +859,10 @@ contract PrinterTest is Setup {
             userA
         );
 
-
-        nuUSD.approve(address(moneyPrinter),nuUSDAmount);
+        nuUSD.approve(address(moneyPrinter), nuUSDAmount);
 
         // warning cf test block swaps
-        uint globalCF = vaultManager.getGlobalCF();  
+        uint globalCF = vaultManager.getGlobalCF();
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
@@ -845,12 +882,13 @@ contract PrinterTest is Setup {
             address(nuBTC),
             userA,
             nuBTCAmount,
-            nuUSDAmount);
+            nuUSDAmount
+        );
         // put back warning cf
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            globalCF-1,
+            globalCF - 1,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -867,7 +905,8 @@ contract PrinterTest is Setup {
             address(nuBTC),
             userA,
             nuBTCAmount,
-            nuUSDAmount-1);
+            nuUSDAmount - 1
+        );
 
         // pause test
         vm.stopPrank();
@@ -875,13 +914,14 @@ contract PrinterTest is Setup {
         moneyPrinter.pause();
         vm.stopPrank();
         vm.startPrank(userA);
-        vm.expectRevert(0xd93c0665); 
+        vm.expectRevert(0xd93c0665);
         moneyPrinter.swapExactOutput(
             address(nuUSD),
             address(nuBTC),
             userA,
             nuBTCAmount,
-            nuUSDAmount);
+            nuUSDAmount
+        );
         vm.stopPrank();
         vm.startPrank(deployer);
         moneyPrinter.unpause();
@@ -898,17 +938,14 @@ contract PrinterTest is Setup {
             address(nuBTC),
             userA,
             nuBTCAmount,
-            nuUSDAmount);
-        assertEq(balnuUSD - nuUSD.balanceOf(userA),nuUSDAmount);
-        assertEq(nuBTC.balanceOf(userA) - balnuBTC,nuBTCAmount);
-        assertEq(supplynuUSD + fee - nuUSD.totalSupply(),nuUSDAmount);
-        assertEq(nuBTC.totalSupply() - supplynuBTC,nuBTCAmount);
-        assertEq(nuUSD.balanceOf(feeAddressPrinter),fee);
-
-
+            nuUSDAmount
+        );
+        assertEq(balnuUSD - nuUSD.balanceOf(userA), nuUSDAmount);
+        assertEq(nuBTC.balanceOf(userA) - balnuBTC, nuBTCAmount);
+        assertEq(supplynuUSD + fee - nuUSD.totalSupply(), nuUSDAmount);
+        assertEq(nuBTC.totalSupply() - supplynuBTC, nuBTCAmount);
+        assertEq(nuUSD.balanceOf(feeAddressPrinter), fee);
     }
-
-
 
     function test_PricesLowHigh() external {
         uint numaAmount = 100000000e18;
@@ -961,9 +998,9 @@ contract PrinterTest is Setup {
         numaPricePoolL = numaPricePoolL * 10 ** 12;
         numaPricePoolH = numaPricePoolH * 10 ** 12;
         numaPricePoolSpot = numaPricePoolSpot * 10 ** 12;
-        console.log("pool price HIGH", numaPricePoolH);
-        console.log("pool price LOW", numaPricePoolL);
-        console.log("pool price SPOT", numaPricePoolSpot);
+        console2.log("pool price HIGH", numaPricePoolH);
+        console2.log("pool price LOW", numaPricePoolL);
+        console2.log("pool price SPOT", numaPricePoolSpot);
 
         // should use lowest price
         (uint256 nuUSDAmount, ) = moneyPrinter.getNbOfNuAssetFromNuma(
@@ -1246,12 +1283,11 @@ contract PrinterTest is Setup {
     //     assertEq(fee2,fee,"fee matching ko");
     // }
 
-    function forceSynthDebasing() public
-    {
+    function forceSynthDebasing() public {
         uint globalCF = vaultManager.getGlobalCF();
-        
+
         vm.startPrank(deployer);
-         vaultManager.setScalingParameters(
+        vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
             vaultManager.cf_warning(),
             vaultManager.cf_severe(),
@@ -1266,25 +1302,33 @@ contract PrinterTest is Setup {
         numa.approve(address(moneyPrinter), 10000000 ether);
 
         // checking numa price
-        uint p1 = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.NoFeePrice);
-        console2.log("p1",p1);
+        uint p1 = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.NoFeePrice
+        );
+        console2.log("p1", p1);
         moneyPrinter.mintAssetOutputFromNuma(
             address(nuUSD),
             4500000 ether,
             10000000 ether,
             deployer
         );
-        p1 = vaultManager.numaToEth(1 ether,IVaultManager.PriceType.NoFeePrice);
-        console2.log("p1",p1);
+        p1 = vaultManager.numaToEth(
+            1 ether,
+            IVaultManager.PriceType.NoFeePrice
+        );
+        console2.log("p1", p1);
 
-         // test debase
-         vm.warp(block.timestamp + 10 hours);
-         (uint scaleSynthBurn2,uint criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-        assertEq(scaleSynthBurn2,800);
+        // test debase
+        vm.warp(block.timestamp + 10 hours);
+        (
+            uint scaleSynthBurn2,
+            uint criticalScaleForNumaPriceAndSellFee2
+        ) = vaultManager.getSynthScalingUpdate();
+        assertEq(scaleSynthBurn2, 800);
     }
 
-    function forceSynthDebasingCritical() public
-    {        
+    function forceSynthDebasingCritical() public {
         vm.startPrank(deployer);
         //  vaultManager.setScalingParameters(
         //     vaultManager.cf_critical(),
@@ -1299,14 +1343,13 @@ contract PrinterTest is Setup {
         // );
 
         // numa.approve(address(moneyPrinter), 10000000 ether);
-      
+
         // moneyPrinter.mintAssetOutputFromNuma(
         //     address(nuUSD),
         //     4500000 ether,
         //     10000000 ether,
         //     deployer
         // );
-
 
         //  // test debase
         //  vm.warp(block.timestamp + 10 hours);
@@ -1318,7 +1361,7 @@ contract PrinterTest is Setup {
 
         // critical_cf
         vaultManager.setScalingParameters(
-            globalCF2 *2,
+            globalCF2 * 2,
             vaultManager.cf_warning(),
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
@@ -1328,185 +1371,177 @@ contract PrinterTest is Setup {
             vaultManager.minimumScale(),
             vaultManager.criticalDebaseMult()
         );
-
     }
 
-//     function test_SynthScaling() public {
-//         uint globalCF = vaultManager.getGlobalCF();
-//         assertGt(globalCF, vaultManager.cf_critical());
-//         console2.log(globalCF);
-//         vm.startPrank(deployer);
-//          vaultManager.setScalingParameters(
-//             vaultManager.cf_critical(),
-//             vaultManager.cf_warning(),
-//             vaultManager.cf_severe(),
-//             vaultManager.debaseValue(),
-//             vaultManager.rebaseValue(),
-//             1 hours,
-//             2 hours,
-//             vaultManager.minimumScale(),
-//             vaultManager.criticalDebaseMult()
-//         );
+    //     function test_SynthScaling() public {
+    //         uint globalCF = vaultManager.getGlobalCF();
+    //         assertGt(globalCF, vaultManager.cf_critical());
+    //         console2.log(globalCF);
+    //         vm.startPrank(deployer);
+    //          vaultManager.setScalingParameters(
+    //             vaultManager.cf_critical(),
+    //             vaultManager.cf_warning(),
+    //             vaultManager.cf_severe(),
+    //             vaultManager.debaseValue(),
+    //             vaultManager.rebaseValue(),
+    //             1 hours,
+    //             2 hours,
+    //             vaultManager.minimumScale(),
+    //             vaultManager.criticalDebaseMult()
+    //         );
 
-//         numa.approve(address(moneyPrinter), 10000000 ether);
-      
-//         moneyPrinter.mintAssetOutputFromNuma(
-//             address(nuUSD),
-//             4500000 ether,
-//             10000000 ether,
-//             deployer
-//         );
+    //         numa.approve(address(moneyPrinter), 10000000 ether);
 
-//         uint globalCF2 = vaultManager.getGlobalCF();
-//         console2.log(globalCF2);
-//         assertLt(globalCF2, globalCF);
+    //         moneyPrinter.mintAssetOutputFromNuma(
+    //             address(nuUSD),
+    //             4500000 ether,
+    //             10000000 ether,
+    //             deployer
+    //         );
 
-//         (uint scaleSynthBurn,uint criticalScaleForNumaPriceAndSellFee) = vaultManager.getSynthScalingUpdate();
-//          console2.log(scaleSynthBurn);
-//          console2.log(criticalScaleForNumaPriceAndSellFee);
-//          assertEq(scaleSynthBurn,1000);
-//          assertEq(criticalScaleForNumaPriceAndSellFee,1000);
-//          // test debase
-//          vm.warp(block.timestamp + 10 hours);
-//          (uint scaleSynthBurn2,uint criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-//          console2.log(scaleSynthBurn2);
-//          console2.log(criticalScaleForNumaPriceAndSellFee2);
-//         assertEq(scaleSynthBurn2,800);
-//         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
+    //         uint globalCF2 = vaultManager.getGlobalCF();
+    //         console2.log(globalCF2);
+    //         assertLt(globalCF2, globalCF);
 
-//          vm.warp(block.timestamp + 10 hours);
-//          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-//          console2.log(scaleSynthBurn2);
-//          console2.log(criticalScaleForNumaPriceAndSellFee2);
-//         assertEq(scaleSynthBurn2,600);
-//         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
+    //         (uint scaleSynthBurn,uint criticalScaleForNumaPriceAndSellFee) = vaultManager.getSynthScalingUpdate();
+    //          console2.log(scaleSynthBurn);
+    //          console2.log(criticalScaleForNumaPriceAndSellFee);
+    //          assertEq(scaleSynthBurn,1000);
+    //          assertEq(criticalScaleForNumaPriceAndSellFee,1000);
+    //          // test debase
+    //          vm.warp(block.timestamp + 10 hours);
+    //          (uint scaleSynthBurn2,uint criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
+    //          console2.log(scaleSynthBurn2);
+    //          console2.log(criticalScaleForNumaPriceAndSellFee2);
+    //         assertEq(scaleSynthBurn2,800);
+    //         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
 
-//         // min reached
-//          vm.warp(block.timestamp + 10 hours);
-//          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-//          console2.log(scaleSynthBurn2);
-//          console2.log(criticalScaleForNumaPriceAndSellFee2);
-//         assertEq(scaleSynthBurn2,vaultManager.minimumScale());
-//         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
+    //          vm.warp(block.timestamp + 10 hours);
+    //          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
+    //          console2.log(scaleSynthBurn2);
+    //          console2.log(criticalScaleForNumaPriceAndSellFee2);
+    //         assertEq(scaleSynthBurn2,600);
+    //         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
 
-//         globalCF2 = vaultManager.getGlobalCF();
-//         console2.log(globalCF2);
+    //         // min reached
+    //          vm.warp(block.timestamp + 10 hours);
+    //          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
+    //          console2.log(scaleSynthBurn2);
+    //          console2.log(criticalScaleForNumaPriceAndSellFee2);
+    //         assertEq(scaleSynthBurn2,vaultManager.minimumScale());
+    //         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
 
-//         // critical_cf
-//         vaultManager.setScalingParameters(
-//             globalCF2 + 1,
-//             vaultManager.cf_warning(),
-//             vaultManager.cf_severe(),
-//             vaultManager.debaseValue(),
-//             vaultManager.rebaseValue(),
-//             1 hours,
-//             2 hours,
-//             vaultManager.minimumScale(),
-//             vaultManager.criticalDebaseMult()
-//         );
-//         (uint scaleSynthBurn3,uint criticalScaleForNumaPriceAndSellFee3) = vaultManager.getSynthScalingUpdate();
-//          console2.log(scaleSynthBurn3);
-//          console2.log(criticalScaleForNumaPriceAndSellFee3);
+    //         globalCF2 = vaultManager.getGlobalCF();
+    //         console2.log(globalCF2);
 
-//          uint criticalDebaseFactor = (globalCF2 * 1000) / vaultManager.cf_critical();
-//        console2.log("criticalDebaseFactor",criticalDebaseFactor);
+    //         // critical_cf
+    //         vaultManager.setScalingParameters(
+    //             globalCF2 + 1,
+    //             vaultManager.cf_warning(),
+    //             vaultManager.cf_severe(),
+    //             vaultManager.debaseValue(),
+    //             vaultManager.rebaseValue(),
+    //             1 hours,
+    //             2 hours,
+    //             vaultManager.minimumScale(),
+    //             vaultManager.criticalDebaseMult()
+    //         );
+    //         (uint scaleSynthBurn3,uint criticalScaleForNumaPriceAndSellFee3) = vaultManager.getSynthScalingUpdate();
+    //          console2.log(scaleSynthBurn3);
+    //          console2.log(criticalScaleForNumaPriceAndSellFee3);
 
-//         uint scalePriceFee = criticalDebaseFactor;
+    //          uint criticalDebaseFactor = (globalCF2 * 1000) / vaultManager.cf_critical();
+    //        console2.log("criticalDebaseFactor",criticalDebaseFactor);
 
-//             // we apply this multiplier on the factor for when it's used on synthetics burning price
-//             criticalDebaseFactor =
-//                 (criticalDebaseFactor * 1000) /
-//                 vaultManager.criticalDebaseMult();
+    //         uint scalePriceFee = criticalDebaseFactor;
 
+    //             // we apply this multiplier on the factor for when it's used on synthetics burning price
+    //             criticalDebaseFactor =
+    //                 (criticalDebaseFactor * 1000) /
+    //                 vaultManager.criticalDebaseMult();
 
-//          console2.log("criticalDebaseFactorMult",criticalDebaseFactor);
+    //          console2.log("criticalDebaseFactorMult",criticalDebaseFactor);
 
-// console2.log("criticalScaleForNumaPriceAndSellFee",scalePriceFee);
+    // console2.log("criticalScaleForNumaPriceAndSellFee",scalePriceFee);
 
-//         // test that we use min for scaling
-//         assertEq(scaleSynthBurn3,vaultManager.minimumScale());
-//         // for price and sell fee we use critical debase factor 
-//         assertEq(criticalScaleForNumaPriceAndSellFee3,scalePriceFee);
+    //         // test that we use min for scaling
+    //         assertEq(scaleSynthBurn3,vaultManager.minimumScale());
+    //         // for price and sell fee we use critical debase factor
+    //         assertEq(criticalScaleForNumaPriceAndSellFee3,scalePriceFee);
 
-//         // check critical scale value
-//         vaultManager.setScalingParameters(
-//             globalCF2 *3,
-//             vaultManager.cf_warning(),
-//             vaultManager.cf_severe(),
-//             vaultManager.debaseValue(),
-//             vaultManager.rebaseValue(),
-//             1 hours,
-//             2 hours,
-//             vaultManager.minimumScale(),
-//             vaultManager.criticalDebaseMult()
-//         );
-//         (scaleSynthBurn3,criticalScaleForNumaPriceAndSellFee3) = vaultManager.getSynthScalingUpdate();
-//         console2.log(scaleSynthBurn3);
-//         console2.log(criticalScaleForNumaPriceAndSellFee3);
+    //         // check critical scale value
+    //         vaultManager.setScalingParameters(
+    //             globalCF2 *3,
+    //             vaultManager.cf_warning(),
+    //             vaultManager.cf_severe(),
+    //             vaultManager.debaseValue(),
+    //             vaultManager.rebaseValue(),
+    //             1 hours,
+    //             2 hours,
+    //             vaultManager.minimumScale(),
+    //             vaultManager.criticalDebaseMult()
+    //         );
+    //         (scaleSynthBurn3,criticalScaleForNumaPriceAndSellFee3) = vaultManager.getSynthScalingUpdate();
+    //         console2.log(scaleSynthBurn3);
+    //         console2.log(criticalScaleForNumaPriceAndSellFee3);
 
-//         criticalDebaseFactor = (globalCF2 * 1000) / vaultManager.cf_critical();
-//        console2.log("criticalDebaseFactor",criticalDebaseFactor);
+    //         criticalDebaseFactor = (globalCF2 * 1000) / vaultManager.cf_critical();
+    //        console2.log("criticalDebaseFactor",criticalDebaseFactor);
 
-//         scalePriceFee = criticalDebaseFactor;
+    //         scalePriceFee = criticalDebaseFactor;
 
-//             // we apply this multiplier on the factor for when it's used on synthetics burning price
-//             criticalDebaseFactor =
-//                 (criticalDebaseFactor * 1000) /
-//                 vaultManager.criticalDebaseMult();
+    //             // we apply this multiplier on the factor for when it's used on synthetics burning price
+    //             criticalDebaseFactor =
+    //                 (criticalDebaseFactor * 1000) /
+    //                 vaultManager.criticalDebaseMult();
 
-    
-//          console2.log("criticalDebaseFactorMult",criticalDebaseFactor);
+    //          console2.log("criticalDebaseFactorMult",criticalDebaseFactor);
 
-//         console2.log("criticalScaleForNumaPriceAndSellFee",scalePriceFee);
+    //         console2.log("criticalScaleForNumaPriceAndSellFee",scalePriceFee);
 
-  
+    //          // test rebase
+    //         vaultManager.setScalingParameters(
+    //             1100,
+    //             vaultManager.cf_warning(),
+    //             vaultManager.cf_severe(),
+    //             vaultManager.debaseValue(),
+    //             vaultManager.rebaseValue(),
+    //             1 hours,
+    //             2 hours,
+    //             vaultManager.minimumScale(),
+    //             vaultManager.criticalDebaseMult()
+    //         );
 
-//          // test rebase
-//         vaultManager.setScalingParameters(
-//             1100,
-//             vaultManager.cf_warning(),
-//             vaultManager.cf_severe(),
-//             vaultManager.debaseValue(),
-//             vaultManager.rebaseValue(),
-//             1 hours,
-//             2 hours,
-//             vaultManager.minimumScale(),
-//             vaultManager.criticalDebaseMult()
-//         );
+    //         nuUSD.approve(address(moneyPrinter), 4500000 ether);
 
-//         nuUSD.approve(address(moneyPrinter), 4500000 ether);
-      
-//         moneyPrinter.burnAssetInputToNuma(
-//             address(nuUSD),
-//             4500000 ether,
-//             0,
-//             userA
-//         );
-//          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-//         assertEq(scaleSynthBurn2,vaultManager.minimumScale());
-//         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
+    //         moneyPrinter.burnAssetInputToNuma(
+    //             address(nuUSD),
+    //             4500000 ether,
+    //             0,
+    //             userA
+    //         );
+    //          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
+    //         assertEq(scaleSynthBurn2,vaultManager.minimumScale());
+    //         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
 
-//         // rebase
-//         vm.warp(block.timestamp + 10 hours);
-//          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-//         assertEq(scaleSynthBurn2,vaultManager.minimumScale()+150);
-//         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
-//         // rebase again
-//          vm.warp(block.timestamp + 10 hours);
-//          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-//         assertEq(scaleSynthBurn2,vaultManager.minimumScale()+300);
-//         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
+    //         // rebase
+    //         vm.warp(block.timestamp + 10 hours);
+    //          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
+    //         assertEq(scaleSynthBurn2,vaultManager.minimumScale()+150);
+    //         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
+    //         // rebase again
+    //          vm.warp(block.timestamp + 10 hours);
+    //          (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
+    //         assertEq(scaleSynthBurn2,vaultManager.minimumScale()+300);
+    //         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
 
-//          // test max
-//         vm.warp(block.timestamp + 30 hours);
-//         (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
-//         assertEq(scaleSynthBurn2,1000);
-//         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
+    //          // test max
+    //         vm.warp(block.timestamp + 30 hours);
+    //         (scaleSynthBurn2,criticalScaleForNumaPriceAndSellFee2) = vaultManager.getSynthScalingUpdate();
+    //         assertEq(scaleSynthBurn2,1000);
+    //         assertEq(criticalScaleForNumaPriceAndSellFee2,criticalScaleForNumaPriceAndSellFee);
 
- 
-
-
-//     }
+    //     }
     // function testFuzz_mintAssetEstimationsSynthScaled(
     //     uint nuAssetAmount
     // ) public {

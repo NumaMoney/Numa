@@ -4,7 +4,6 @@ pragma solidity 0.8.20;
 import "../interfaces/INumaTokenToEthConverter.sol";
 import "../libraries/OracleUtils.sol";
 
-import "forge-std/console2.sol";
 contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
     address public immutable pricefeedUSDC_USD;
     uint128 immutable chainlink_heartbeatUSDC_USD;
@@ -19,9 +18,11 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         uint128 _chainlink_heartbeatUSDC_USD,
         address _pricefeedETH_USD,
         uint128 _chainlink_heartbeatETH_USD,
-        address _uptimeFeedAddress//,
+        address _uptimeFeedAddress //,
+    )
         //uint _decimals
-    ) OracleUtils(_uptimeFeedAddress) {
+        OracleUtils(_uptimeFeedAddress)
+    {
         pricefeedUSDC_USD = _pricefeedUSDC_USD;
         chainlink_heartbeatUSDC_USD = _chainlink_heartbeatUSDC_USD;
         pricefeedETH_USD = _pricefeedETH_USD;
@@ -89,10 +90,9 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
 
         tokenAmount = FullMath.mulDiv(
             _ethAmount,
-            10 ** 8 *// hardcoding decimals as they are constant
+            10 ** 8 * // hardcoding decimals as they are constant
                 uint256(price2),
-            uint256(price) *
-                10 ** 8// hardcoding decimals as they are constant
+            uint256(price) * 10 ** 8 // hardcoding decimals as they are constant
         );
 
         // if (decimals < 18) tokenAmount = tokenAmount / (10 ** (18 - decimals));
@@ -100,8 +100,6 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
 
         // decimals are 6 for usdc (18 - 6 = 12)
         tokenAmount = tokenAmount / (10 ** 12);
-
-
     }
 
     function convertTokenToEth(
@@ -173,15 +171,13 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         //         uint256(price2)
         // );
 
-        
         ethValue = FullMath.mulDiv(
             _tokenAmount,
             uint256(price) *
-                10 ** 8 *// hardcoding decimals as they are constant
-                10 ** 12,// decimals are 6 for usdc (18 - 6 = 12)
-            10 ** 8 *// hardcoding decimals as they are constant
+                10 ** 8 * // hardcoding decimals as they are constant
+                10 ** 12, // decimals are 6 for usdc (18 - 6 = 12)
+            10 ** 8 * // hardcoding decimals as they are constant
                 uint256(price2)
         );
     }
-
 }

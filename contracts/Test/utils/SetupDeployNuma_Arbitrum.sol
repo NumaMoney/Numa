@@ -77,7 +77,6 @@ contract Setup is SetupBase {
         deal({token: address(rEth), to: userB, give: 100000 ether});
         deal({token: address(rEth), to: userC, give: 100000 ether});
 
-
         // need to setup vault price same as pool price: 1 numa = 0.5 usd
         // ETHUSD
         AggregatorV2V3Interface dataFeedETHUSD = AggregatorV2V3Interface(
@@ -95,11 +94,10 @@ contract Setup is SetupBase {
         );
         (, btcusd, , , ) = dataFeedBTCUSD.latestRoundData();
 
-       AggregatorV2V3Interface dataFeedBTCETH = AggregatorV2V3Interface(
+        AggregatorV2V3Interface dataFeedBTCETH = AggregatorV2V3Interface(
             PRICEFEEDBTCETH_ARBI
         );
         (, btceth, , , ) = dataFeedBTCETH.latestRoundData();
-
 
         //console.log(ethusd);
         // RETHETH
@@ -110,19 +108,42 @@ contract Setup is SetupBase {
         // 1e8 to account for decimals in chainlink prices
         uint amountReth = (1 ether * numaSupply * 1e8) /
             (USDTONUMA * uint(ethusd) * uint(answerRETHETH));
-        (nuAssetMgr,numaMinter,vaultManager,vaultOracle,vault) = _setupVaultAndAssetManager(
+        (
+            nuAssetMgr,
+            numaMinter,
+            vaultManager,
+            vaultOracle,
+            vault
+        ) = _setupVaultAndAssetManager(
             HEART_BEAT_CUSTOM,
             vaultFeeReceiver,
             vaultRwdReceiver,
-            amountReth,
             INuma(address(numa)),
             0,
-            0
+            0,
+            address(0),
+            address(0)
         );
+        vm.startPrank(numa_admin);
+        numa.grantRole(MINTER_ROLE, address(numaMinter));
+        vm.stopPrank();
+
+        vm.startPrank(deployer);
+        // transfer rEth to vault to initialize price
+        if (amountReth > 0) {
+            rEth.transfer(address(vault), amountReth);
+            // unpause V2
+            vault.unpause();
+        }
+
         _setupPool_Numa_Usdc();
-        (numaOracle,usdcEthConverter,moneyPrinter) = _setupPrinter(address(nuAssetMgr),address(numaMinter),address(vaultManager));
+        (numaOracle, usdcEthConverter, moneyPrinter) = _setupPrinter(
+            address(nuAssetMgr),
+            address(numaMinter),
+            address(vaultManager)
+        );
         _createNuAssets();
-        _linkNuAssets(address(nuAssetMgr),address(moneyPrinter));
+        _linkNuAssets(address(nuAssetMgr), address(moneyPrinter));
         moneyPrinter.unpause();
         _setupLending(NumaVault(address(vault)));
     }
@@ -153,7 +174,6 @@ contract Setup is SetupBase {
     //         .increaseObservationCardinalityNext(100);
     // }
 
-  
     // function _setupPrinter(address nuassetMgrAddress,address numaMinterAddress,address vaultManagerAddress) internal {
     //     numaOracle = new NumaOracle(
     //         USDC_ARBI,
@@ -191,7 +211,6 @@ contract Setup is SetupBase {
 
     //     // add moneyPrinter as a numa minter
     //     NumaMinter(numaMinterAddress).addToMinters(address(moneyPrinter));
-  
 
     //     // nuAssets
     //     nuUSD = new NuAsset2("nuUSD", "NUSD", deployer, deployer);
@@ -209,8 +228,6 @@ contract Setup is SetupBase {
     //     // set printer to vaultManager
     //     VaultManager(vaultManagerAddress).setPrinter(address(moneyPrinter));
     // }
-
-
 
     function SwapNumaToUSDC() public {
         // // testing a swap to get a quote

@@ -18,6 +18,9 @@ contract ConstantsTest {
 
     address constant RETH_ADDRESS_ARBI =
         0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8;
+    address constant WSTETH_ADDRESS_ARBI =
+        0x5979D7b546E38E414F7E9822514be443A4800529;
+
     address constant POSITION_MANAGER_ARBI =
         0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     address constant FACTORY_ARBI = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -35,8 +38,8 @@ contract ConstantsTest {
         0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3;
     address constant PRICEFEEDBTCUSD_ARBI =
         0x6ce185860a4963106506C203335A2910413708e9;
-
-
+    address constant PRICEFEEDWSTETHETH_ARBI =
+        0xB1552C5e96B312d0Bf8b554186F846C40614a540;
 
     // SEPOLIA
     // no uptime feed
@@ -59,10 +62,10 @@ contract ConstantsTest {
 
     // lending protocol
     uint blocksPerYear = 2102400; // TODO here eth values for test
-    uint baseRatePerYear = 0.02 ether;// 2%
-    uint multiplierPerYear = 0.01 ether;// 1%
-    uint jumpMultiplierPerYear = 4 ether;//400%
-    uint kink = 0.8 ether;//80%
+    uint baseRatePerYear = 0.02 ether; // 2%
+    uint multiplierPerYear = 0.01 ether; // 1%
+    uint jumpMultiplierPerYear = 4 ether; //400%
+    uint kink = 0.8 ether; //80%
 
     uint maxUtilizationRatePerYear = 1000000000000000000; //100%
 

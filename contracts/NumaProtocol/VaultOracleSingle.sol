@@ -9,7 +9,7 @@ contract VaultOracleSingle is IVaultOracleSingle, OracleUtils {
     address public feed;
 
     uint128 chainlink_heartbeat;
-    address token;
+    address public token;
     constructor(
         address _token,
         address _feed,

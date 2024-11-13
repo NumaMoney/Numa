@@ -164,7 +164,7 @@ contract CompoundLens {
 
     function cTokenUnderlyingPrice(
         CNumaToken cToken
-    ) public returns (CTokenUnderlyingPrice memory) {
+    ) public view returns (CTokenUnderlyingPrice memory) {
         ComptrollerLensInterface comptroller = ComptrollerLensInterface(
             address(cToken.comptroller())
         );

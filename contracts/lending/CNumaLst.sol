@@ -52,9 +52,6 @@ contract CNumaLst is CNumaToken {
         uint timestampPrior = accrualBlockTimestamp;
         uint deltaTime = currentTimestamp - timestampPrior;
 
-        console2.log("totalBorrows",totalBorrows);
-                console2.log("getCashPrior()+ maxBorrowableAmountFromVault",getCashPrior() + maxBorrowableAmountFromVault);
-                 console2.log("maxBorrowableAmountFromVault", maxBorrowableAmountFromVault);
         (uint ratePerBlock, ) = interestRateModel.getBorrowRate(
             getCashPrior() + maxBorrowableAmountFromVault,
             totalBorrows,
@@ -219,7 +216,7 @@ contract CNumaLst is CNumaToken {
             //
             if (address(vault) != address(0)) {
                 uint amountNeeded = borrowAmount - cashPrior;
-                uint maxBorrowableAmountFromVault = vault.getMaxBorrow();                
+                uint maxBorrowableAmountFromVault = vault.getMaxBorrow();
                 if (amountNeeded <= maxBorrowableAmountFromVault) {
                     // if ok, borrow from vault
                     vault.borrow(amountNeeded);

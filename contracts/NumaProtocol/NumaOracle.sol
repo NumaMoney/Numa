@@ -13,8 +13,6 @@ import "../nuAssets/nuAssetManager.sol";
 import "../interfaces/INumaOracle.sol";
 import "../interfaces/INumaTokenToEthConverter.sol";
 
-import "forge-std/console.sol";
-import "forge-std/console2.sol";
 /// @title NumaOracle
 /// @notice Responsible for getting prices from chainlink and uniswap V3 pools
 /// @dev

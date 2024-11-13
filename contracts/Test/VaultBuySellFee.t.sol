@@ -721,11 +721,12 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             vaultManager.criticalDebaseMult()
         );
 
-        uint criticalScaleForNumaPriceAndSellFee = (1000 * globalCF2) / vaultManager.cf_critical();
+        uint criticalScaleForNumaPriceAndSellFee = (1000 * globalCF2) /
+            vaultManager.cf_critical();
         console2.log("scaleForPrice", criticalScaleForNumaPriceAndSellFee);
 
-        uint sell_fee_increaseCriticalCF = ((1000 - criticalScaleForNumaPriceAndSellFee) * 1 ether) /
-            1000;
+        uint sell_fee_increaseCriticalCF = ((1000 -
+            criticalScaleForNumaPriceAndSellFee) * 1 ether) / 1000;
         // add a multiplier on top
         sell_fee_increaseCriticalCF =
             (sell_fee_increaseCriticalCF *

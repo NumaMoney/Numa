@@ -8,7 +8,8 @@ import "../lending/ExponentialNoError.sol";
 import "../interfaces/IVaultManager.sol";
 
 import "./mocks/VaultMockOracle.sol";
-
+import {VaultOracleSingle} from "../NumaProtocol/VaultOracleSingle.sol";
+import {NumaVault} from "../NumaProtocol/NumaVault.sol";
 // forge coverage --report lcov
 // xcz@DELL4764DSY:/mnt/e/dev/numa/Numa_github$ genhtml lcov.info -o html
 //$Env:FOUNDRY_PROFILE = 'lite'
@@ -27,7 +28,7 @@ contract VaultTest is Setup, ExponentialNoError {
         vm.prank(deployer);
         rEth.transfer(userA, 1000 ether);
         vm.prank(deployer);
-        numa.transfer(userA, 10000 ether);
+        numa.transfer(userA, 1000000 ether);
         //
         vaultBalance = rEth.balanceOf(address(vault));
         userBalance = rEth.balanceOf(userA);
@@ -46,28 +47,26 @@ contract VaultTest is Setup, ExponentialNoError {
         // note: multiplying by last_lsttokenvalueWei() to match exactly what is done in the function
         uint numaAmountNoFee = FullMath.mulDiv(
             ((inputreth * vault.last_lsttokenvalueWei()) / 1 ether),
-            (numaSupply),
+            (supply),
             balEthMinusSynthValue
         );
         // fees
         uint numaAmountWithFee = (numaAmountNoFee * buyfee) / 1 ether;
 
         uint numaAmount = vault.lstToNuma(inputreth);
-        assertEq(numaAmountWithFee, numaAmount);
+        assertEq(numaAmountWithFee, numaAmount, "buy ko");
 
         // SELL
         uint rEthAmountNoFee = FullMath.mulDiv(
-            FullMath.mulDiv(inputnuma, balEthMinusSynthValue, (numaSupply)),
+            FullMath.mulDiv(inputnuma, balEthMinusSynthValue, (supply)),
             1 ether,
             vault.last_lsttokenvalueWei()
         );
         uint rEthAmountWithFee = (rEthAmountNoFee * sellfee) / 1 ether;
         uint rEthAmount = vault.numaToLst(inputnuma);
-        assertEq(rEthAmountWithFee, rEthAmount);
+        assertEq(rEthAmountWithFee, rEthAmount, "sell ko");
     }
-    function test_GetPriceEmptyVault() public {
-        // will test withdrawToken too
-
+    function test_GetPriceEmptyVaultAndWithdraw() public {
         uint balDeployer = rEth.balanceOf(deployer);
         assertGt(vaultBalance, 0);
         vm.prank(deployer);
@@ -107,8 +106,9 @@ contract VaultTest is Setup, ExponentialNoError {
         checkPrices(
             inputreth,
             inputnuma,
-            numaSupply - removedSupply,
-            (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether
+            numa.totalSupply() - removedSupply,
+            (rEth.balanceOf(address(vault)) * vault.last_lsttokenvalueWei()) /
+                1 ether
         );
 
         // START DECAY
@@ -207,33 +207,41 @@ contract VaultTest is Setup, ExponentialNoError {
 
         VMO.setPrice(newprice);
         (uint estimateRewards, uint newvalue, ) = vault.rewardsValue();
-        assertEq(newvalue, newprice);
+        assertEq(newvalue, newprice, "new price ko");
 
-        uint estimateRewardsEth = estimateRewards * newprice;
-        uint rwdEth = vaultBalance * (newprice - lastprice);
-        assertEq(estimateRewardsEth, rwdEth);
+        // uint estimateRewardsEth = (estimateRewards * newprice)/1e18;
+        // uint rwdEth = (vaultBalance * (newprice - lastprice))/1e18;
+        // assertApproxEqAbs(estimateRewardsEth, rwdEth,1,"estimate rwd ko");
+
+        uint rwdREth = (vaultBalance * (newprice - lastprice)) / newprice;
+        assertEq(estimateRewards, rwdREth, "estimate rwd ko");
 
         // price in Eth should be the same
         uint priceEthAfter = vaultManager.numaToEth(
             inputnuma,
             IVaultManager.PriceType.BuyPrice
         );
-        assertApproxEq(priceEthAfter, priceEth, 1);
+        assertApproxEq(priceEthAfter, priceEth, 1, "price after ko 0");
         //
         uint numaAmountAfter = vault.lstToNuma(inputreth);
-        assertApproxEq(numaAmountAfter, 2 * numaAmount, 1);
+        assertApproxEq(numaAmountAfter, 2 * numaAmount, 1, "numa amount ko");
 
         // extract and price should stays the same
         vm.warp(block.timestamp + 24 * 3600 + 1);
-        vault.extractRewards();
+        vault.updateVault();
         uint balrwd = rEth.balanceOf(vaultRwdReceiver);
-        assertApproxEq(balrwd, estimateRewards, 200);
+        assertApproxEq(balrwd, estimateRewards, 200, "rwds ko");
 
         uint priceEthAfterExtract = vaultManager.numaToEth(
             inputnuma,
             IVaultManager.PriceType.BuyPrice
         );
-        assertApproxEq(priceEthAfter, priceEthAfterExtract, 0);
+        assertApproxEq(
+            priceEthAfter,
+            priceEthAfterExtract,
+            0,
+            "price after ko 1"
+        );
     }
 
     function test_BuySell() public {
@@ -320,9 +328,10 @@ contract VaultTest is Setup, ExponentialNoError {
         uint balRwdAddy = rEth.balanceOf(vaultRwdReceiver);
 
         rEth.approve(address(vault), inputreth);
-        uint buyAmount = vault.buy(inputreth, numaAmount, userA);
-        assertEq(buyAmount, numaAmount);
-        assertEq(numa.balanceOf(userA) - balUserA, numaAmount);
+        // some slippage because, we are extracting rewards so estimation can be a little bit off
+        uint buyAmount = vault.buy(inputreth, numaAmount - 100, userA);
+        assertApproxEqAbs(buyAmount, numaAmount, 100);
+        assertEq(numa.balanceOf(userA) - balUserA, buyAmount);
         assertEq(
             rEth.balanceOf(vaultRwdReceiver) - balRwdAddy,
             estimateRewards
@@ -424,63 +433,155 @@ contract VaultTest is Setup, ExponentialNoError {
         assertEq(rEth.balanceOf(userA) - balUserA, rethAmount);
     }
 
-    //     it('buy with rEth and synth supply', async () =>
-    //     {
-    //       //await sendEthToVault();
+    function test_BuySellSynthSupply() public {
+        uint inputreth = 2 ether;
+        uint inputnuma = 1000 ether;
 
-    //       let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, RETH_FEED);
-    //       let latestRoundData = await chainlinkInstance.latestRoundData();
-    //       let latestRoundPrice = Number(latestRoundData.answer);
-    //       let decimals = Number(await chainlinkInstance.decimals());
-    //      // let price = latestRoundPrice / 10 ** decimals;
+        vm.startPrank(userA);
+        // mint synthetics
+        uint nuUSDAmount = 20000 ether;
+        uint nuBTCAmount = 1 ether;
+        numa.approve(address(moneyPrinter), 10000000 ether);
+        console2.log(
+            "synth value before: ",
+            nuAssetMgr.getTotalSynthValueEth() / uint(ethusd)
+        );
+        moneyPrinter.mintAssetOutputFromNuma(
+            address(nuUSD),
+            nuUSDAmount,
+            10000000 ether,
+            userA
+        );
+        console2.log("nuusd supply", nuUSD.totalSupply());
+        console2.log("ethusd", ethusd);
+        console2.log(
+            "synth value USD after minting nuUSD: ",
+            (nuAssetMgr.getTotalSynthValueEth() * uint(ethusd)) / 1e26
+        );
 
-    //       // 100000 nuUSD
-    //       await nuUSD.connect(owner).mint(defaultAdmin,ethers.parseEther("10000"));
-    //       // 10 BTC
-    //       await nuBTC.connect(owner).mint(defaultAdmin,ethers.parseEther("1"));
-    //       // TODO check the value
-    //       let fullSynthValueInEth = await nuAM.getTotalSynthValueEth();
-    //       let fullSynthValueInrEth = (fullSynthValueInEth*BigInt(10 ** decimals) / BigInt(latestRoundPrice));
+        moneyPrinter.mintAssetOutputFromNuma(
+            address(nuBTC),
+            nuBTCAmount,
+            10000000 ether,
+            userA
+        );
+        console2.log(
+            "synth value after minting nuBTC: ",
+            (nuAssetMgr.getTotalSynthValueEth() * uint(ethusd)) / 1e26
+        );
 
-    //      // console.log('synth value after minting nuAssets: ', fullSynthValueInrEth);
+        // check buy price
+        uint balEthMinusSynthValue = (vaultBalance *
+            vault.last_lsttokenvalueWei()) /
+            1 ether -
+            nuAssetMgr.getTotalSynthValueEth();
+        uint numaAmountNoFee = FullMath.mulDiv(
+            ((inputreth * vault.last_lsttokenvalueWei()) / 1 ether),
+            (numa.totalSupply()),
+            balEthMinusSynthValue
+        );
+        // fees
+        uint numaAmountWithFee = (numaAmountNoFee * buyfee) / 1 ether;
 
-    //       // TODO: some imprecision (10-6 numa)
-    //       let buypricerefnofees = ethers.parseEther("2")*ethers.parseEther("10000000")/(vault1Bal - fullSynthValueInrEth);
+        uint numaAmount = vault.lstToNuma(inputreth);
+        assertEq(numaAmountWithFee, numaAmount);
 
-    //       let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
+        rEth.approve(address(vault), inputreth);
+        numa.approve(address(vault), inputnuma);
 
-    //       // BUY
-    //       // paused by default
-    //       await expect(Vault1.buy(ethers.parseEther("2"),buypriceref - epsilon,await signer2.getAddress())).to.be.reverted;
-    //       await Vault1.unpause();
-    //       await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
-    //       await Vault1.buy(ethers.parseEther("2"),buypriceref- epsilon,await signer2.getAddress());
+        // BUY
+        uint balUserA = numa.balanceOf(userA);
+        uint buyAmount = vault.buy(inputreth, numaAmount, userA);
+        assertEq(buyAmount, numaAmount);
+        assertEq(numa.balanceOf(userA) - balUserA, numaAmount);
 
-    //       let balbuyer = await numa.balanceOf(await signer2.getAddress());
-    //       bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
-    //       let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
+        // SELL
+        uint balrEthUserA = rEth.balanceOf(userA);
+        numa.approve(address(vault), inputnuma);
+        uint lstAmount = vault.numaToLst(inputnuma);
+        // compare price
+        balEthMinusSynthValue =
+            (rEth.balanceOf(address(vault)) * vault.last_lsttokenvalueWei()) /
+            1 ether -
+            nuAssetMgr.getTotalSynthValueEth();
+        uint rEthAmountNoFee = FullMath.mulDiv(
+            FullMath.mulDiv(
+                inputnuma,
+                balEthMinusSynthValue,
+                (numa.totalSupply())
+            ),
+            1 ether,
+            vault.last_lsttokenvalueWei()
+        );
 
-    //       let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
+        assertEq((rEthAmountNoFee * sellfee) / 1 ether, lstAmount);
 
-    //       expect(balbuyer).to.be.closeTo(buypriceref, epsilon);
-    //       expect(bal1).to.equal(vault1Bal + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
-    //       expect(balfee).to.equal(fees);
-    //     });
-    //   });
+        uint buyAmountrEth = vault.sell(inputnuma, lstAmount, userA);
+        assertEq(buyAmountrEth, lstAmount);
+        assertEq(rEth.balanceOf(userA) - balrEthUserA, lstAmount);
+    }
 
-    //   it('test withdraw', async function ()
-    //   {
-    //     //await sendEthToVault();
-    //     let balbeforeLST = await rEth_contract.balanceOf(await owner.getAddress());
-    //     await Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"),await owner.getAddress());
-    //     let balafterLST = await rEth_contract.balanceOf(await owner.getAddress());
-    //     expect(balafterLST - balbeforeLST).to.equal(ethers.parseEther("50"));
-
-    //     await Vault1.revokeWithdraw();
-
-    //     await expect(Vault1.withdrawToken(rETH_ADDRESS,ethers.parseEther("50"),await owner.getAddress())).to.be.reverted;
-
-    //   });
+    function test_BuySell2ndVault() public {
+        // uint inputreth = 2 ether;
+        // uint inputnuma = 1000 ether;
+        // vm.startPrank(userA);
+        // // mint synthetics
+        // numa.approve(address(moneyPrinter),10000000 ether);
+        // moneyPrinter.mintAssetOutputFromNuma(address(nuUSD),20000 ether,10000000 ether,userA);
+        // moneyPrinter.mintAssetOutputFromNuma(address(nuBTC),1 ether,10000000 ether,userA);
+        // // deploy 2nd vault
+        // VaultOracleSingle vo2 = new VaultOracleSingle(
+        //     WSTETH_ADDRESS_ARBI,
+        //     PRICEFEEDWSTETHETH_ARBI,
+        //     402 * 86400,
+        //     UPTIME_FEED_NULL
+        // );
+        // NumaVault v2 = _setupVault(vo2,
+        // address(numaMinter),address(vaultManager),numa,
+        // 0,0);
+        // v2.setFeeAddress(vaultFeeReceiver, false);
+        // v2.setRwdAddress(vaultRwdReceiver, false);
+        // TODO
+        // check price with 2nd vault, should be the same
+        // check that we can't buy from 2nd vault
+        // send some wseth
+        // check new price f
+        // check buys/sells, coherent with prices
+        // check CF from multiple vaults
+        // // check buy price
+        // uint balEthMinusSynthValue = (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether - nuAssetMgr.getTotalSynthValueEth();
+        // uint numaAmountNoFee = FullMath.mulDiv(
+        //     ((inputreth * vault.last_lsttokenvalueWei()) / 1 ether),
+        //     (numa.totalSupply()),
+        //     balEthMinusSynthValue
+        // );
+        // // fees
+        // uint numaAmountWithFee = (numaAmountNoFee * buyfee) / 1 ether;
+        // uint numaAmount = vault.lstToNuma(inputreth);
+        // assertEq(numaAmountWithFee, numaAmount);
+        // rEth.approve(address(vault), inputreth);
+        // numa.approve(address(vault), inputnuma);
+        // // BUY
+        // uint balUserA = numa.balanceOf(userA);
+        // uint buyAmount = vault.buy(inputreth, numaAmount, userA);
+        // assertEq(buyAmount, numaAmount);
+        // assertEq(numa.balanceOf(userA) - balUserA, numaAmount);
+        // // SELL
+        // uint balrEthUserA = rEth.balanceOf(userA);
+        // numa.approve(address(vault), inputnuma);
+        // uint lstAmount = vault.numaToLst(inputnuma);
+        // // compare price
+        // balEthMinusSynthValue = (rEth.balanceOf(address(vault)) * vault.last_lsttokenvalueWei()) / 1 ether - nuAssetMgr.getTotalSynthValueEth();
+        // uint rEthAmountNoFee = FullMath.mulDiv(
+        //     FullMath.mulDiv(inputnuma, balEthMinusSynthValue, (numa.totalSupply())),
+        //     1 ether,
+        //     vault.last_lsttokenvalueWei()
+        // );
+        // assertEq((rEthAmountNoFee * sellfee) / 1 ether, lstAmount);
+        // uint buyAmountrEth = vault.sell(inputnuma, lstAmount, userA);
+        // assertEq(buyAmountrEth, lstAmount);
+        // assertEq(rEth.balanceOf(userA) - balrEthUserA, lstAmount);
+    }
 
     //   it('with another vault', async function ()
     //   {
@@ -583,176 +684,4 @@ contract VaultTest is Setup, ExponentialNoError {
 
     //     // expect(balfee).to.equal(fees);
     //   });
-
-    //   it('Extract rewards', async function () {
-
-    //     //await sendEthToVault();
-    //     await time.increase(25*3600);
-
-    //     // ********************** rwd extraction *******************
-    //     let VMO = await ethers.deployContract("VaultMockOracle",
-    //     []);
-    //     await VMO.waitForDeployment();
-    //     let VMO_ADDRESS= await VMO.getAddress();
-    //     console.log('vault mock oracle address: ', VMO_ADDRESS);
-    //     await Vault1.setOracle(VMO_ADDRESS);
-
-    //     // set new price, simulate a 100% rebase
-    //     let lastprice = await Vault1.last_lsttokenvalueWei();
-    //     let newprice = (BigInt(2)*lastprice);
-
-    //     await VMO.setPrice(newprice);
-
-    //     // MockRwdReceiverContract/MockRwdReceiverContract_Deposit
-    //     let rwdreceiver = await ethers.deployContract("MockRwdReceiverContract_Deposit",
-    //     []
-    //     );
-    //     await rwdreceiver.waitForDeployment();
-
-    //     console.log("rwd address");
-    //     console.log(await rwdreceiver.getAddress());
-
-    //     await Vault1.setRwdAddress(await rwdreceiver.getAddress(),true);
-
-    //     let [estimateRewards,newvalue] = await Vault1.rewardsValue();
-
-    //     expect(newvalue).to.equal(newprice);
-
-    //     let estimateRewardsEth = estimateRewards*newprice;
-    //     let rwdEth = vault1Bal*(newprice - lastprice);
-    //     expect(estimateRewardsEth).to.equal(rwdEth);
-
-    //     await Vault1.extractRewards();
-
-    //     let test = await rwdreceiver.test();
-    //     expect(test).to.equal(estimateRewards);
-
-    //     let balrwd = await rEth_contract.balanceOf(await rwdreceiver.getAddress());
-    //     console.log("rewards balance");
-    //     console.log(balrwd);
-    //     expect(estimateRewards).to.equal(balrwd);
-
-    //     let [estimateRewardsAfter,newvalueAfter] = await Vault1.rewardsValue();
-    //     expect(newvalueAfter).to.equal(newprice);
-    //     expect(estimateRewardsAfter).to.equal(0);
-    //     await expect(Vault1.extractRewards()).to.be.reverted;
-    //   });
-
-    //   it('nuAssetManager', async function () {
-
-    //     let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, RETH_FEED);
-    //     let latestRoundData = await chainlinkInstance.latestRoundData();
-    //     let latestRoundPrice = Number(latestRoundData.answer);
-    //     let decimals = Number(await chainlinkInstance.decimals());
-
-    //     // 224 nuUSD
-    //     await nuUSD.connect(owner).mint(defaultAdmin,ethers.parseEther("224"));
-    //     // 1 BTC
-    //     await nuBTC.connect(owner).mint(defaultAdmin,ethers.parseEther("1"));
-    //     await nuAM.removeNuAsset(NUUSD_ADDRESS);
-
-    //     let nuAM2 = await ethers.deployContract("nuAssetManagerMock",
-    //     [UPTIME_FEED]
-    //     );
-    //     await nuAM2.waitForDeployment();
-    //     let NUAM_ADDRESS2 = await nuAM2.getAddress();
-
-    //     let fullSynthValueInEth = await nuAM.getTotalSynthValueEth();
-    //     let fullSynthValueInrEth = (fullSynthValueInEth*BigInt(10 ** decimals) / BigInt(latestRoundPrice));
-
-    //     // TODO: some imprecision (10-6 numa)
-    //     let buypricerefnofees = ethers.parseEther("2")*ethers.parseEther("10000000")/(vault1Bal - fullSynthValueInrEth);
-    //     let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
-
-    //     // BUY
-    //     // should be paused by default
-    //     await Vault1.unpause();
-    //     await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
-    //     await Vault1.buy(ethers.parseEther("2"),buypriceref - epsilon,await signer2.getAddress());
-
-    //     let balbuyer = await numa.balanceOf(await signer2.getAddress());
-    //     bal1 = await rEth_contract.balanceOf(VAULT1_ADDRESS);
-    //     let balfee = await rEth_contract.balanceOf(await signer3.getAddress());
-    //     let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
-
-    //     expect(balbuyer).to.be.closeTo(buypriceref, epsilon);
-
-    //   });
-
-    //   it('Fees', async () =>
-    //   {
-
-    //     await expect(VM.setBuyFee(ethers.parseEther("1.001"))).to.be.reverted;
-    //     await expect(VM.setSellFee(ethers.parseEther("1.001"))).to.be.reverted;
-    //     await expect(VM.setBuyFee(ethers.parseEther("0.8"))).to.not.be.reverted;
-    //     await expect(VM.setSellFee(ethers.parseEther("0.8"))).to.not.be.reverted;
-    //     await expect(Vault1.setFee(200)).to.not.be.reverted;
-    //     await expect(Vault1.setFee(1001)).to.be.reverted;
-
-    //   });
-    //   it('Pausable', async () =>
-    //   {
-    //     //await sendEthToVault();
-    //     // BUY
-    //     // should be paused by default
-    //     await rEth_contract.connect(owner).approve(VAULT1_ADDRESS,ethers.parseEther("2"));
-    //     await expect(Vault1.buy(ethers.parseEther("1"),0,await signer2.getAddress())).to.be.reverted;
-    //     await Vault1.unpause();
-    //     await expect(Vault1.buy(ethers.parseEther("1"),0,await signer2.getAddress())).to.not.be.reverted;
-    //     await Vault1.pause();
-    //     await expect(Vault1.buy(ethers.parseEther("1"),0,await signer2.getAddress())).to.be.reverted;
-    //   });
-
-    //   it('Owner', async function ()
-    //   {
-    //     let addy = "0x1230000000000000000000000000000000000004";
-    //     let newBuySellFee = ethers.parseEther("0.9");// 10%
-    //     let newFees = 20; // 2%
-    //     let newRwdThreshold = ethers.parseEther("1");
-
-    //     //
-    //     await expect( Vault1.connect(signer2).setOracle(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     await expect( Vault1.connect(signer2).setVaultManager(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     await expect( Vault1.connect(signer2).setRwdAddress(addy,false)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     await expect( Vault1.connect(signer2).setFeeAddress(addy,false)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     await expect( VM.connect(signer2).setSellFee(newBuySellFee)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     await expect( VM.connect(signer2).setBuyFee(newBuySellFee)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     await expect( Vault1.connect(signer2).setFee(newFees)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     await expect( Vault1.connect(signer2).setRewardsThreshold(newRwdThreshold)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-
-    //     //await sendEthToVault();
-    //     // await expect( Vault1.connect(signer2).withdrawToken(await rEth_contract.getAddress(),ethers.parseEther("10"))).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     // .withArgs(await signer2.getAddress());
-
-    //     await expect( Vault1.connect(signer2).unpause()).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
-    //     // transfer ownership then unpause should work
-    //     await Vault1.connect(owner).transferOwnership(await signer2.getAddress());
-    //     await Vault1.connect(signer2).acceptOwnership();
-    //     await expect( Vault1.connect(signer2).unpause()).to.not.be.reverted;
-
-    //     // vault manager
-    //     // await expect( VM.connect(signer2).addToRemovedSupply(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     // .withArgs(await signer2.getAddress());
-
-    //     // await expect( VM.connect(signer2).removeFromRemovedSupply(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     // .withArgs(await signer2.getAddress());
-
-    //     await expect( VM.connect(signer2).setNuAssetManager(addy)).to.be.revertedWithCustomError(Vault1,"OwnableUnauthorizedAccount",)
-    //     .withArgs(await signer2.getAddress());
 }

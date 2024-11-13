@@ -12,8 +12,6 @@ import "../interfaces/INumaOracle.sol";
 import "../interfaces/IVaultManager.sol";
 import "../utils/constants.sol";
 
-import "forge-std/console2.sol";
-
 /// @title NumaPrinter
 /// @notice Responsible for minting/burning Numa for nuAsset
 /// @dev
@@ -84,7 +82,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         INumaOracle _oracle,
         address _vaultManagerAddress
     ) Ownable(msg.sender) {
-        require(_numaPool != address(0),"no pool");
+        require(_numaPool != address(0), "no pool");
         numa = NUMA(_numaAddress);
         minterContract = NumaMinter(_numaMinterAddress);
 
@@ -211,14 +209,22 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     function updateVaultAndInterest()
         public
-        returns (uint scale, uint criticalScaleForNumaPriceAndSellFee, uint sell_fee_res)
+        returns (
+            uint scale,
+            uint criticalScaleForNumaPriceAndSellFee,
+            uint sell_fee_res
+        )
     {
         // accrue interest on lending because synth supply has changed so utilization rates also
         // as to be done before minting because we accrue interest from current parameters
         vaultManager.updateVaults();
 
         // for same reasons, we need to update our synth scaling snapshot because synth supplies changes
-        (scale, criticalScaleForNumaPriceAndSellFee, sell_fee_res) = vaultManager.updateDebasings();
+        (
+            scale,
+            criticalScaleForNumaPriceAndSellFee,
+            sell_fee_res
+        ) = vaultManager.updateDebasings();
     }
 
     function computeFeeAmountIn(
@@ -393,16 +399,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         // burn price is the max between vault sell price and LP price
         uint costWithoutFee = numaAmountPool;
-        console2.log("numaAmountVault",numaAmountVault);
-        console2.log("numaAmountPool",numaAmountPool);
+
         if (numaAmountVault < numaAmountPool) costWithoutFee = numaAmountVault;
 
         (uint scaleSynthBurn, , , ) = vaultManager.getSynthScaling();
         // apply scale
-        console2.log("scaleSynthBurn",scaleSynthBurn);
-                console2.log("costWithoutFee",costWithoutFee);
         costWithoutFee = (costWithoutFee * scaleSynthBurn) / BASE_1000;
- console2.log("costWithoutFee",costWithoutFee);
         // burn fee
         uint256 amountToBurn = computeFeeAmountIn(
             costWithoutFee,

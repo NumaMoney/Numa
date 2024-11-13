@@ -14,7 +14,6 @@ import "../interfaces/INumaPrinter.sol";
 
 import "../utils/constants.sol";
 
-import "forge-std/console2.sol";
 contract VaultManager is IVaultManager, Ownable2Step {
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
@@ -138,7 +137,6 @@ contract VaultManager is IVaultManager, Ownable2Step {
         nuAssetManager = INuAssetManager(_nuAssetManagerAddress);
 
         uint blocktime = block.timestamp;
-        uint blocknumber = block.number;
         lastBlockTime_sell_fee = blocktime;
         lastBlockTime = blocktime;
         //sell_fee_update_blocknumber = blocknumber;
@@ -329,23 +327,14 @@ contract VaultManager is IVaultManager, Ownable2Step {
             }
 
             if ((pctFromBuyPrice < buyPID_incTriggerPct) && _isVaultBuy) {
-                console2.log("trigger inc");
                 //_price is within incTriggerPct% of buyPrice, and is a vault buy
                 uint buyPID_adj = (ethAmount * buyPID_incAmt) / (1 ether);
-
-                console2.log("increasing by");
-                console2.log(buyPID_adj);
                 buy_fee_PID = buy_fee_PID + buyPID_adj; //increment buyPID
 
                 if (buy_fee_PID > buyPIDXhrAgo) {
-                    console2.log("check max rate");
-                    console2.log(buy_fee_PID - buyPIDXhrAgo);
-                    console2.log(buyPID_incMaxRate);
                     if (((buy_fee_PID - buyPIDXhrAgo) > buyPID_incMaxRate)) {
                         //does change exceed max rate over Xhrs?
                         buy_fee_PID = buyPIDXhrAgo + buyPID_incMaxRate; //cap to max rate over 4hrs
-                        console2.log("new PID");
-                        console2.log(buy_fee_PID);
                     }
                 }
 
@@ -356,7 +345,6 @@ contract VaultManager is IVaultManager, Ownable2Step {
             } else if (
                 (pctFromBuyPrice > buyPID_decTriggerPct) && (!_isVaultBuy)
             ) {
-                
                 //LP15minTWAP is below decTriggerPct% from buyPrice.
 
                 // if pctFromBuyPrice is more than 2 x buyfee, we use our decrease multiplier
@@ -379,22 +367,20 @@ contract VaultManager is IVaultManager, Ownable2Step {
             if ((buy_fee_PID < buyPIDXhrAgo)) {
                 //reset the increment max rate params
                 buyPIDXhrAgo = buy_fee_PID;
-                console2.log("PID below reset");
-                console2.log(currentBlockts);
-                console2.log(nextCheckBlock);
                 nextCheckBlock = currentBlockts + nextCheckBlockWindowDelta; //set new block height +xhrs from now
             }
         }
     }
 
-    function getSellFeeScalingUpdate()
-        public
-        returns (uint sell_fee_result)
-    {
-        (uint result, uint blockTime, uint sell_fee_debase) = getSellFeeScaling();
+    function getSellFeeScalingUpdate() public returns (uint sell_fee_result) {
+        (
+            uint result,
+            uint blockTime,
+            uint sell_fee_debase
+        ) = getSellFeeScaling();
         // return
         sell_fee_result = result;
-       
+
         // save current PID and blocktime
         sell_fee_withPID = sell_fee_debase;
         lastBlockTime_sell_fee = blockTime;
@@ -402,7 +388,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     function getSellFeeScaling() public view returns (uint, uint, uint) {
-        uint blockTime = block.timestamp;       
+        uint blockTime = block.timestamp;
         uint lastSellFee = sell_fee_withPID;
         // if PID/debase has already been updated in that block, no need to compute, we can use what's stored
         if (blockTime != lastBlockTime_sell_fee) {
@@ -447,8 +433,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
         // we use criticalScaleForNumaPriceAndSellFee because we want to use this scale in our sell_fee only when cf_critical is reached
         (, , uint criticalScaleForNumaPriceAndSellFee, ) = getSynthScaling();
 
-        uint sell_fee_increaseCriticalCF = ((BASE_1000 - criticalScaleForNumaPriceAndSellFee) *
-            1 ether) / BASE_1000;
+        uint sell_fee_increaseCriticalCF = ((BASE_1000 -
+            criticalScaleForNumaPriceAndSellFee) * 1 ether) / BASE_1000;
         // add a multiplier on top
         sell_fee_increaseCriticalCF =
             (sell_fee_increaseCriticalCF * sell_fee_criticalMultiplier) /
@@ -474,18 +460,19 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     function updateDebasings()
         public
-        returns (uint scale, uint criticalScaleForNumaPriceAndSellFee, uint sell_fee_result)
+        returns (
+            uint scale,
+            uint criticalScaleForNumaPriceAndSellFee,
+            uint sell_fee_result
+        )
     {
-        (scale,criticalScaleForNumaPriceAndSellFee) = getSynthScalingUpdate();
+        (scale, criticalScaleForNumaPriceAndSellFee) = getSynthScalingUpdate();
         (sell_fee_result) = getSellFeeScalingUpdate();
     }
 
     function getSynthScalingUpdate()
         public
-        returns (
-            uint scaleSynthBurn,
-            uint criticalScaleForNumaPriceAndSellFee
-        )
+        returns (uint scaleSynthBurn, uint criticalScaleForNumaPriceAndSellFee)
     {
         uint scalePID;
         uint blockTime;
@@ -495,10 +482,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
             criticalScaleForNumaPriceAndSellFee,
             blockTime
         ) = getSynthScaling();
-        // save        
+        // save
         lastSynthPID = scalePID;
         lastBlockTime = blockTime;
-
     }
 
     function getSynthScaling()
@@ -529,14 +515,11 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     blockTime = lastBlockTime;
                 } else {
                     if (syntheticsCurrentPID > ndebase) {
-                        syntheticsCurrentPID =
-                            syntheticsCurrentPID -
-                            ndebase;
+                        syntheticsCurrentPID = syntheticsCurrentPID - ndebase;
                         if (syntheticsCurrentPID < minimumScale)
                             syntheticsCurrentPID = minimumScale;
                     } else syntheticsCurrentPID = minimumScale;
                 }
-                
             } else {
                 if (syntheticsCurrentPID < BASE_1000) {
                     // rebase linearly
@@ -654,8 +637,6 @@ contract VaultManager is IVaultManager, Ownable2Step {
         synthValueInEth = (synthValueInEth * _synthScaling) / BASE_1000;
         uint circulatingNuma = getNumaSupply();
 
-     
-        
         uint result;
         if (EthBalance <= synthValueInEth) {
             // extreme case use minim numa price in Eth
@@ -706,7 +687,6 @@ contract VaultManager is IVaultManager, Ownable2Step {
         synthValueInEth = (synthValueInEth * _synthScaling) / BASE_1000;
 
         uint circulatingNuma = getNumaSupply();
-
 
         require(circulatingNuma > 0, "no numa in circulation");
 

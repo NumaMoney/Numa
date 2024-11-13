@@ -7,7 +7,7 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
-import "forge-std/console2.sol";
+
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -1021,7 +1021,7 @@ abstract contract CToken is
             cTokenCollateral.balanceOf(borrower) >= seizeTokens,
             "LIQUIDATE_SEIZE_TOO_MUCH"
         );
-   
+
         // If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
         if (address(cTokenCollateral) == address(this)) {
             seizeInternal(address(this), liquidator, borrower, seizeTokens);

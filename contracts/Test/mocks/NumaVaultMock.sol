@@ -42,7 +42,7 @@ contract NumaVaultMock is NumaVault {
     /**
      * @dev transfers rewards to rwd_address and updates reference price
      */
-    function extractRewards() external override {
+    function extractRewards() external {
         // require(
         //     block.timestamp >= (last_extracttimestamp + 24 hours),
         //     "reward already extracted"

@@ -6,9 +6,9 @@ import "@openzeppelin/contracts_5.0.2/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
-import "./INumaLeverageStrategy.sol";
-import "./CNumaToken.sol";
-import "../NumaProtocol/NumaVault.sol";
+import "../../lending/INumaLeverageStrategy.sol";
+import "../../lending/CNumaToken.sol";
+import "../../NumaProtocol/NumaVault.sol";
 
 // TODO:
 // - test
@@ -138,7 +138,6 @@ contract NumaLeverageLPSwap is INumaLeverageStrategy {
             revert("not allowed");
         }
         // SWAP
-        console2.log("TRANSFER");
         SafeERC20.safeTransferFrom(
             input,
             msg.sender,
@@ -147,9 +146,6 @@ contract NumaLeverageLPSwap is INumaLeverageStrategy {
         );
         input.approve(address(swapRouter), _maxAmountIn);
 
-        console2.log("SWAP");
-        console2.log(_maxAmountIn);
-        console2.log(_outputAmount);
         ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter
             .ExactOutputSingleParams({
                 tokenIn: address(input),
@@ -164,14 +160,12 @@ contract NumaLeverageLPSwap is INumaLeverageStrategy {
 
         // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
         uint amountIn = swapRouter.exactOutputSingle(params);
-        console2.log(amountIn);
-        console2.log(_maxAmountIn);
+
         // For exact output swaps, the amountInMaximum may not have all been spent.
         // If the actual amount spent (amountIn) is less than the specified maximum amount, we must refund the msg.sender and approve the swapRouter to spend 0.
         if (amountIn < _maxAmountIn) {
             input.approve(address(swapRouter), 0);
             SafeERC20.safeTransfer(input, msg.sender, _maxAmountIn - amountIn);
-            console.log("refund unused 1", _maxAmountIn - amountIn);
             return (_outputAmount, _maxAmountIn - amountIn);
         }
         return (_outputAmount, 0);

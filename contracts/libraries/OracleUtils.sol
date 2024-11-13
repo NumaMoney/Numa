@@ -200,6 +200,7 @@ contract OracleUtils {
                 10 ** AggregatorV3Interface(_pricefeed).decimals()
             );
         }
+
         // audit fix
         EthValue = EthValue * 10 ** (18 - _decimals);
     }
