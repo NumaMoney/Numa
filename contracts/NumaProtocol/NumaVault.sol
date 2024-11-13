@@ -9,10 +9,8 @@ import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "../Numa.sol";
 import "../interfaces/IVaultOracleSingle.sol";
-import "../interfaces/INuAssetManager.sol";
 import "../interfaces/IVaultManager.sol";
 import "../interfaces/INumaVault.sol";
-import "../interfaces/IRewardFeeReceiver.sol";
 
 import "./NumaMinter.sol";
 import "../lending/CNumaToken.sol";
