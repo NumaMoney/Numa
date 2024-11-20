@@ -4,73 +4,128 @@ import "../interfaces/INuma.sol";
 
 import "./utils.sol";
 
+import {nuAssetManager} from "../nuAssets/nuAssetManager.sol";
+import {NumaMinter} from "../NumaProtocol/NumaMinter.sol";
+import {VaultOracleSingle} from "../NumaProtocol/VaultOracleSingle.sol";
+import {VaultManager} from "../NumaProtocol/VaultManager.sol";
+import {NumaVault} from "../NumaProtocol/NumaVault.sol";
+import {VaultMockOracle} from "../Test/mocks/VaultMockOracle.sol";
+
 // deployer should be numa admin
-contract vaultV2Deployer is deployUtils {
+contract vaultV2Deployer {//is deployUtils {
     address vaultFeeReceiver;
     address vaultRwdReceiver;
-    uint lstHeartbeat;
+    uint128 lstHeartbeat;
 
     // TODO: constructor
     //
     INuma numa;
+    address vaultOldAddress = 0x8Fe15Da7485830f26c37Da8b3c233773EB0623D2;
+    address vaultOracleAddress = 0x8Fe15Da7485830f26c37Da8b3c233773EB0623D2;
+    address lstAddress;
+    address pricefeed;
+    address uptimefeed;
+
+    // out
+    nuAssetManager public nuAssetMgr;
+    NumaMinter public numaMinter;
+    VaultOracleSingle public vaultOracle;
+    VaultManager public vaultManager;
+    NumaVault public vault;
+
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     constructor(
         address _vaultFeeReceiver,
         address _vaultRwdReceiver,
-        uint _lstHeartbeat
+        uint128 _lstHeartbeat,
+        address _numaAddress,
+        address _lstAddress,
+        address _pricefeedAddress,
+        address _uptimeAddress
+
     ) {
         vaultFeeReceiver = _vaultFeeReceiver;
         vaultRwdReceiver = _vaultRwdReceiver;
         lstHeartbeat = _lstHeartbeat;
     }
     function deploy_NumaV2() public {
-        // TODO: factorize code with tests
-        // (nuAssetMgr,numaMinter,vaultManager,vaultOracle,vault) = setupVaultAndAssetManager(
-        //     lstHeartbeat,
-        //     vaultFeeReceiver,
-        //     vaultRwdReceiver,
-        //     numa,
-        //     0,
-        //     0,
-        //     address(0),
-        //     address(0)
-        // );
-        // _numa.grantRole(MINTER_ROLE, address(minter));
-        // ***************************************************
-        // // transfer rETh
-        // vm.startPrank(VAULT_ADMIN);
-        // vaultOld.withdrawToken(address(rEth),rEth.balanceOf(address(vaultOld)),address(vault));
-        // vm.stopPrank();
-        // rEth.approve(address(vaultOld),1000 ether);
-        // vm.expectRevert();
-        // uint buyAmount = vaultOld.buy(10 ether,0,deployer);
-        // vm.expectRevert();
-        // buyAmount = vault.buy(10 ether,0,deployer);
-        // // unpause
-        // vm.startPrank(deployer);
-        // // set buy/sell fees to match old price
-        // console2.log(vaultOld.sell_fee());
-        // console2.log((uint(vaultOld.sell_fee()) * 1 ether)/1000);
-        // vaultManager.setSellFee((uint(vaultOld.sell_fee()) * 1 ether)/1000);
-        // vaultManager.setBuyFee((uint(vaultOld.buy_fee()) * 1 ether)/1000);
-        // // first we need to match numa supply
-        // uint numaSupplyOld = vaultManagerOld.getNumaSupply();
-        // uint numaSupplyNew = vaultManager.getNumaSupply();
-        // console2.log(numaSupplyNew);
-        // uint diff = numaSupplyNew - numaSupplyOld -vaultManagerOld.constantRemovedSupply();
-        // // 29/10 diff in supply: 500 000 constant + 600 000 currently decaying
-        // // will put the decay half in LP, half in other --> 300 000
-        // // keep same period
-        // uint newPeriod = vaultManagerOld.decayPeriod() - (block.timestamp - vaultManagerOld.startTime());
-        // vaultManager.setDecayValues(
-        // diff/2,
-        // newPeriod,
-        // diff/2,
-        // newPeriod,
-        // vaultManagerOld.constantRemovedSupply()// same constant
-        // );
-        // vaultManager.startDecay();
-        // // unpause
-        // vault.unpause();
+
+
+
+        VaultMockOracle vaultOracleDeploy = new VaultMockOracle(lstAddress);
+        deployUtils.deployVaultParameters memory parameters = deployUtils.deployVaultParameters(
+            lstHeartbeat,
+            uptimefeed,
+            pricefeed,
+            vaultFeeReceiver,
+            vaultRwdReceiver,
+            numa,
+             0,
+            0,
+            address(0),
+            address(0),
+            address(vaultOracleDeploy),
+            lstAddress
+        );
+
+        (nuAssetMgr,numaMinter,vaultManager,vaultOracle,vault) = deployUtils.setupVaultAndAssetManager(parameters);
+
+        numa.grantRole(MINTER_ROLE, address(numaMinter));
+
+     }
+
+    // function migrate_NumaV1V2(address _vaultOldAddress) public 
+    // {
+    //     VaultMockOracle vaultOracleDeploy = new VaultMockOracle();
+    //     deployVaultParameters memory parameters = deployVaultParameters(
+    //         lstHeartbeat,
+    //         uptimefeed,
+    //         pricefeed,
+    //         vaultFeeReceiver,
+    //         vaultRwdReceiver,
+    //         numa,
+    //          0,
+    //         0,
+    //         address(0),
+    //         address(0),
+    //         address(vaultOracleDeploy),
+    //         lstAddress
+    //     );
+
+    //     (nuAssetMgr,numaMinter,vaultManager,vaultOracle,vault) = setupVaultAndAssetManager(parameters);
+
+    //     numa.grantRole(MINTER_ROLE, address(numaMinter));
+
+    //     // migrate rEth, match price
+    //     // NumaVaultOld vaultOld = NumaVaultOld(_vaultOldAddress);
+
+    //     // vaultOld.withdrawToken(address(rEth),rEth.balanceOf(_vaultOldAddress),address(vault));
+       
+      
+    //     // vaultManager.setSellFee((uint(vaultOld.sell_fee()) * 1 ether)/1000);
+    //     // vaultManager.setBuyFee((uint(vaultOld.buy_fee()) * 1 ether)/1000);
+    //     // // first we need to match numa supply
+    //     // uint numaSupplyOld = vaultManagerOld.getNumaSupply();
+    //     // uint numaSupplyNew = vaultManager.getNumaSupply();
+       
+    //     // uint diff = numaSupplyNew - numaSupplyOld -vaultManagerOld.constantRemovedSupply();
+      
+    //     // // keep same period
+    //     // uint newPeriod = vaultManagerOld.decayPeriod() - (block.timestamp - vaultManagerOld.startTime());
+    //     // vaultManager.setDecayValues(
+    //     // diff/2,
+    //     // newPeriod,
+    //     // diff/2,
+    //     // newPeriod,
+    //     // vaultManagerOld.constantRemovedSupply()// same constant
+    //     // );
+    //     // vaultManager.startDecay();
+    //     // // unpause
+    //     // vault.unpause();
+    // }
+
+    function migrate_NumaV2V2() public {
     }
+
 }

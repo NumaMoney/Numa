@@ -52,9 +52,9 @@ import "../../deployment/utils.sol";
 // forge test --fork-url <your_rpc_url>
 contract SetupBase is
     ExtendedTest,
-    ConstantsTest,
-    deployUtils //, IEvents {
-{
+    ConstantsTest{
+        //,deployUtils //, IEvents {
+
     // Contract instances that we will use repeatedly.
     // Tokens
     INuma numa;
@@ -127,7 +127,7 @@ contract SetupBase is
             NumaVault v
         )
     {
-        deployVaultParameters memory parameters = deployVaultParameters(
+        deployUtils.deployVaultParameters memory parameters = deployUtils.deployVaultParameters(
             _heartbeat,
             UPTIME_FEED_ARBI,
             PRICEFEEDRETHETH_ARBI,
@@ -138,10 +138,11 @@ contract SetupBase is
             _rwdfromDebt,
             _existingAssetManager,
             _existingNumaminter,
+            address(0),// vaultOracle
             address(rEth)
         );
 
-        (nuAM, minter, vaultm, vo, v) = setupVaultAndAssetManager(parameters);
+        (nuAM, minter, vaultm, vo, v) = deployUtils.setupVaultAndAssetManager(parameters);
 
         // // nuAssetManager
         // if (_existingAssetManager != address(0))
@@ -195,7 +196,7 @@ contract SetupBase is
         uint _rwdfromDebt
     ) internal returns (NumaVault v) {
         // vault
-        v = setupVault(_vo, _minter, _vaultm, _numa, _debt, _rwdfromDebt);
+        v = deployUtils.setupVault(_vo, _minter, _vaultm, _numa, _debt, _rwdfromDebt);
     }
 
     function _setupPrinter(

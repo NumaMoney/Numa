@@ -5,8 +5,11 @@ import "../../interfaces/IVaultOracleSingle.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 contract VaultMockOracle is IVaultOracleSingle {
     uint price = 1 ether;
-
-    constructor() {}
+    address public token;
+    constructor(address _token)
+    {
+        token = _token;
+    }
 
     function setPrice(uint256 _price) external {
         price = _price;

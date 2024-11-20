@@ -8,7 +8,7 @@ import {VaultOracleSingle} from "../NumaProtocol/VaultOracleSingle.sol";
 import {VaultManager} from "../NumaProtocol/VaultManager.sol";
 import {NumaVault} from "../NumaProtocol/NumaVault.sol";
 
-contract deployUtils {
+library deployUtils {
     struct deployVaultParameters {
         uint128 _heartbeat;
         address _uptimefeed;
@@ -20,13 +20,14 @@ contract deployUtils {
         uint _rwdfromDebt;
         address _existingAssetManager;
         address _existingNumaminter;
+        address _existingVaultOracle;
         address _lst;
     }
 
     function setupVaultAndAssetManager(
         deployVaultParameters memory _parameters
     )
-        internal
+        public
         returns (
             nuAssetManager nuAM,
             NumaMinter minter,
@@ -52,12 +53,19 @@ contract deployUtils {
         // vault manager
         vaultm = new VaultManager(address(_parameters._numa), address(nuAM));
 
-        vo = new VaultOracleSingle(
-            _parameters._lst,
-            _parameters._pricefeed,
-            _parameters._heartbeat,
-            _parameters._uptimefeed
-        );
+        if (_parameters._existingVaultOracle != address(0))
+        {
+            vo = VaultOracleSingle(_parameters._existingVaultOracle);
+        }
+        else
+        {
+            vo = new VaultOracleSingle(
+                _parameters._lst,
+                _parameters._pricefeed,
+                _parameters._heartbeat,
+                _parameters._uptimefeed
+            );
+        }
 
         v = setupVault(
             vo,
@@ -79,7 +87,7 @@ contract deployUtils {
         INuma _numa,
         uint _debt,
         uint _rwdfromDebt
-    ) internal returns (NumaVault v) {
+    ) public returns (NumaVault v) {
         // vault
         v = new NumaVault(
             address(_numa),

@@ -6,6 +6,15 @@ libs = ['node_modules', 'lib']
 test = 'test'
 cache_path  = 'cache_forge'
 offline = true
+evm_version = 'shanghai'
 
 [profile.lite.optimizer_details.yulDetails]
 optimizerSteps = ''
+
+[rpc_endpoints]
+sepolia = "${URL}"
+
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+
+

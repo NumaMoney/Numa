@@ -198,7 +198,7 @@ contract VaultTest is Setup, ExponentialNoError {
             IVaultManager.PriceType.BuyPrice
         );
 
-        VaultMockOracle VMO = new VaultMockOracle();
+        VaultMockOracle VMO = new VaultMockOracle(address(rEth));
         vault.setOracle(address(VMO));
 
         // set new price, simulate a 100% rebase
@@ -308,7 +308,7 @@ contract VaultTest is Setup, ExponentialNoError {
         // cancelling buy fee to compare amounts more easily
         vaultManager.setBuyFee(1 ether);
 
-        VaultMockOracle VMO = new VaultMockOracle();
+        VaultMockOracle VMO = new VaultMockOracle(address(rEth));
         vault.setOracle(address(VMO));
 
         // set new price, simulate a 100% rebase

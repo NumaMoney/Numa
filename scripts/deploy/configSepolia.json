@@ -1,0 +1,16 @@
+{
+    
+
+    "uptime_feed" : "0x0000000000000000000000000000000000000000",
+    "numa_address" : "0x2e4a312577A78786051052c28D5f1132d93c557A",
+    "lstAddress" : "0x1521c67fDFDb670fa21407ebDbBda5F41591646c",
+    "debt" : 0,
+    "rwdFromDebt" : 0,
+    "feeReceiver" : "0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69",
+    "rwdReceiver" : "0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69",
+
+    "vaultV1_address" : "0x8Fe15Da7485830f26c37Da8b3c233773EB0623D2",
+    "vaultManagerV1_address" : "0x80d25E8D423F7Fd417E78f8aC98E94B56D50EfAB"
+
+
+}

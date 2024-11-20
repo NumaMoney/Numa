@@ -12,7 +12,7 @@ import "@nomicfoundation/hardhat-foundry";
 import '@typechain/hardhat'
 import 'dotenv/config';
 import { HardhatUserConfig } from "hardhat/config";
-
+import "@nomicfoundation/hardhat-verify";
 
 
 
@@ -79,6 +79,12 @@ const config: HardhatUserConfig = {
   },
   defaultNetwork: "hardhat",
   allowUnlimitedContractSize: true,
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: "HQMWJJVJXBXZ9EDSNUAAHRPX7YGYA537IC"
+  },
+
   networks: {
     sepolia: {
       url: process.env.URL,
@@ -97,16 +103,28 @@ const config: HardhatUserConfig = {
 
     hardhat: {
       forking: {
-        //url: process.env.URL4,// sepolia
-        url: process.env.URL5,// arbitrum
-        blockNumber: 212810911,
+        url: process.env.URL4,// sepolia
+            
       },
-      // accounts: [ {
-      //   privateKey:  process.env.PKEY2,
-      //   balance: '1000000000000000000000000',
-      // }],
+      accounts: [ {
+        privateKey:  process.env.PKEY2,
+        balance: '1000000000000000000000000',
+      }],
       allowUnlimitedContractSize: true
     },
+
+    // hardhat: {
+    //   forking: {
+    //     //url: process.env.URL4,// sepolia
+    //     url: process.env.URL5,// arbitrum
+    //     blockNumber: 212810911,
+    //   },
+    //   // accounts: [ {
+    //   //   privateKey:  process.env.PKEY2,
+    //   //   balance: '1000000000000000000000000',
+    //   // }],
+    //   allowUnlimitedContractSize: true
+    // },
   },
 
 };
