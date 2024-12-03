@@ -723,7 +723,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             );
 
             // clamp it with our parameter
-            if (resultToken > maxBorrow) resultToken = maxBorrow;
+            uint maxBorrowLeft = 0;
+            if (maxBorrow > debt)
+                maxBorrowLeft = maxBorrow - debt;
+            if (resultToken > maxBorrowLeft) resultToken = maxBorrowLeft;
 
             return resultToken;
         }
