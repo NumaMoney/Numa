@@ -1,20 +1,22 @@
 [profile.default]
 src = 'contracts'
 out = 'out'
-#viaIR = true
+viaIR = true
 libs = ['node_modules', 'lib']
 test = 'test'
 cache_path  = 'cache_forge'
 offline = true
 evm_version = 'shanghai'
+optimizer_runs = 100
 
 [profile.lite.optimizer_details.yulDetails]
 optimizerSteps = ''
 
+
 [rpc_endpoints]
-sepolia = "${URL}"
+sepolia = "${URL4}"
 
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
-
+arbitrum = { key = "${ETHERSCAN_API_KEY}" }
 

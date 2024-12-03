@@ -396,6 +396,9 @@ contract NumaVaultOld is
             last_lsttokenvalueWei,
             decimals
         );
+
+
+
         return (numaAmount * buy_fee) / FEE_BASE_1000;
     }
 

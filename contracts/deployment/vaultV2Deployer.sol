@@ -12,7 +12,7 @@ import {NumaVault} from "../NumaProtocol/NumaVault.sol";
 import {VaultMockOracle} from "../Test/mocks/VaultMockOracle.sol";
 
 // deployer should be numa admin
-contract vaultV2Deployer {//is deployUtils {
+contract vaultV2Deployer is deployUtils {
     address vaultFeeReceiver;
     address vaultRwdReceiver;
     uint128 lstHeartbeat;
@@ -69,7 +69,7 @@ contract vaultV2Deployer {//is deployUtils {
             lstAddress
         );
 
-        (nuAssetMgr,numaMinter,vaultManager,vaultOracle,vault) = deployUtils.setupVaultAndAssetManager(parameters);
+        (nuAssetMgr,numaMinter,vaultManager,vaultOracle,vault) = setupVaultAndAssetManager(parameters);
 
         numa.grantRole(MINTER_ROLE, address(numaMinter));
 

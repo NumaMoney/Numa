@@ -44,24 +44,7 @@ contract DeploySepolia is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         numa = INuma(numa_address);
-        VaultMockOracle vaultOracleDeploy = new VaultMockOracle(lstAddress);
-        deployUtils.deployVaultParameters memory parameters = deployUtils.deployVaultParameters(
-            100000,
-            uptime_feed,
-            price_feed,
-            feeReceiver,
-            rwdReceiver,
-            numa,
-            debt,
-            rwdFromDebt,
-            address(0),
-            address(0),
-            address(vaultOracleDeploy),
-            lstAddress
-        );
-
-        //(nuAssetMgr,numaMinter,vaultManager,vaultOracle,vault) = deployUtils.setupVaultAndAssetManager(parameters);
-
+    
         // nuAssetManager
         nuAssetMgr = new nuAssetManager(uptime_feed);
         

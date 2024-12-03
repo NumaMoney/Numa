@@ -105,6 +105,7 @@ contract VaultManagerOld is IVaultManagerOld, Ownable2Step {
             (EthBalance - synthValueInEth)
         );
 
+
         return result;
     }
 

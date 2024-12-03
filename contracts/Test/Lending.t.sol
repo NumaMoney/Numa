@@ -1344,26 +1344,27 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+
+        console2.log("max borrow",vault.getMaxBorrow());
+
+
     }
 
     function test_LstBorrowLstVault_JRV4_liquidateFL() public {
         prepare_LstBorrowLstVault_JRV4();
-        vm.startPrank(deployer);
 
-        // not liquiditable
-        //vault.setMaxBorrow(200 ether);
-        // bad debt
-        //vault.setMaxBorrow(100 ether);
-        // TODO: confirm these 3 values
-        vault.setMaxBorrow(150 ether);
+        vm.startPrank(deployer);
+        vault.setMaxBorrow(1000 ether);
 
         vm.roll(block.number + blocksPerYear / 4);
         cReth.accrueInterest();
         (, uint liquidity, uint shortfall, uint badDebt) = comptroller
             .getAccountLiquidityIsolate(userA, cNuma, cReth);
-        console2.log(liquidity);
-        console2.log(shortfall);
-        console2.log(badDebt);
+
+
+        console2.log("liquidity: ",liquidity);
+        console2.log("shortfall: ",shortfall);
+        console2.log("badDebt: ",badDebt);
         // liquidate
 
         vm.startPrank(userC);
@@ -1460,4 +1461,206 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(shortfall);
         console2.log(badDebt);
     }
+
+
+    
+    function test_LstBorrowLstVault_FRAXModel() public {
+        vm.startPrank(deployer);
+        vault.setMaxBorrow(2000 ether);
+        cReth._setInterestRateModel(rateModel);
+
+        // deposit collateral
+        uint depositAmount = 1000 ether;
+        vm.startPrank(userA);
+        address[] memory t = new address[](1);
+        t[0] = address(cNuma);
+        comptroller.enterMarkets(t);
+
+        uint numaBalBefore = numa.balanceOf(userA);
+        uint rethBalBefore = rEth.balanceOf(userA);
+        numa.approve(address(cNuma), depositAmount);
+        cNuma.mint(depositAmount);
+        assertEq(numaBalBefore - numa.balanceOf(userA), depositAmount);
+        assertEq(cNuma.balanceOf(userA), (depositAmount * 50 * 1e8) / 1 ether);
+
+        // borrow reth
+        // should revert not enough collat
+        vm.expectRevert();
+        cReth.borrow(depositAmount);
+        // needs a delta because of pricings (price as colateral vs price as borrow)
+        //uint borrowAmount = (depositAmount * (numaCollateralFactor - 0.05 ether))/ 1 ether;
+        // around 50% UR
+        uint borrowAmount = (depositAmount * numaCollateralFactor) /
+            (2 * 1 ether);
+
+
+        // 1st borrow
+        vm.startPrank(userA);
+        cReth.borrow(borrowAmount);
+        assertEq(rEth.balanceOf(userA) - rethBalBefore, borrowAmount);
+
+
+
+
+        // change of vertex rate/max rate over time when above limit
+        // stop increase but keep vertex rate/max rate when below
+        // decrease vertex rate/max rate over time
+        // check min & max when increasing/decreasing
+        // others??
+
+        // check interest rate
+        // per block
+
+
+        uint util = (borrowAmount * 1 ether) /
+            (borrowAmount + vault.getMaxBorrow());
+        console2.log("borrowAmount", borrowAmount);
+        console2.log("getMaxBorrow",  vault.getMaxBorrow());
+        console2.log("util", util);
+
+        console2.log("rateModel.ZERO_UTIL_RATE()", rateModel.ZERO_UTIL_RATE());
+        console2.log("rateModel.VERTEX_RATE_PERCENT()", rateModel.VERTEX_RATE_PERCENT());
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        console2.log("rateModel.VERTEX_UTILIZATION()", rateModel.VERTEX_UTILIZATION());
+        uint vertexInterest = (rateModel.VERTEX_RATE_PERCENT() * (cReth.fullUtilizationRate() - rateModel.ZERO_UTIL_RATE()))/1e18
+        + rateModel.ZERO_UTIL_RATE();
+        uint estimateBR = rateModel.ZERO_UTIL_RATE() +
+            (borrowAmount * ((vertexInterest - rateModel.ZERO_UTIL_RATE())/rateModel.VERTEX_UTILIZATION()) )/
+            (borrowAmount + rEth.balanceOf(address(vault)));
+
+        console2.log("estimateBR", estimateBR);
+        assertEq(cReth.borrowRatePerBlock(), estimateBR);
+
+        // we should be below kink --> no interests
+        assertEq(estimateBR, 0);
+        assertLt(util, rateModel.VERTEX_UTILIZATION());
+
+        // above kink, interest rates start growing
+        vm.startPrank(deployer);
+        vault.setMaxBorrow(593 ether);
+        util = (borrowAmount * 1 ether) /
+            (borrowAmount + vault.getMaxBorrow());
+        
+        console2.log("util", util);
+        assertGt(util, rateModel.VERTEX_UTILIZATION());
+
+        vertexInterest = (rateModel.VERTEX_RATE_PERCENT() * (cReth.fullUtilizationRate() - rateModel.ZERO_UTIL_RATE()))/1e18
+        + rateModel.ZERO_UTIL_RATE();
+
+        estimateBR =  (vertexInterest +
+                ((util - rateModel.VERTEX_UTILIZATION()) *
+                    (cReth.fullUtilizationRate() - vertexInterest)) /
+                (1e18 - rateModel.VERTEX_UTILIZATION()));
+        console2.log("estimateBR", estimateBR);
+        assertEq(cReth.borrowRatePerBlock(), estimateBR);
+
+        console2.log("borrowAmount before",borrowAmount);
+
+        // check balances after 1 year to compare per year values
+        vm.roll(block.number + blocksPerYear);
+        vm.warp(block.timestamp + 365 days);
+        console2.log(borrowAmount);
+        console2.log("borrowAmount after 1 year",cReth.borrowBalanceCurrent(userA));
+        assertGt(cReth.borrowBalanceCurrent(userA), borrowAmount);
+
+        // max utiliszation should not have changed
+        assertEq(cReth.fullUtilizationRate(), maxUtilizationRatePerYear /blocksPerYear);
+        //console2.log("cReth.fullUtilizationRate()",cReth.fullUtilizationRate());        
+        util = (cReth.borrowBalanceCurrent(userA) * 1 ether) /(cReth.borrowBalanceCurrent(userA) + vault.getMaxBorrow());        
+        console2.log("util", util);
+
+        estimateBR =  (vertexInterest +
+                ((util - rateModel.VERTEX_UTILIZATION()) *
+                    (cReth.fullUtilizationRate() - vertexInterest)) /
+                (1e18 - rateModel.VERTEX_UTILIZATION()));
+
+        console2.log("estimateBR", estimateBR);       
+        assertEq(cReth.borrowRatePerBlock(), estimateBR);
+
+        vm.startPrank(deployer);
+        vault.setMaxBorrow(550 ether);
+        util = (borrowAmount * 1 ether) /
+            (borrowAmount + vault.getMaxBorrow());
+        
+        console2.log("util", util);
+        assertGt(util, rateModel.MAX_TARGET_UTIL());
+
+      
+        // has still not changed
+        assertEq(cReth.fullUtilizationRate(), maxUtilizationRatePerYear /blocksPerYear);
+        //assertEq(cReth.borrowRatePerBlock(), estimateBR);
+
+        vm.roll(block.number + (12*blocksPerYear)/(365*24));
+        vm.warp(block.timestamp + 12 hours);
+        cReth.accrueInterest();
+        assertGt(cReth.fullUtilizationRate(), maxUtilizationRatePerYear /blocksPerYear);
+
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        console2.log("maxUtilizationRatePerYear /blocksPerYear", maxUtilizationRatePerYear /blocksPerYear);
+
+        // reach max
+        vm.roll(block.number + (blocksPerYear));
+        vm.warp(block.timestamp + 365 days);
+        cReth.accrueInterest();
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        
+        assertEq(cReth.fullUtilizationRate(), rateModel.MAX_FULL_UTIL_RATE());
+
+        vm.roll(block.number + (blocksPerYear));
+        vm.warp(block.timestamp + 365 days);
+        cReth.accrueInterest();
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        
+        assertEq(cReth.fullUtilizationRate(), rateModel.MAX_FULL_UTIL_RATE());
+
+
+        // below maxutil and stable over time
+        uint maxUtilRate = cReth.fullUtilizationRate();
+        vm.startPrank(deployer);
+        vault.setMaxBorrow(590 ether);
+        util = (borrowAmount * 1 ether) /
+        (borrowAmount + vault.getMaxBorrow());        
+        console2.log("util", util);
+        assertLt(util, rateModel.MAX_TARGET_UTIL());
+
+        vm.roll(block.number + (48*blocksPerYear)/(365*24));
+        vm.warp(block.timestamp + 48 hours);
+        cReth.accrueInterest();
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        assertEq(cReth.fullUtilizationRate(), maxUtilRate);
+
+        
+
+        // below min util
+        vm.startPrank(deployer);
+        vault.setMaxBorrow(10000 ether);        
+        borrowAmount = cReth.borrowBalanceCurrent(userA);        
+    
+         util = (borrowAmount * 1 ether) /
+        (borrowAmount + vault.getMaxBorrow());        
+        console2.log("util", util);
+        assertLt(util, rateModel.MIN_TARGET_UTIL());
+
+        vm.roll(block.number + (96*blocksPerYear)/(365*24));
+        vm.warp(block.timestamp + 96 hours);
+        cReth.accrueInterest();
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        assertLt(cReth.fullUtilizationRate(), maxUtilRate);
+
+
+        // check min clamp
+        vm.roll(block.number + (blocksPerYear));
+        vm.warp(block.timestamp + 3*365 days);
+        cReth.accrueInterest();
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        assertEq(cReth.fullUtilizationRate(), rateModel.MIN_FULL_UTIL_RATE());
+
+        vm.roll(block.number + (blocksPerYear));
+        vm.warp(block.timestamp + 365 days);
+        cReth.accrueInterest();
+        console2.log("cReth.fullUtilizationRate()", cReth.fullUtilizationRate());
+        assertEq(cReth.fullUtilizationRate(), rateModel.MIN_FULL_UTIL_RATE());
+ 
+    }
+
 }

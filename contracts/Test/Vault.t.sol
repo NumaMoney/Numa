@@ -10,16 +10,22 @@ import "../interfaces/IVaultManager.sol";
 import "./mocks/VaultMockOracle.sol";
 import {VaultOracleSingle} from "../NumaProtocol/VaultOracleSingle.sol";
 import {NumaVault} from "../NumaProtocol/NumaVault.sol";
+import "@openzeppelin/contracts_5.0.2/token/ERC20/ERC20.sol";
+
 // forge coverage --report lcov
 // xcz@DELL4764DSY:/mnt/e/dev/numa/Numa_github$ genhtml lcov.info -o html
 //$Env:FOUNDRY_PROFILE = 'lite'
 // npx prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'
 contract VaultTest is Setup, ExponentialNoError {
+    
+    uint inputreth = 2 ether;
     uint vaultBalance;
     uint userBalance;
 
     uint buyfee;
     uint sellfee;
+
+    ERC20 wsteth;
     function setUp() public virtual override {
         console2.log("VAULT TEST");
         super.setUp();
@@ -35,6 +41,9 @@ contract VaultTest is Setup, ExponentialNoError {
 
         buyfee = vaultManager.buy_fee();
         sellfee = vaultManager.sell_fee();
+
+        wsteth = ERC20(WSTETH_ADDRESS_ARBI);
+        deal({token: WSTETH_ADDRESS_ARBI, to: deployer, give: 100 ether});
     }
 
     function checkPrices(
@@ -522,166 +531,98 @@ contract VaultTest is Setup, ExponentialNoError {
     }
 
     function test_BuySell2ndVault() public {
-        // uint inputreth = 2 ether;
-        // uint inputnuma = 1000 ether;
-        // vm.startPrank(userA);
-        // // mint synthetics
-        // numa.approve(address(moneyPrinter),10000000 ether);
-        // moneyPrinter.mintAssetOutputFromNuma(address(nuUSD),20000 ether,10000000 ether,userA);
-        // moneyPrinter.mintAssetOutputFromNuma(address(nuBTC),1 ether,10000000 ether,userA);
-        // // deploy 2nd vault
-        // VaultOracleSingle vo2 = new VaultOracleSingle(
-        //     WSTETH_ADDRESS_ARBI,
-        //     PRICEFEEDWSTETHETH_ARBI,
-        //     402 * 86400,
-        //     UPTIME_FEED_NULL
-        // );
-        // NumaVault v2 = _setupVault(vo2,
-        // address(numaMinter),address(vaultManager),numa,
-        // 0,0);
-        // v2.setFeeAddress(vaultFeeReceiver, false);
-        // v2.setRwdAddress(vaultRwdReceiver, false);
-        // TODO
-        // check price with 2nd vault, should be the same
-        // check that we can't buy from 2nd vault
-        // send some wseth
-        // check new price f
-        // check buys/sells, coherent with prices
+        uint amountBuy = vaultManager.ethToNuma(
+            inputreth,
+            IVaultManager.PriceType.BuyPrice
+        );
+
+
+        vm.startPrank(deployer);
+        // deploy 2nd vault
+        VaultOracleSingle vo2 = new VaultOracleSingle(
+            WSTETH_ADDRESS_ARBI,
+            PRICEFEEDWSTETHETH_ARBI,
+            402 * 86400,
+            UPTIME_FEED_NULL
+        );
+        NumaVault v2 = _setupVault(vo2,
+        address(numaMinter),address(vaultManager),numa,
+        0,0);
+
+        v2.setFeeAddress(vaultFeeReceiver, false);
+        v2.setRwdAddress(vaultRwdReceiver, false);
+
+        uint amountBuy2 = vaultManager.ethToNuma(
+            inputreth,
+            IVaultManager.PriceType.BuyPrice
+        );
+
+        assertEq(amountBuy,amountBuy2);
+
+        //send some wseth
+        uint wstEthBal = 50 ether;
+        deal({token: WSTETH_ADDRESS_ARBI, to: address(v2), give: wstEthBal});
+        amountBuy2 = vaultManager.ethToNuma(
+            inputreth,
+            IVaultManager.PriceType.BuyPrice
+        );
+        assertGt(amountBuy,amountBuy2);
+
+        // check prices
+        uint numaAmountNoFee = FullMath.mulDiv(
+            ((inputreth * vault.last_lsttokenvalueWei()) / 1 ether),
+            (numaSupply),
+            ((vaultBalance * vault.last_lsttokenvalueWei()) +(wstEthBal * v2.last_lsttokenvalueWei()))/ 1 ether
+        );
+        // fees
+        uint numaAmountWithFee = (numaAmountNoFee * buyfee) / 1 ether;
+
+        uint numaAmount = vault.lstToNuma(inputreth);
+        assertEq(numaAmountWithFee, numaAmount, "buy ko");
+
+        // SELL
+        uint rEthAmountNoFee = FullMath.mulDiv(
+            FullMath.mulDiv(1000 ether,  ((vaultBalance * vault.last_lsttokenvalueWei()) +(wstEthBal * v2.last_lsttokenvalueWei()))/ 1 ether, (numaSupply)),
+            1 ether,
+            vault.last_lsttokenvalueWei()
+        );
+        uint rEthAmountWithFee = (rEthAmountNoFee * sellfee) / 1 ether;
+        uint rEthAmount = vault.numaToLst(1000 ether);
+        assertEq(rEthAmountWithFee, rEthAmount, "sell ko");
+
+        // testing buy from wsteth too 
+        numaAmountNoFee = FullMath.mulDiv(
+            ((inputreth * v2.last_lsttokenvalueWei()) / 1 ether),
+            (numaSupply),
+            ((vaultBalance * vault.last_lsttokenvalueWei()) +(wstEthBal * v2.last_lsttokenvalueWei()))/ 1 ether
+        );
+        // fees
+        numaAmountWithFee = (numaAmountNoFee * buyfee) / 1 ether;
+
+        numaAmount = v2.lstToNuma(inputreth);
+        assertEq(numaAmountWithFee, numaAmount, "buy ko");
+
+
+        uint balnuma = numa.balanceOf(userA);
+        uint balwstEth = wsteth.balanceOf(address(v2));
+
+        
+        wsteth.approve(address(v2),100 ether);
+
+        v2.unpause();
+        assertEq(v2.buy(inputreth, numaAmount, userA),numaAmount);
+
+        // % sent to fee_address
+        assertEq(wsteth.balanceOf(vaultFeeReceiver), ((v2.fees() *
+            ((1 ether - vaultManager.getBuyFee()) * inputreth)) / 1 ether) /
+            1000);
+
+
+        assertEq(numa.balanceOf(userA) - balnuma,numaAmount);
+        assertEq(wsteth.balanceOf(vaultFeeReceiver)+ERC20(WSTETH_ADDRESS_ARBI).balanceOf(address(v2)) - balwstEth,inputreth);
+
         // check CF from multiple vaults
-        // // check buy price
-        // uint balEthMinusSynthValue = (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether - nuAssetMgr.getTotalSynthValueEth();
-        // uint numaAmountNoFee = FullMath.mulDiv(
-        //     ((inputreth * vault.last_lsttokenvalueWei()) / 1 ether),
-        //     (numa.totalSupply()),
-        //     balEthMinusSynthValue
-        // );
-        // // fees
-        // uint numaAmountWithFee = (numaAmountNoFee * buyfee) / 1 ether;
-        // uint numaAmount = vault.lstToNuma(inputreth);
-        // assertEq(numaAmountWithFee, numaAmount);
-        // rEth.approve(address(vault), inputreth);
-        // numa.approve(address(vault), inputnuma);
-        // // BUY
-        // uint balUserA = numa.balanceOf(userA);
-        // uint buyAmount = vault.buy(inputreth, numaAmount, userA);
-        // assertEq(buyAmount, numaAmount);
-        // assertEq(numa.balanceOf(userA) - balUserA, numaAmount);
-        // // SELL
-        // uint balrEthUserA = rEth.balanceOf(userA);
-        // numa.approve(address(vault), inputnuma);
-        // uint lstAmount = vault.numaToLst(inputnuma);
-        // // compare price
-        // balEthMinusSynthValue = (rEth.balanceOf(address(vault)) * vault.last_lsttokenvalueWei()) / 1 ether - nuAssetMgr.getTotalSynthValueEth();
-        // uint rEthAmountNoFee = FullMath.mulDiv(
-        //     FullMath.mulDiv(inputnuma, balEthMinusSynthValue, (numa.totalSupply())),
-        //     1 ether,
-        //     vault.last_lsttokenvalueWei()
-        // );
-        // assertEq((rEthAmountNoFee * sellfee) / 1 ether, lstAmount);
-        // uint buyAmountrEth = vault.sell(inputnuma, lstAmount, userA);
-        // assertEq(buyAmountrEth, lstAmount);
-        // assertEq(rEth.balanceOf(userA) - balrEthUserA, lstAmount);
+        
     }
 
-    //   it('with another vault', async function ()
-    //   {
-    //     // vault1 needs some rETH
-    //     //await sendEthToVault();
-
-    //     //
-    //     let address2 = "0x513c7e3a9c69ca3e22550ef58ac1c0088e918fff";
-    //     await helpers.impersonateAccount(address2);
-    //     const impersonatedSigner2 = await ethers.getSigner(address2);
-    //     await helpers.setBalance(address2,ethers.parseEther("10"));
-    //     const wstEth_contract  = await hre.ethers.getContractAt(ERC20abi, wstETH_ADDRESS);
-    //     //
-    //     // await VO.setTokenFeed(wstETH_ADDRESS,wstETH_FEED);
-    //     // compute prices
-    //     let chainlinkInstance = await hre.ethers.getContractAt(artifacts.AggregatorV3, RETH_FEED);
-    //     let latestRoundData = await chainlinkInstance.latestRoundData();
-    //     let latestRoundPrice = Number(latestRoundData.answer);
-    //     //let decimals = Number(await chainlinkInstance.decimals());
-    //     let chainlinkInstance2 = await hre.ethers.getContractAt(artifacts.AggregatorV3, wstETH_FEED);
-    //     let latestRoundData2 = await chainlinkInstance2.latestRoundData();
-    //     let latestRoundPrice2 = Number(latestRoundData2.answer);
-
-    //     // deploy
-    //     let Vault2 = await ethers.deployContract("NumaVault",
-    //     [numa_address,wstETH_ADDRESS,ethers.parseEther("1"),VO_ADDRESS2,minterAddress]);
-
-    //     await Vault2.waitForDeployment();
-    //     let VAULT2_ADDRESS = await Vault2.getAddress();
-    //     console.log('vault wstETH address: ', VAULT2_ADDRESS);
-
-    //     await VM.addVault(VAULT2_ADDRESS);
-    //     await Vault2.setVaultManager(VM_ADDRESS);
-
-    //     // add vault as a minter
-    //     const Minter = await ethers.getContractFactory('NumaMinter');
-    //     let theMinter = await Minter.attach(minterAddress);
-    //     await theMinter.addToMinters(VAULT2_ADDRESS);
-
-    //     // price before feeding vault2
-
-    //     buyprice = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("2"));
-    //     let buyprice2 = await Vault2.getBuyNumaSimulateExtract(ethers.parseEther("2"));
-
-    //     //vault1Bal = BigInt(ethers.formatEther(vault1Bal));
-    //     let buypricerefnofees = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(vault1Bal);
-    //     let buypriceref = buypricerefnofees - BigInt(5) * buypricerefnofees/BigInt(100);
-
-    //     let buypricerefnofees2 = (buypricerefnofees*BigInt(latestRoundPrice2))/BigInt(latestRoundPrice);
-    //     let buypriceref2 = buypricerefnofees2 - BigInt(5) * buypricerefnofees2/BigInt(100);
-
-    //     expect(buypriceref).to.equal(buyprice);
-    //     expect(buypriceref2).to.be.closeTo(buyprice2, epsilon);
-
-    //     bal0 = await wstEth_contract.balanceOf(address2);
-    //     // transfer to signer so that it can buy numa
-    //     await wstEth_contract.connect(impersonatedSigner2).transfer(defaultAdmin,ethers.parseEther("5"));
-    //     // transfer to vault to initialize price
-    //     await wstEth_contract.connect(impersonatedSigner2).transfer(VAULT2_ADDRESS,ethers.parseEther("100"));
-
-    //     bal1 = await wstEth_contract.balanceOf(VAULT2_ADDRESS);
-
-    //     let totalBalancerEth = vault1Bal + (ethers.parseEther("100")*BigInt(latestRoundPrice2))/BigInt(latestRoundPrice);
-    //     let totalBalancewstEth = ethers.parseEther("100") + (vault1Bal*BigInt(latestRoundPrice))/BigInt(latestRoundPrice2);
-
-    //     let buypricerefnofeesrEth = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(totalBalancerEth);
-    //     let buypricerefnofeeswstEth = (ethers.parseEther("2")*ethers.parseEther("10000000"))/(totalBalancewstEth);
-
-    //     buypriceref = buypricerefnofeesrEth - BigInt(5) * buypricerefnofeesrEth/BigInt(100);
-    //     buypriceref2 = buypricerefnofeeswstEth - BigInt(5) * buypricerefnofeeswstEth/BigInt(100);
-
-    //     buyprice = await Vault1.getBuyNumaSimulateExtract(ethers.parseEther("2"));
-    //     buyprice2 = await Vault2.getBuyNumaSimulateExtract(ethers.parseEther("2"));
-
-    //     expect(buypriceref).to.be.closeTo(buyprice, epsilon);
-    //     expect(buypriceref2).to.be.closeTo(buyprice2, epsilon);
-
-    //     // make vault Numa minter
-    //     //await numa.grantRole(roleMinter, VAULT2_ADDRESS);
-    //     // set fee address
-    //     await Vault2.setFeeAddress(await signer3.getAddress(),false);
-
-    //     // unpause it
-    //     await Vault2.unpause();
-    //     // approve wstEth to be able to buy
-    //     await wstEth_contract.connect(owner).approve(VAULT2_ADDRESS,ethers.parseEther("2"));
-
-    //     let balfee = await wstEth_contract.balanceOf(await signer3.getAddress());
-
-    //     await Vault2.buy(ethers.parseEther("2"),buypriceref2 - epsilon,await signer2.getAddress());
-
-    //     // let balbuyer = await numa.balanceOf(await signer2.getAddress());
-    //     // bal1 = await wstEth_contract.balanceOf(VAULT2_ADDRESS);
-    //     // balfee = await wstEth_contract.balanceOf(await signer3.getAddress());
-
-    //     // let fees = BigInt(1) * ethers.parseEther("2")/BigInt(100);
-
-    //     // expect(balbuyer).to.be.closeTo(buypriceref2, epsilon);
-    //     // expect(bal1).to.equal(ethers.parseEther("100") + ethers.parseEther("2")- BigInt(1) * ethers.parseEther("2")/BigInt(100));
-
-    //     // expect(balfee).to.equal(fees);
-    //   });
 }

@@ -62,8 +62,8 @@ contract Setup is SetupBase {
         string memory ARBI_RPC_URL = vm.envString("URL6");
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);
         vm.selectFork(arbitrumFork);
-
         numa_admin = deployer;
+ 
         // prank deployer
         vm.startPrank(deployer);
 
@@ -108,6 +108,9 @@ contract Setup is SetupBase {
         // 1e8 to account for decimals in chainlink prices
         uint amountReth = (1 ether * numaSupply * 1e8) /
             (USDTONUMA * uint(ethusd) * uint(answerRETHETH));
+
+
+        
         (
             nuAssetMgr,
             numaMinter,

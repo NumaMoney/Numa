@@ -255,7 +255,8 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             vaultManager.buyPID_decMultiplier(),
             maxRate,
             maxBuyFee,
-            900
+            900,
+            4 hours
         );
 
         vm.stopPrank();
@@ -282,7 +283,8 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             1,
             vaultManager.buyPID_incMaxRate(),
             vaultManager.buyFee_max(),
-            900
+            900,
+            4 hours
         );
         vm.stopPrank();
         vm.startPrank(userA);

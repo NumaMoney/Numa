@@ -55,7 +55,7 @@ contract ConstantsTest {
     uint32 INTERVAL_LONG = 1800;
 
     uint128 HEART_BEAT = 86400;
-    uint128 HEART_BEAT_CUSTOM = 86400 * 1000;
+    uint128 HEART_BEAT_CUSTOM = 86400 * 10000;
     uint printFee = 500; //5%
     uint burnFee = 800; // 8%
     uint swapFee = 300; // 3%
@@ -75,7 +75,13 @@ contract ConstantsTest {
     //let _vertexRatePercentOfDelta = '500000000000000000';// 50%
     uint _vertexRatePercentOfDelta = 0;
     uint _minUtil = 400000000000000000; // 40%
-    uint _maxUtil = 600000000000000000; // 60%
+
+    //uint _maxUtil = 600000000000000000; // 60%
+
+    // even if we use 60% in prod, for my tests, I prefer something above kink so that I can check that it works
+    uint _maxUtil = 850000000000000000; // 85%
+
+
     // no interest rate by default, tested specifically
     //let _zeroUtilizationRate = '20000000000000000';//2%
     uint _zeroUtilizationRate = 0; //2%

@@ -52,8 +52,7 @@ import "../../deployment/utils.sol";
 // forge test --fork-url <your_rpc_url>
 contract SetupBase is
     ExtendedTest,
-    ConstantsTest{
-        //,deployUtils //, IEvents {
+    ConstantsTest,deployUtils {//, IEvents {
 
     // Contract instances that we will use repeatedly.
     // Tokens
@@ -142,49 +141,10 @@ contract SetupBase is
             address(rEth)
         );
 
-        (nuAM, minter, vaultm, vo, v) = deployUtils.setupVaultAndAssetManager(parameters);
+         nuAM = new nuAssetManager(UPTIME_FEED_ARBI);
+        (nuAM, minter, vaultm, vo, v) = setupVaultAndAssetManager(parameters);
 
-        // // nuAssetManager
-        // if (_existingAssetManager != address(0))
-        // {
-        //     nuAM = nuAssetManager(_existingAssetManager);
-        // }
-        // else
-        // {
-        //     nuAM = new nuAssetManager(UPTIME_FEED_ARBI);
-        // }
-
-        // // numaMinter
-        // if (_existingNumaminter != address(0))
-        // {
-        //     minter = NumaMinter(_existingNumaminter);
-        // }
-        // else
-        // {
-        //     minter = new NumaMinter();
-        //     minter.setTokenAddress(address(_numa));
-        //     // vm.stopPrank();
-        //     // vm.startPrank(numa_admin);
-        //     // _numa.grantRole(MINTER_ROLE, address(minter));
-        //     // vm.stopPrank();
-
-        // }
-        // //vm.startPrank(deployer);
-        // // vault manager
-        // vaultm = new VaultManager(address(_numa), address(nuAM));
-
-        // vo = new VaultOracleSingle(
-        //     address(rEth),
-        //     PRICEFEEDRETHETH_ARBI,
-        //     _heartbeat,
-        //     UPTIME_FEED_NULL
-        // );
-
-        // v = _setupVault(vo,
-        // address(minter),address(vaultm),_numa,
-        // _debt,_rwdfromDebt);
-        // v.setFeeAddress(_feereceiver, false);
-        // v.setRwdAddress(_rwdreceiver, false);
+      
     }
 
     function _setupVault(
@@ -196,7 +156,7 @@ contract SetupBase is
         uint _rwdfromDebt
     ) internal returns (NumaVault v) {
         // vault
-        v = deployUtils.setupVault(_vo, _minter, _vaultm, _numa, _debt, _rwdfromDebt);
+        v = setupVault(_vo, _minter, _vaultm, _numa, _debt, _rwdfromDebt);
     }
 
     function _setupPrinter(

@@ -7,8 +7,9 @@ import {NumaMinter} from "../NumaProtocol/NumaMinter.sol";
 import {VaultOracleSingle} from "../NumaProtocol/VaultOracleSingle.sol";
 import {VaultManager} from "../NumaProtocol/VaultManager.sol";
 import {NumaVault} from "../NumaProtocol/NumaVault.sol";
+import "forge-std/console2.sol";
 
-library deployUtils {
+contract deployUtils {
     struct deployVaultParameters {
         uint128 _heartbeat;
         address _uptimefeed;
@@ -42,6 +43,7 @@ library deployUtils {
         } else {
             nuAM = new nuAssetManager(_parameters._uptimefeed);
         }
+
 
         // numaMinter
         if (_parameters._existingNumaminter != address(0)) {
