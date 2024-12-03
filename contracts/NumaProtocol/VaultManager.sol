@@ -205,7 +205,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint _buyPID_decMultiplier,
         uint _buyPID_incMaxRate,
         uint _buyFee_max,
-        uint32 _twapPID
+        uint32 _twapPID,
+        uint _nextCheckBlockWindowDelta
     ) external onlyOwner {
         buyPID_incAmt = _buyPID_incAmt;
         buyPID_incTriggerPct = _buyPID_incTriggerPct;
@@ -215,6 +216,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         buyPID_incMaxRate = _buyPID_incMaxRate;
         buyFee_max = _buyFee_max;
         twapPID = _twapPID;
+        nextCheckBlockWindowDelta = _nextCheckBlockWindowDelta;
     }
 
     function setSellFeeParameters(
