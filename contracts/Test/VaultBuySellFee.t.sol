@@ -9,7 +9,7 @@ import "../interfaces/IVaultManager.sol";
 contract VaultBuySellFeeTest is Setup, ExponentialNoError {
     uint buy_fee_PID;
     function setUp() public virtual override {
-        console2.log("VAULT TEST");
+        console2.log("VAULT BUY/SELL FEES TEST");
         super.setUp();
         // send some rEth to userA
         vm.stopPrank();
@@ -539,19 +539,13 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         uint mult = vaultManager.buyPID_decMultiplier();
 
-        //uint buyPID_multTriggerPct = (2*( 1 ether - vaultManager.buy_fee()) * 1000) / 1 ether;
-        console2.log(
-            "buyPID_multTriggerPct",
-            (2 * (1 ether - vaultManager.buy_fee()) * 1000) / 1 ether
-        );
+
 
         //if (pctFromBuyPrice <= ((buy_fee_PID * 1000) / 1 ether)) mult = 1;
         if (
             pctFromBuyPrice <=
             ((2 * (1 ether - vaultManager.buy_fee()) * 1000) / 1 ether)
         ) mult = 1;
-        console2.log("pctFromBuyPrice", pctFromBuyPrice);
-        console2.log("mult", mult);
 
         // decrease 1/4 of maxrate
         uint decAmount = vaultManager.buyPID_decAmt();
@@ -608,7 +602,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         );
         //vm.warp(block.timestamp + 600*10);
         // should debase by 10%
-        console2.log(block.timestamp);
+    
         (sell_feePID, , ) = vaultManager.getSellFeeScaling();
         //assertEq(sell_feePID, vaultManager.getSellFeeOriginal()-0.1 ether);
         // should not have changed since no delta time
@@ -684,10 +678,10 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         // sell price should be higher
         assertGt(sellPrice5, sellPrice4);
 
-        console2.log("critical debase");
+     
         uint globalCF = vaultManager.getGlobalCF();
         assertGt(globalCF, vaultManager.cf_critical());
-        console2.log(globalCF);
+     
         vm.prank(deployer);
         numa.approve(address(moneyPrinter), 10000000 ether);
         //     function mintAssetOutputFromNuma(
@@ -699,15 +693,9 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             userA
         );
 
-        uint globalCF2 = vaultManager.getGlobalCF();
-        console2.log(globalCF2);
+        uint globalCF2 = vaultManager.getGlobalCF();       
         assertLt(globalCF2, globalCF);
 
-        // change criticalcf so that it's reached
-        vm.prank(deployer);
-        console2.log(deployer);
-        console2.log(vaultManager.owner());
-        vm.prank(deployer);
 
         vm.stopPrank();
         vm.startPrank(deployer);
@@ -725,7 +713,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
 
         uint criticalScaleForNumaPriceAndSellFee = (1000 * globalCF2) /
             vaultManager.cf_critical();
-        console2.log("scaleForPrice", criticalScaleForNumaPriceAndSellFee);
+       
 
         uint sell_fee_increaseCriticalCF = ((1000 -
             criticalScaleForNumaPriceAndSellFee) * 1 ether) / 1000;
@@ -734,10 +722,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             (sell_fee_increaseCriticalCF *
                 vaultManager.sell_fee_criticalMultiplier()) /
             1000;
-        console2.log(
-            "sell_fee_increaseCriticalCF",
-            sell_fee_increaseCriticalCF
-        );
+       
         uint sell_fee_criticalCF;
 
         if (vaultManager.getSellFeeOriginal() > sell_fee_increaseCriticalCF)
@@ -748,7 +733,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         if (sell_fee_criticalCF < vaultManager.sell_fee_minimum_critical())
             sell_fee_criticalCF = vaultManager.sell_fee_minimum_critical();
         (sell_feePID, , ) = vaultManager.getSellFeeScaling();
-        console2.log("sell_feePID", sell_feePID);
+     
 
         assertEq(sell_feePID, sell_fee_criticalCF);
     }

@@ -8,7 +8,7 @@ import {nuAssetManager} from "../contracts/nuAssets/nuAssetManager.sol";
 import {NumaMinter} from "../contracts/NumaProtocol/NumaMinter.sol";
 import {VaultOracleSingle} from "../contracts/NumaProtocol/VaultOracleSingle.sol";
 import {VaultManager} from "../contracts/NumaProtocol/VaultManager.sol";
-import {NumaVault} from "../contracts/NumaProtocol/NumaVault.sol";
+//import {NumaVault} from "../contracts/NumaProtocol/NumaVault.sol";
 import {NumaPrinter} from "../contracts/NumaProtocol/NumaPrinter.sol";
 import {NumaOracle} from "../contracts/NumaProtocol/NumaOracle.sol";
 import {INumaOracle} from "../contracts/interfaces/INumaOracle.sol";
@@ -27,7 +27,7 @@ import "forge-std/console2.sol";
 // TODO
 // - test on sepolia, check transactions
 // - test on local arbitrum fork, make some tests
-contract DeployLending is Script {
+contract DeployPrinter is Script {
 
 
 
@@ -64,7 +64,7 @@ contract DeployLending is Script {
     // input
     address numa_address = 0xf478F8dEDebe67cC095693A9d6778dEb3fb67FFe;
     address reth_address = 0x1521c67fDFDb670fa21407ebDbBda5F41591646c;
-    address vault_address = 0xf24a7F6ae5dA1BdBA8A24D7555Fc966f2f42f007;
+    //address vault_address = 0xf24a7F6ae5dA1BdBA8A24D7555Fc966f2f42f007;
     address vaultManager_address = 0xdDbFb7514499C0e6cf08582363CD1Eb963b90B77;
     address minter_address = 0x66D90DEB8f9f8e6fA8C2f2B980EF00084403C70B;
     address nuasset_manager_address = 0xa58a397A34BFCed7231023e44d95B7688b2E7A23;
@@ -123,7 +123,7 @@ contract DeployLending is Script {
         address deployer = msg.sender;
         console2.log("deployer",deployer);
 
-        NumaVault vault = NumaVault(vault_address);
+        //NumaVault vault = NumaVault(vault_address);
 
 
         console2.log("pool address: ", pool_address);

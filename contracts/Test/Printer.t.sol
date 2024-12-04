@@ -10,20 +10,7 @@ import "./uniV3Interfaces/ISwapRouter.sol";
 
 //
 import {Setup, FEE_LOW} from "./utils/SetupDeployNuma_Arbitrum.sol";
-// TODO
-// estim mint nuasset from numa, compare in/out param
-// estim burn nuasset to numa, compare in/out param
-// estim swap nuasset, compare in/out param
 
-// transactions & compare res with estimations
-// synthscaling, clipped by vault
-// mint& burn 2 x fees
-//
-// Debase synthetics pricing feed based on CF. Block minting new sythethics, block swaps
-// invariants: vault price, vault accounting balance, other?
-
-// updateVaultAndInterest,
-// check updates are done, validate synth balance impacts maxborrow & debasing factors, etc...
 
 contract PrinterTest is Setup {
     uint numaPriceVault;

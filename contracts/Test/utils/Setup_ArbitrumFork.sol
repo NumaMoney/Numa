@@ -62,7 +62,7 @@ contract Setup is SetupBase {
     function setUp() public virtual {
         numa_admin = NUMA_ADMIN;
         // setup fork
-        string memory ARBI_RPC_URL = vm.envString("URL6");
+        string memory ARBI_RPC_URL = vm.envString("URLARBI");
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);
 
         vm.selectFork(arbitrumFork);

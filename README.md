@@ -1,21 +1,46 @@
 # Numa protocol
 
-## Vault implementation
+## Numa protocol V2
 
-### contracts/NumaVault.sol
-### contracts/NumaProtocol/VaultManager.sol
-### contracts/NumaProtocol/VaultOracle.sol
-### contracts/nuAssets/nuAssetManager.sol
-### contracts/libraries/OracleUtils.sol
+### contracts/lending/*
+### contracts/NumaProtocol/*
+### contracts/nuAssets/*
 
-## Vault testing
+## Foundry testing
 
-setup an arbitrum fork in `hardhat.config.js`
+- Use lite foundry config for faster build: $Env:FOUNDRY_PROFILE = 'lite'
+- define URLARBI = Arbitrum rpc  in .env file (tests are running on arbitrum fork)
 
-run the local fork
-
-then run test:
+### vault testing
 
 ```shell
-npx hardhat test test/NumaVault.js
+forge test --match-contract VaultTest -vv 
+```
+
+
+### vault buy/sell fees testing
+
+```shell
+forge test --match-contract VaultBuySellFeeTest -vv 
+```
+
+
+### printer testing
+
+```shell
+forge test --match-contract VaultTest -vv 
+```
+
+
+### lending testing
+
+```shell
+forge test --match-contract VaultTest -vv 
+```
+
+
+### vault migrations testing
+
+```shell
+forge test --match-contract VaultTest -vv 
 ```

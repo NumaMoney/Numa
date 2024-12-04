@@ -164,7 +164,7 @@ contract SetupBase is
         address numaMinterAddress,
         address vaultManagerAddress
     ) internal returns (NumaOracle o, USDCToEthConverter c, NumaPrinter p) {
-        console2.log("pool address: ", NUMA_USDC_POOL_ADDRESS);
+        //console2.log("pool address: ", NUMA_USDC_POOL_ADDRESS);
         o = new NumaOracle(
             USDC_ARBI,
             INTERVAL_SHORT,
@@ -337,7 +337,7 @@ contract SetupBase is
 
         //ExponentialNoError.Exp memory collateralFactor = ExponentialNoError.Exp({mantissa: markets[address(cNuma)].collateralFactorMantissa});
         uint collateralFactor = comptroller.collateralFactor(cNuma);
-        console2.log(collateralFactor);
+        //console2.log(collateralFactor);
 
         // 100% liquidation close factor
         comptroller._setCloseFactor(1 ether);
@@ -440,16 +440,16 @@ contract SetupBase is
             (_reserve0, _reserve1) = (_reserve1, _reserve0);
             (_token0, _token1) = (_token1, _token0);
         }
-        console.log("encoding price");
-        console2.log(_reserve0);
-        console2.log(_reserve1);
+        // console.log("encoding price");
+        // console2.log(_reserve0);
+        // console2.log(_reserve1);
 
         uint160 sqrtPrice = encodePriceSqrt(_reserve1, _reserve0);
-        console.log("mint pool");
+        //console.log("mint pool");
 
         mintNewPool(_token0, _token1, FEE_LOW, sqrtPrice);
 
-        console.log("mint position");
+        //console.log("mint position");
         // add liquidity
         mintNewPosition(
             _token0,

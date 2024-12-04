@@ -13,7 +13,6 @@ import {NumaVault} from "../NumaProtocol/NumaVault.sol";
 import "@openzeppelin/contracts_5.0.2/token/ERC20/ERC20.sol";
 
 // forge coverage --report lcov
-// xcz@DELL4764DSY:/mnt/e/dev/numa/Numa_github$ genhtml lcov.info -o html
 //$Env:FOUNDRY_PROFILE = 'lite'
 // npx prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'
 contract VaultTest is Setup, ExponentialNoError {
