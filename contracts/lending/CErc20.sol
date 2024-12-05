@@ -245,16 +245,4 @@ abstract contract CErc20 is CToken, CErc20Interface {
         require(success, "TOKEN_TRANSFER_OUT_FAILED");
     }
 
-    /**
-     * @notice Admin call to delegate the votes of the COMP-like underlying
-     * @param compLikeDelegatee The address to delegate votes to
-     * @dev CTokens whose underlying are not CompLike should revert here
-     */
-    function _delegateCompLikeTo(address compLikeDelegatee) external {
-        require(
-            msg.sender == admin,
-            "only the admin may set the comp-like delegate"
-        );
-        CompLike(underlying).delegate(compLikeDelegatee);
-    }
 }

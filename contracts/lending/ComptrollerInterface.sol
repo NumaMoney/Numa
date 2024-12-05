@@ -19,12 +19,12 @@ abstract contract ComptrollerInterface {
         address minter,
         uint mintAmount
     ) external virtual returns (uint);
-    function mintVerify(
-        address cToken,
-        address minter,
-        uint mintAmount,
-        uint mintTokens
-    ) external virtual;
+    // function mintVerify(
+    //     address cToken,
+    //     address minter,
+    //     uint mintAmount,
+    //     uint mintTokens
+    // ) external virtual;
 
     function redeemAllowed(
         address cToken,
@@ -123,12 +123,12 @@ abstract contract ComptrollerInterface {
         uint repayAmount
     ) external view virtual returns (uint, uint);
 
-    function liquidateBadDebtCalculateSeizeTokens(
-        address cTokenBorrowed,
-        address cTokenCollateral,
-        address borrower,
-        uint actualRepayAmount
-    ) external view virtual returns (uint, uint);
+    // function liquidateBadDebtCalculateSeizeTokens(
+    //     address cTokenBorrowed,
+    //     address cTokenCollateral,
+    //     address borrower,
+    //     uint actualRepayAmount
+    // ) external view virtual returns (uint, uint);
     function liquidateBadDebtCalculateSeizeTokensAfterRepay(
         address cTokenCollateral,
         address borrower,

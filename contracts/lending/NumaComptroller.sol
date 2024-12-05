@@ -312,23 +312,23 @@ contract NumaComptroller is
      * @param actualMintAmount The amount of the underlying asset being minted
      * @param mintTokens The number of tokens being minted
      */
-    function mintVerify(
-        address cToken,
-        address minter,
-        uint actualMintAmount,
-        uint mintTokens
-    ) external override {
-        // Shh - currently unused
-        cToken;
-        minter;
-        actualMintAmount;
-        mintTokens;
+    // function mintVerify(
+    //     address cToken,
+    //     address minter,
+    //     uint actualMintAmount,
+    //     uint mintTokens
+    // ) external override {
+    //     // Shh - currently unused
+    //     cToken;
+    //     minter;
+    //     actualMintAmount;
+    //     mintTokens;
 
-        // Shh - we don't ever want this hook to be marked pure
-        if (false) {
-            maxAssets = maxAssets;
-        }
-    }
+    //     // Shh - we don't ever want this hook to be marked pure
+    //     if (false) {
+    //         maxAssets = maxAssets;
+    //     }
+    // }
 
     /**
      * @notice Checks if the account should be allowed to redeem tokens in the given market
@@ -1385,59 +1385,59 @@ contract NumaComptroller is
         }
     }
 
-    function liquidateBadDebtCalculateSeizeTokens(
-        address cTokenBorrowed,
-        address cTokenCollateral,
-        address borrower,
-        uint actualRepayAmount
-    ) external view override returns (uint, uint) {
-        /*
-         * Get the exchange rate and calculate the number of collateral tokens to seize:
-         * for bad debt liquidation, we take % of amount repaid as % of collateral seized
-         *  seizeAmount = (repayAmount / borrowBalance) * collateralAmount
-         *  seizeTokens = seizeAmount / exchangeRate
-         *
-         */
-        //uint exchangeRateMantissa = CToken(cTokenCollateral).exchangeRateStored(); // Note: reverts on error
-        uint seizeTokens;
-        // Exp memory numerator;
-        // Exp memory denominator;
-        // Exp memory ratio;
+    // function liquidateBadDebtCalculateSeizeTokens(
+    //     address cTokenBorrowed,
+    //     address cTokenCollateral,
+    //     address borrower,
+    //     uint actualRepayAmount
+    // ) external view override returns (uint, uint) {
+    //     /*
+    //      * Get the exchange rate and calculate the number of collateral tokens to seize:
+    //      * for bad debt liquidation, we take % of amount repaid as % of collateral seized
+    //      *  seizeAmount = (repayAmount / borrowBalance) * collateralAmount
+    //      *  seizeTokens = seizeAmount / exchangeRate
+    //      *
+    //      */
+    //     //uint exchangeRateMantissa = CToken(cTokenCollateral).exchangeRateStored(); // Note: reverts on error
+    //     uint seizeTokens;
+    //     // Exp memory numerator;
+    //     // Exp memory denominator;
+    //     // Exp memory ratio;
 
-        // uint borrowBalance = CToken(cTokenBorrowed).borrowBalanceStored(borrower);
+    //     // uint borrowBalance = CToken(cTokenBorrowed).borrowBalanceStored(borrower);
 
-        // uint collateralBalance = accountTokens[borrower];
+    //     // uint collateralBalance = accountTokens[borrower];
 
-        // Read the balances and exchange rate from the cToken
-        //(oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = CToken(cTokenBorrowed).getAccountSnapshot(borrower);
-        (, , uint amountOwed, ) = CToken(cTokenBorrowed).getAccountSnapshot(
-            borrower
-        );
-        (, uint tokensHeld, , ) = CToken(cTokenCollateral).getAccountSnapshot(
-            borrower
-        );
-        //numerator = mul_(Exp({mantissa: liquidationIncentiveMantissa}), Exp({mantissa: priceBorrowedMantissa}));
-        // denominator = mul_(Exp({mantissa: priceCollateralMantissa}), Exp({mantissa: exchangeRateMantissa}));
-        // ratio = div_(numerator, denominator);
+    //     // Read the balances and exchange rate from the cToken
+    //     //(oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = CToken(cTokenBorrowed).getAccountSnapshot(borrower);
+    //     (, , uint amountOwed, ) = CToken(cTokenBorrowed).getAccountSnapshot(
+    //         borrower
+    //     );
+    //     (, uint tokensHeld, , ) = CToken(cTokenCollateral).getAccountSnapshot(
+    //         borrower
+    //     );
+    //     //numerator = mul_(Exp({mantissa: liquidationIncentiveMantissa}), Exp({mantissa: priceBorrowedMantissa}));
+    //     // denominator = mul_(Exp({mantissa: priceCollateralMantissa}), Exp({mantissa: exchangeRateMantissa}));
+    //     // ratio = div_(numerator, denominator);
 
-        // ratio = div_(numerator, denominator);
-        // // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
-        // // seizeTokens = (repayAmount / borrowBalance) * collateralAmount
-        // seizeTokens = ratio.mantissa;
+    //     // ratio = div_(numerator, denominator);
+    //     // // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
+    //     // // seizeTokens = (repayAmount / borrowBalance) * collateralAmount
+    //     // seizeTokens = ratio.mantissa;
 
-        // seizeTokens = (actualRepayAmount * exchangeRateMantissa*tokensHeld)/(amountOwed*expScale);
-        // in CToken
-        seizeTokens = (actualRepayAmount * tokensHeld) / (amountOwed);
+    //     // seizeTokens = (actualRepayAmount * exchangeRateMantissa*tokensHeld)/(amountOwed*expScale);
+    //     // in CToken
+    //     seizeTokens = (actualRepayAmount * tokensHeld) / (amountOwed);
 
-        // TODO: should I use Exp to get more precision or not to overflow???
-        // numerator = mul_(Exp({mantissa: exchangeRateMantissa}), Exp({mantissa: tokensHeld}));
-        // denominator = mul_(Exp({mantissa: amountOwed}), Exp({mantissa: expScale}));
+    //     // TODO: should I use Exp to get more precision or not to overflow???
+    //     // numerator = mul_(Exp({mantissa: exchangeRateMantissa}), Exp({mantissa: tokensHeld}));
+    //     // denominator = mul_(Exp({mantissa: amountOwed}), Exp({mantissa: expScale}));
 
-        // ratio = div_(numerator, denominator);
-        // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
+    //     // ratio = div_(numerator, denominator);
+    //     // seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);
 
-        return (uint(Error.NO_ERROR), seizeTokens);
-    }
+    //     return (uint(Error.NO_ERROR), seizeTokens);
+    // }
 
     function liquidateBadDebtCalculateSeizeTokensAfterRepay(
         address cTokenCollateral,

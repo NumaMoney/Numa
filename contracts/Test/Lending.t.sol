@@ -15,6 +15,7 @@ import {NumaLeverageLPSwap} from "../Test/mocks/NumaLeverageLPSwap.sol";
 
 import "../lending/ExponentialNoError.sol";
 import "../lending/INumaLeverageStrategy.sol";
+import "../lending/CToken.sol";
 import {Setup} from "./utils/SetupDeployNuma_Arbitrum.sol";
 contract LendingTest is Setup, ExponentialNoError {
     uint providedAmount = 10 ether;
@@ -48,10 +49,7 @@ contract LendingTest is Setup, ExponentialNoError {
         // create pool Reth/numa and strategy
         uint NumaAmountPool = numaPoolReserve;
         uint rEthAmountPool = rEthPoolReserve;
-        // which one is xceeding balance
 
-        console2.log(NumaAmountPool);
-        console2.log(rEthAmountPool);
 
         address NUMA_RETH_POOL_ADDRESS = _setupUniswapPool(
             rEth,
@@ -75,8 +73,8 @@ contract LendingTest is Setup, ExponentialNoError {
             denominator * denominator
         );
 
-        console2.log("price reth/numa");
-        console2.log(price);
+        console2.log("price reth/numa",price);
+
 
         // deploy and add strategy
         NumaLeverageLPSwap strat1 = new NumaLeverageLPSwap(
@@ -85,6 +83,22 @@ contract LendingTest is Setup, ExponentialNoError {
             address(vault)
         );
         cReth.addStrategy(address(strat1));
+
+        // coverage
+        rateModelV4.updateBlocksPerYear(blocksPerYear);
+        rateModelV4.updateJumpRateModel(baseRatePerYear,
+        multiplierPerYear,
+        jumpMultiplierPerYear,
+        kink);
+        // 
+        CToken[] memory tokens = new CToken[](1);
+        uint256[] memory caps = new uint256[](1);
+
+        tokens[0] = CToken(address(cReth));
+        caps[0] = 100000000 ether;
+        comptroller._setMarketBorrowCaps(tokens,caps);
+
+
         vm.stopPrank();
     }
     function test_CheckSetup() public {
@@ -95,7 +109,7 @@ contract LendingTest is Setup, ExponentialNoError {
             vault.decimals(),
             1000
         );
-        console2.log(numaPriceReth);
+      
         assertEq(numaPriceReth, 1 ether);
         // TODO
         // check collateral factor
@@ -109,7 +123,11 @@ contract LendingTest is Setup, ExponentialNoError {
         address[] memory t = new address[](1);
         t[0] = address(cNuma);
         comptroller.enterMarkets(t);
-
+        CToken[] memory tokens = comptroller.getAssetsIn(userA);
+        
+        assertEq(tokens.length, 1);
+        assertEq(address(tokens[0]), address(cNuma));
+        assertEq(comptroller.checkMembership(userA,cNuma),true);
         uint numaBalBefore = numa.balanceOf(userA);
 
         uint totalCollateral = providedAmount + leverageAmount;
@@ -127,9 +145,7 @@ contract LendingTest is Setup, ExponentialNoError {
         // check balances
         // cnuma position
         uint cNumaBal = cNuma.balanceOf(userA);
-        console2.log(cNumaBal);
-
-        //uint exchangeRate = cNuma.exchangeRateStored();
+     
         Exp memory exchangeRate = Exp({mantissa: cNuma.exchangeRateStored()});
 
         uint mintTokens = div_(totalCollateral, exchangeRate);
@@ -143,7 +159,7 @@ contract LendingTest is Setup, ExponentialNoError {
         // borrow balance
         uint borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
 
-        console2.log(borrowrEThBalance);
+   
 
         (, uint ltv) = comptroller.getAccountLTVIsolate(userA, cNuma, cReth);
         console2.log("ltv before");
@@ -1122,7 +1138,8 @@ contract LendingTest is Setup, ExponentialNoError {
         uint estimateBR = rateModelV4.baseRatePerBlock() +
             (borrowAmount * rateModelV4.multiplierPerBlock()) /
             numaAmount;
-        assertEq(cNuma.borrowRatePerBlock(), estimateBR);
+        assertEq(cNuma.borrowRatePerBlock(),estimateBR);
+        assertEq(cNuma.supplyRatePerBlock(), (borrowAmount*estimateBR)/(numaAmount));
 
         // todo kink
         // check balances after 1 year to compare per year values
@@ -1553,13 +1570,14 @@ contract LendingTest is Setup, ExponentialNoError {
                 (1e18 - rateModel.VERTEX_UTILIZATION()));
         console2.log("estimateBR", estimateBR);
         assertEq(cReth.borrowRatePerBlock(), estimateBR);
+        assertEq(cReth.supplyRatePerBlock(), (util*estimateBR)/1e18);
 
         console2.log("borrowAmount before",borrowAmount);
 
         // check balances after 1 year to compare per year values
         vm.roll(block.number + blocksPerYear);
         vm.warp(block.timestamp + 365 days);
-        console2.log(borrowAmount);
+        
         console2.log("borrowAmount after 1 year",cReth.borrowBalanceCurrent(userA));
         assertGt(cReth.borrowBalanceCurrent(userA), borrowAmount);
 

@@ -257,6 +257,9 @@ contract SetupBase is
     function _setupLending(NumaVault _vault) internal {
         // COMPTROLLER
         comptroller = new NumaComptroller();
+        comptroller._setBorrowCapGuardian(deployer);
+        comptroller._setPauseGuardian(deployer);
+   
 
         // PRICE ORACLE
         numaPriceOracle = new NumaPriceOracleNew();

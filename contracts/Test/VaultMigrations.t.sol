@@ -51,6 +51,7 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
 
     function setUp() public virtual override {
         console2.log("VAULT TEST");
+        
         super.setUp();
 
         // extracting rewards so that reth ref price will match
@@ -62,7 +63,9 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
     }
     function test_CheckSetup() public {
         deal({token: address(rEth), to: deployer, give: 1000 ether});
+        vm.startPrank(deployer);
         rEth.approve(address(vaultOld), 10 ether);
+
         uint buyResult = vaultOld.buy(10 ether, 0, deployer);
         console2.log("bought numa: ", buyResult);
         numa.approve(address(vaultOld), buyResult);
@@ -138,15 +141,15 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
         // unpause
         vm.startPrank(deployer);
         // set buy/sell fees to match old price
-        console2.log(vaultOld.sell_fee());
-        console2.log((uint(vaultOld.sell_fee()) * 1 ether) / 1000);
+        // console2.log(vaultOld.sell_fee());
+        // console2.log((uint(vaultOld.sell_fee()) * 1 ether) / 1000);
         vaultManager.setSellFee((uint(vaultOld.sell_fee()) * 1 ether) / 1000);
         vaultManager.setBuyFee((uint(vaultOld.buy_fee()) * 1 ether) / 1000);
 
         // first we need to match numa supply
         uint numaSupplyOld = vaultManagerOld.getNumaSupply();
         uint numaSupplyNew = vaultManager.getNumaSupply();
-        console2.log(numaSupplyNew);
+        //console2.log(numaSupplyNew);
 
         uint diff = numaSupplyNew -
             numaSupplyOld -
@@ -192,16 +195,19 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
             address(0),
             address(0)
         );
+        
         vm.startPrank(numa_admin);
         numa.grantRole(MINTER_ROLE, address(numaMinter2));
         vm.stopPrank();
 
+       vm.startPrank(deployer);
         // transfer rETh
         vault.withdrawToken(
             address(rEth),
             rEth.balanceOf(address(vault)),
             address(vault2)
         );
+        
         rEth.approve(address(vault), 1000 ether);
         rEth.approve(address(vault2), 1000 ether);
         vm.expectRevert();
@@ -241,7 +247,7 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
         numaSupplyOld = vaultManager.getNumaSupply();
         numaSupplyNew = vaultManager2.getNumaSupply();
         assertEq(numaSupplyOld, numaSupplyNew, "numa supply ko");
-        console2.log("DBG0", vaultManager2.getNumaSupply());
+      
     }
 
     function test_MigrateV1V2_Price() public {
@@ -367,6 +373,7 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
         );
         rEthRefPrice = vault.last_lsttokenvalueWei();
 
+       
         // *** V2_2 ***
         // pause printer
         moneyPrinter.pause();
@@ -374,6 +381,7 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
         // TODO
 
         deploy_NumaV2_2();
+      
         // 1. Check prices
         uint numaSupplyOld = vaultManager.getNumaSupply();
         uint numaSupplyNew = vaultManager2.getNumaSupply();

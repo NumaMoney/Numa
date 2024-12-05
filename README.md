@@ -28,14 +28,14 @@ forge test --match-contract VaultBuySellFeeTest -vv
 ### printer testing
 
 ```shell
-forge test --match-contract VaultTest -vv 
+forge test --match-contract PrinterTest -vv 
 ```
 
 
 ### lending testing
 
 ```shell
-forge test --match-contract VaultTest -vv 
+forge test --match-contract LendingTest -vv 
 ```
 
 

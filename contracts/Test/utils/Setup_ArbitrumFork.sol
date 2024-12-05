@@ -68,14 +68,13 @@ contract Setup is SetupBase {
         vm.selectFork(arbitrumFork);
         vm.rollFork(269602000);
 
+        // prank deployer
+        vm.startPrank(deployer);
+
+        _setUpTokens();
         deal({token: address(rEth), to: userA, give: 100000 ether});
         deal({token: address(rEth), to: userB, give: 100000 ether});
         deal({token: address(rEth), to: userC, give: 100000 ether});
-
-        // prank deployer
-        vm.startPrank(deployer);
-        // setups
-        _setUpTokens();
         _setupOldVaultAndAssetManager();
     }
 
