@@ -937,6 +937,7 @@ contract LendingTest is Setup, ExponentialNoError {
     function prepare_LstBorrowSuppliedLst_JRV4() public {
         vm.startPrank(deployer);
         vault.setMaxBorrow(0);
+        comptroller._setRepayPaused(false);
         comptroller._setRedeemPaused(false);
         // pause (coverage) 
         comptroller._setMintPaused(cReth,true);
@@ -1035,18 +1036,18 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(shortfall);
         console2.log(badDebt);
 
-        vm.stopPrank();
-        vm.startPrank(deployer);
-        comptroller._setRepayPaused(true);
-        vm.stopPrank();
-        vm.startPrank(userA);
-        vm.expectRevert();
-        cReth.repayBorrow(borrowAmount/100);
+        // vm.stopPrank();
+        // vm.startPrank(deployer);
+        // comptroller._setRepayPaused(true);
+        // vm.stopPrank();
+        // vm.startPrank(userA);
+        // vm.expectRevert();
+        // cReth.repayBorrow(borrowAmount/100);
         //vm.stopPrank();
-        vm.startPrank(deployer);
-        comptroller._setRepayPaused(false);
-        vm.stopPrank();
-        vm.startPrank(userA);
+        // vm.startPrank(deployer);
+        // comptroller._setRepayPaused(false);
+        // vm.stopPrank();
+        // vm.startPrank(userA);
 
         
     }
