@@ -7,7 +7,7 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
-
+import "forge-std/console2.sol";
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -110,7 +110,7 @@ abstract contract CToken is
             startingAllowance = transferAllowances[src][spender];
         }
 
-        /* Do the calculations, checking for {under,over}flow */
+        /* Do the calculations, checking for {under,over}flow */                 
         uint allowanceNew = startingAllowance - tokens;
         uint srcTokensNew = accountTokens[src] - tokens;
         uint dstTokensNew = accountTokens[dst] + tokens;
@@ -646,6 +646,7 @@ abstract contract CToken is
             redeemer,
             redeemTokens
         );
+        console2.log("redeem?",allowed);
         if (allowed != 0) {
             revert RedeemComptrollerRejection(allowed);
         }

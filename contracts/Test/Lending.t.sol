@@ -194,9 +194,22 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log("ltv after close");
         console2.log(ltv);
 
-        // redeem
-
+        // vm.stopPrank();
+        // // redeem
+        // vm.startPrank(deployer);
+        // comptroller._setRedeemPaused(true);
+        // console2.log("redeem paused?",comptroller.redeemGuardianPaused());
+        // vm.stopPrank();
+        // vm.startPrank(userA);
+       
+        //vm.expectRevert();// redeem paused
         cNuma.redeem(cNuma.balanceOf(userA));
+        // vm.startPrank(deployer);
+        // comptroller._setRedeemPaused(false);
+        // vm.startPrank(userA);
+        // cNuma.redeem(cNuma.balanceOf(userA));
+
+
         cNumaBal = cNuma.balanceOf(userA);
         console2.log("cnuma balance after close & redeem");
         console2.log(cNumaBal);
@@ -924,12 +937,39 @@ contract LendingTest is Setup, ExponentialNoError {
     function prepare_LstBorrowSuppliedLst_JRV4() public {
         vm.startPrank(deployer);
         vault.setMaxBorrow(0);
+        comptroller._setRedeemPaused(false);
+        // pause (coverage) 
+        comptroller._setMintPaused(cReth,true);
+        comptroller._setBorrowPaused(cReth,true);
+        comptroller._setTransferPaused(true);
 
         cReth._setInterestRateModel(rateModelV4);
         vm.startPrank(userB);
         uint rethAmount = 1000 ether;
-        rEth.approve(address(cReth), rethAmount);
+        rEth.approve(address(cReth), rethAmount); 
+        // mint is paused
+        vm.expectRevert();
         cReth.mint(rethAmount);
+        vm.stopPrank();
+        vm.startPrank(deployer);        
+        // unpause minting 
+        comptroller._setMintPaused(cReth,false);
+        vm.stopPrank();
+        vm.startPrank(userB);
+        cReth.mint(rethAmount);
+
+        // test transfer blocked
+        vm.expectRevert();
+        cReth.transfer(userA,0.0000001 ether);
+        vm.stopPrank();
+        vm.startPrank(deployer);        
+        // unpause transfer 
+        comptroller._setTransferPaused(false);
+        vm.stopPrank();
+        vm.startPrank(userB);
+        cReth.transfer(userA,0.0000001 ether);
+      
+
 
         // deposit collateral
         uint depositAmount = 1000 ether;
@@ -954,6 +994,14 @@ contract LendingTest is Setup, ExponentialNoError {
         // around 50% UR
         uint borrowAmount = (depositAmount * numaCollateralFactor) /
             (2 * 1 ether);
+        vm.expectRevert();// borrow paused
+        cReth.borrow(borrowAmount);
+        vm.stopPrank();
+        vm.startPrank(deployer);        
+        // unpause minting 
+        comptroller._setBorrowPaused(cReth,false);
+        vm.stopPrank();
+        vm.startPrank(userA);
         cReth.borrow(borrowAmount);
         assertEq(rEth.balanceOf(userA) - rethBalBefore, borrowAmount);
 
@@ -986,6 +1034,21 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+
+        vm.stopPrank();
+        vm.startPrank(deployer);
+        comptroller._setRepayPaused(true);
+        vm.stopPrank();
+        vm.startPrank(userA);
+        vm.expectRevert();
+        cReth.repayBorrow(borrowAmount/100);
+        //vm.stopPrank();
+        vm.startPrank(deployer);
+        comptroller._setRepayPaused(false);
+        vm.stopPrank();
+        vm.startPrank(userA);
+
+        
     }
 
     function test_LstBorrowSuppliedLst_JRV4_liquidateFL() public {
@@ -997,11 +1060,21 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+
+        vm.startPrank(deployer);
+        comptroller._setSeizePaused(true);
+
         // liquidate
 
         vm.startPrank(userC);
         uint balC = rEth.balanceOf(userC);
+        vm.expectRevert();// seize paused
         vault.liquidateLstBorrower(userA, type(uint256).max, true, true);
+        vm.startPrank(deployer);
+        comptroller._setSeizePaused(false);
+        vm.startPrank(userC);
+        vault.liquidateLstBorrower(userA, type(uint256).max, true, true);
+
         console2.log("liquidator profit:", rEth.balanceOf(userC) - balC);
 
         (, liquidity, shortfall, badDebt) = comptroller

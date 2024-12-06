@@ -30,6 +30,9 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         //decimals = _decimals;
     }
 
+   /**
+    * @dev eth to pool token using 2 oracles 
+    */
     function convertEthToToken(
         uint256 _ethAmount
     ) public view checkSequencerActive returns (uint256 tokenAmount) {
@@ -102,6 +105,9 @@ contract USDCToEthConverter is INumaTokenToEthConverter, OracleUtils {
         tokenAmount = tokenAmount / (10 ** 12);
     }
 
+   /**
+    * @dev pool token to eth using 2 oracles 
+    */
     function convertTokenToEth(
         uint256 _tokenAmount
     ) public view checkSequencerActive returns (uint256 ethValue) {

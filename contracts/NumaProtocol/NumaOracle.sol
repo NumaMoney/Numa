@@ -44,12 +44,20 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         nuAManager = nuAssetManager(_nuAManager);
     }
 
+    /**
+     * 
+     * @param _interval short twap interval
+     */
     function setIntervalShort(uint32 _interval) external onlyOwner {
         require(_interval > 0, "Interval must be nonzero");
         intervalShort = _interval;
         emit IntervalShort(intervalShort);
     }
 
+    /**
+     * 
+     * @param _interval long twap interval
+     */
     function setIntervalLong(uint32 _interval) external onlyOwner {
         require(
             _interval > intervalShort,
@@ -59,6 +67,10 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         emit IntervalLong(intervalLong);
     }
 
+    /**
+     * 
+     * @param _maxSpotOffsetBps offset percentage variable (cf doc)
+     */
     function setMaxSpotOffsetBps(uint _maxSpotOffsetBps) external onlyOwner {
         require(_maxSpotOffsetBps < 10000, "percentage must be less than 100");
 
@@ -73,6 +85,13 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         emit MaxSpotOffsetBps(_maxSpotOffsetBps);
     }
 
+    /**
+     * @notice numa twap price in eth
+     * @param _numaPool pool address
+     * @param _converter converter from pool token to eth
+     * @param _numaAmount amount
+     * @param _interval time interval to consider
+     */
     function getTWAPPriceInEth(
         address _numaPool,
         address _converter,
@@ -105,6 +124,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         return EthPerNumaMulAmount;
     }
 
+    /**
+     * @notice returns lowest price from long interval (twap), short interval (twap) and spot
+     * @param _numaPool pool address
+     * @param _numaAmount amount
+     */
     function getV3LowestPrice(
         address _numaPool,
         uint _numaAmount
@@ -132,6 +156,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         return TokenPerNumaMulAmount;
     }
 
+    /**
+     * @notice returns pool spot numa price
+     * @param _numaPool pool
+     * @param _numaAmount amount
+     */
     function getV3SpotPrice(
         address _numaPool,
         uint _numaAmount
@@ -155,6 +184,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         return TokenPerNumaMulAmount;
     }
 
+    /**
+     * @notice returns highest price from long interval (twap), short interval (twap) and spot
+     * @param _numaPool pool address
+     * @param _numaAmount amount
+     */
     function getV3HighestPrice(
         address _numaPool,
         uint _numaAmount
@@ -355,12 +389,23 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         return sqrtPriceX96;
     }
 
+    /**
+     * @notice convert eth to nuasset 
+     * @param _nuAsset nuAsset address
+     * @param _amount amount
+     */
     function ethToNuAsset(
         address _nuAsset,
         uint256 _amount
     ) public view returns (uint256 tokenAmount) {
         tokenAmount = nuAManager.ethToNuAsset(_nuAsset, _amount);
     }
+
+    /**
+     * @notice convert eth to nuasset by rounding up
+     * @param _nuAsset nuAsset address
+     * @param _amount amount
+     */
     function ethToNuAssetRoundUp(
         address _nuAsset,
         uint256 _amount
@@ -368,6 +413,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         tokenAmount = nuAManager.ethToNuAssetRoundUp(_nuAsset, _amount);
     }
 
+   /**
+     * @notice convert nuasset to eth with rounding up
+     * @param _nuAsset nuAsset address
+     * @param _amount amount
+     */
     function nuAssetToEthRoundUp(
         address _nuAsset,
         uint256 _amount
@@ -375,6 +425,11 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         EthValue = nuAManager.nuAssetToEthRoundUp(_nuAsset, _amount);
     }
 
+   /**
+     * @notice convert nuasset to eth
+     * @param _nuAsset nuAsset address
+     * @param _amount amount
+     */
     function nuAssetToEth(
         address _nuAsset,
         uint256 _amount
@@ -382,6 +437,13 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         EthValue = nuAManager.nuAssetToEth(_nuAsset, _amount);
     }
 
+    /**
+     * @notice convert eth to numa 
+     * @param _ethAmount eth amount
+     * @param _numaPool pool address
+     * @param _converter token to eth converter address
+     * @param _priceType highest or lowest
+     */
     function ethToNuma(
         uint256 _ethAmount,
         address _numaPool,
@@ -439,6 +501,12 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         }
     }
 
+    /**
+     * @notice nuasset to nuasset conversion
+     * @param _nuAssetAmountIn amount in
+     * @param _nuAssetIn nuasset input address
+     * @param _nuAssetOut nuasset output address
+     */
     function getNbOfNuAssetFromNuAsset(
         uint256 _nuAssetAmountIn,
         address _nuAssetIn,
@@ -455,6 +523,13 @@ contract NumaOracle is Ownable2Step, INumaOracle {
         return tokensForAmount;
     }
 
+    /**
+     * @notice convert numa to eth
+     * @param _numaAmount numa amount
+     * @param _numaPool pool address
+     * @param _converter token to eth converter address
+     * @param _priceType lowest or highest price from pool
+     */
     function numaToEth(
         uint256 _numaAmount,
         address _numaPool,

@@ -196,6 +196,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         return address(cLstToken);
     }
 
+    /**
+     * @dev set the cf_liquid_warning
+     */
     function setCFLiquidWarning(uint _cFLiquidWarning) external onlyOwner {
         // CF will change so we need to update interest rates
         updateVault();
@@ -204,6 +207,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         emit SetCFLiquidWarning(_cFLiquidWarning);
     }
 
+    /**
+     * @dev set the max borrow amount from vault
+     */
     function setMaxBorrow(uint _maxBorrow) external onlyOwner {
         // CF will change so we need to update interest rates
         updateVault();
@@ -212,6 +218,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         emit SetMaxBorrow(_maxBorrow);
     }
 
+    /**
+     * @dev max profit (in reth) for liquidators
+     */
     function setMaxLiquidationsProfit(uint _maxProfit) external onlyOwner {
         maxLstProfitForLiquidations = _maxProfit;
         emit SetMaxProfit(_maxProfit);
@@ -272,6 +281,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         emit FeeUpdated(_fees, _feesMaxAmountPct);
     }
 
+    /**
+     * @dev max buy amount in percentage of vault's balance
+     */
     function setMaxPercent(uint16 _maxPercent) external onlyOwner {
         require(max_percent <= BASE_1000, "Percent above 100");
         max_percent = _maxPercent;
@@ -286,6 +298,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         emit ThresholdUpdated(_threshold);
     }
 
+    /**
+     * @dev vault balance including debt from lending protocol
+     */
     function getVaultBalance() internal view returns (uint) {
         if (isLiquidityLocked) {
             return lstLockedBalance;
@@ -295,6 +310,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             return balance;
         }
     }
+
+    /**
+     * @dev vault balance excluding debt from lending protocol
+     */
     function getVaultBalanceNoDebt() internal view returns (uint) {
         if (isLiquidityLocked) {
             return lstLockedBalanceRaw;
@@ -324,6 +343,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         return (rwd, currentvalueWei, debtRwd);
     }
 
+    /**
+     * @dev lst rewards extraction
+     */
     function extractInternal(
         uint rwd,
         uint currentvalueWei,
@@ -381,7 +403,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     }
 
     /**
-     * @dev vaults' balance in Eth
+     * @dev vaults' balance in Eth excluding debt
      */
     function getEthBalanceNoDebt() public view returns (uint256) {
         require(address(oracle) != address(0), "oracle not set");
@@ -429,6 +451,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         );
     }
 
+    /**
+     * @dev Buy numa from token (token approval needed), no max check
+     */
     function buyNoMax(
         uint _inputAmount,
         uint _minNumaAmount,
@@ -502,6 +527,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         vaultManager.updateBuyFeePID(numaAmount, true);
     }
 
+   /**
+    * @dev extract rewards and accruInterests on lst ctoken
+    */
     function updateVault() public {
         // extract rewards if any
         extractRewardsNoRequire();
@@ -509,6 +537,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         // accrue interest
         if (address(cLstToken) != address(0)) cLstToken.accrueInterest();
     }
+
+   /**
+    * @dev update vault and debasings (synth scaling, sell fee pid, scale applied in numa price when critical_cf is reached)
+    */
     function updateVaultAndUpdateDebasing()
         public
         returns (
@@ -800,10 +832,19 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         emit BorrowedVault(_amount);
     }
 
+    /**
+     * @notice locks numa supply so that price stays the same during a flashloan
+     * @param _lock true or false
+     */
     function lockNumaSupply(bool _lock) internal {
         vaultManager.lockSupplyFlashloan(_lock);
     }
 
+
+    /**
+     * @notice locks lst balance so that price stays the same during a flashloan
+     * @param _lock true or false
+     */
     function lockLstBalance(bool _lock) internal {
         if (_lock) {
             lstLockedBalance = getVaultBalance();
@@ -834,6 +875,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         lockLstBalance(false);
     }
 
+    /**
+     * @notice bad debt liquidation 
+     * @param _borrower borrower address
+     * @param _percentagePosition1000 prcentage of position to be liquidated
+     * @param collateralToken collateral token 
+     */
     function liquidateBadDebt(
         address _borrower,
         uint _percentagePosition1000,
@@ -909,6 +956,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         endLiquidation();
     }
 
+    /**
+     * @notice numa borrower liquidation 
+     * @param _borrower borrower address
+     * @param _numaAmount amount to use for liquidation
+     * @param _swapToInput boolean, do we swap seized tokens to numa
+     * @param _flashloan boolean do we use a flashloan or do we provide the liquidity
+     */
     function liquidateNumaBorrower(
         address _borrower,
         uint _numaAmount,
@@ -1049,6 +1103,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         endLiquidation();
     }
 
+    /**
+     * @notice lst borrower liquidation 
+     * @param _borrower borrower address
+     * @param _lstAmount amount to use for liquidation
+     * @param _swapToInput boolean, do we swap seized tokens to numa
+     * @param _flashloan boolean do we use a flashloan or do we provide the liquidity
+     */
     function liquidateLstBorrower(
         address _borrower,
         uint _lstAmount,
@@ -1248,15 +1309,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         isWithdrawRevoked = true;
     }
 
-    // // to initialize the lending debt in case of vault migration
-    // function overrideDebt(
-    //     uint _debt,
-    //     uint _rewardsFromDebt
-    // ) external onlyOwner {
-    //     debt = _debt;
-    //     rewardsFromDebt = _rewardsFromDebt;
 
-    // }
 
     function isContract(address addr) internal view returns (bool) {
         uint extSize;

@@ -292,6 +292,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return cf_warning;
     }
 
+    /**
+     * @dev updates the buy_fee, only called from specific actions
+     */
     function updateBuyFeePID(uint _numaAmount, bool _isVaultBuy) external {
         if (_numaAmount == 0) {
             return;
@@ -374,6 +377,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         }
     }
 
+    /**
+     * @dev updates the sell_fee, only called from specific actions
+     */
     function getSellFeeScalingUpdate() public returns (uint sell_fee_result) {
         (
             uint result,
@@ -389,6 +395,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         //sell_fee_update_blocknumber = blockNumber;
     }
 
+    /**
+     * @dev returns the updated sell_fee
+     */
     function getSellFeeScaling() public view returns (uint, uint, uint) {
         uint blockTime = block.timestamp;
         uint lastSellFee = sell_fee_withPID;
@@ -460,18 +469,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return (sell_fee_result, blockTime, lastSellFee);
     }
 
-    function updateDebasings()
-        public
-        returns (
-            uint scale,
-            uint criticalScaleForNumaPriceAndSellFee,
-            uint sell_fee_result
-        )
-    {
-        (scale, criticalScaleForNumaPriceAndSellFee) = getSynthScalingUpdate();
-        (sell_fee_result) = getSellFeeScalingUpdate();
-    }
-
+   /**
+     * @dev updates synth scaling only called from specific actions
+     */
     function getSynthScalingUpdate()
         public
         returns (uint scaleSynthBurn, uint criticalScaleForNumaPriceAndSellFee)
@@ -488,6 +488,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         lastSynthPID = scalePID;
         lastBlockTime = blockTime;
     }
+
 
     function getSynthScaling()
         public
@@ -570,6 +571,21 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     /**
+     * @dev updates sell fee and synth scaling only called from specific actions
+     */
+    function updateDebasings()
+        public
+        returns (
+            uint scale,
+            uint criticalScaleForNumaPriceAndSellFee,
+            uint sell_fee_result
+        )
+    {
+        (scale, criticalScaleForNumaPriceAndSellFee) = getSynthScalingUpdate();
+        (sell_fee_result) = getSellFeeScalingUpdate();
+    }
+
+    /**
      * @notice lock numa supply in case of a flashloan so that numa price does not change
      */
     function lockSupplyFlashloan(bool _lock) external {
@@ -619,7 +635,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     /**
-     * @dev How many Numas from lst token amount
+     * @dev How many Numas from lst token amount using vault manager pricing
      */
     function tokenToNuma(
         uint _inputAmount,
@@ -673,7 +689,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     /**
-     * @dev How many lst tokens from numa amount
+     * @dev How many lst tokens from numa amount using vault manager pricing
      */
     function numaToToken(
         uint _inputAmount,
@@ -736,6 +752,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return result;
     }
 
+    /**
+     * @dev numa to eth using vaultmanager pricing
+     */
+
     function numaToEth(
         uint _inputAmount,
         PriceType _t
@@ -756,6 +776,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return result;
     }
 
+    /**
+     * @dev eth to numa using vaultmanager pricing
+     */
     function ethToNuma(
         uint _inputAmount,
         PriceType _t
@@ -836,7 +859,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     /**
-     * @dev adds a vault to the total balance
+     * @dev adds a vault to the list
      */
     function addVault(address _vault) external onlyOwner {
         require(vaultsList.length() < max_vault, "too many vaults");
@@ -845,7 +868,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     /**
-     * @dev removes a vault from total balance
+     * @dev removes a vault from the list
      */
     function removeVault(address _vault) external onlyOwner {
         require(vaultsList.contains(_vault), "not in list");
@@ -854,7 +877,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     }
 
     /**
-     * @dev sum of all vaults balances in Eth
+     * @dev sum of all vaults balances in Eth including debts
      */
     function getTotalBalanceEth() public view returns (uint256) {
         uint result;
@@ -881,6 +904,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return result;
     }
 
+    /**
+     * @dev update all vaults
+     */
     function updateVaults() external {
         uint256 nbVaults = vaultsList.length();
         require(nbVaults <= max_vault, "too many vaults in list");
@@ -890,6 +916,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         }
     }
 
+    /**
+     * @dev global CF considering all vaults
+     */
     function getGlobalCF() public view returns (uint) {
         uint EthBalance = getTotalBalanceEth();
         uint synthValue = nuAssetManager.getTotalSynthValueEth();
@@ -901,6 +930,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
         }
     }
 
+    /**
+     * @dev liquid CF (liquid meaning excluding debt) considering all vaults
+     */
     function getGlobalLiquidCF() public view returns (uint) {
         uint EthBalance = getTotalBalanceEthNoDebt();
         uint synthValue = nuAssetManager.getTotalSynthValueEth();

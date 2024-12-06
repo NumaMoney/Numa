@@ -173,7 +173,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     }
 
     /**
-     * @dev mints a newAsset
+     * @dev mints a newAsset by burning numa
      * @notice block minting according to globalCF. Call accrueInterests on lending contracts as it will impact vault max borrowable amount
      */
     function mintNuAsset(
@@ -192,7 +192,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     }
 
     /**
-     * @dev burns a newAsset
+     * @dev burns a newAsset and mint numa
      * @notice
      */
     function burnNuAssetFrom(
@@ -207,6 +207,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
         emit AssetBurn(address(_asset), _amount);
     }
 
+    /**
+     * @notice update vault and accrue lending protocol interest rates  
+     * @return scale 
+     * @return criticalScaleForNumaPriceAndSellFee scale used in numa price computation (from vault) and in sell fee
+     * @return sell_fee_res updated sell fee
+     */
     function updateVaultAndInterest()
         public
         returns (
@@ -227,6 +233,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
         ) = vaultManager.updateDebasings();
     }
 
+    /**
+     * @notice compute fees when amount in is specified
+     * @param _amountIn amount
+     * @param _fee fee parameter
+     */
     function computeFeeAmountIn(
         uint _amountIn,
         uint _fee
@@ -235,6 +246,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return feeAmount;
     }
 
+    /**
+     * @notice compute fees when amount out is specified
+     * @param _amountIn amount
+     * @param _fee fee parameter
+     */
     function computeFeeAmountOut(
         uint _amountIn,
         uint _fee
@@ -243,6 +259,11 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return feeAmount;
     }
 
+    /**
+     * @notice get numa twap price in eth
+     * @param _numaAmount amount
+     * @param _interval time interval
+     */
     function getTWAPPriceInEth(
         uint _numaAmount,
         uint32 _interval
@@ -257,7 +278,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
     }
 
     // NUASSET --> NUASSET
-
+    /**
+     * @notice nb of nuassets B from nuasset A
+     * @param _nuAssetIn input nuasset address
+     * @param _nuAssetOut output nuasset address
+     * @param _amountIn amount
+     * @return amount out
+     * @return fee 
+     */
     function getNbOfNuAssetFromNuAsset(
         address _nuAssetIn,
         address _nuAssetOut,
@@ -274,6 +302,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return (output, amountToBurn);
     }
 
+    /**
+     * @notice nb of nuassets A needed to get a nb of nuAsset B
+     * @param _nuAssetIn address of nuasset in
+     * @param _nuAssetOut address of nuasset out
+     * @param _amountOut desired amount
+     * @return amount of nuasset in
+     * @return fee
+     */
     function getNbOfNuAssetNeededForNuAsset(
         address _nuAssetIn,
         address _nuAssetOut,
@@ -293,6 +329,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
     }
 
     // NUMA --> NUASSET
+    /**
+     * @notice nb of nuassets froma numa amount
+     * @param _nuAsset address of nuasset
+     * @param _numaAmount numa amount
+     * @return amount of nuasset
+     * @return fee
+     */
     function getNbOfNuAssetFromNuma(
         address _nuAsset,
         uint256 _numaAmount
@@ -331,7 +374,8 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     /**
      * @dev returns amount of Numa needed and fee to mint an amount of nuAsset
-     * @param {uint256} _nuAssetAmount amount we want to mint
+     * @param _nuAsset address of nuasset
+     * @param _nuAssetAmount desired amount of nuasset
      * @return {uint256,uint256} amount of Numa that will be needed and fee to be burnt
      */
     function getNbOfNumaNeededAndFee(
@@ -373,6 +417,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
     // NUASSET --> NUMA
     /**
      * @dev returns amount of Numa minted and fee to be burnt from an amount of nuAsset
+     * @param {address} _nuAsset nuasset address
      * @param {uint256} _nuAssetAmount amount of nuAsset we want to burn
      * @return {uint256,uint256} amount of Numa that will be minted and fee to be burnt
      */
@@ -590,6 +635,13 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return (_output);
     }
 
+    /**
+     * notice burn nuasset to get a specified amount of numa
+     * @param _nuAsset nuasset address
+     * @param _numaAmount numa amount needed
+     * @param _maximumAmountIn max amount of nuasset (slippage parameter)
+     * @param _recipient recipient 
+     */
     function burnAssetToNumaOutput(
         address _nuAsset,
         uint256 _numaAmount,
@@ -628,6 +680,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return (_numaAmount);
     }
 
+    /**
+     * notice swap nuasset to nuasset, amount in specified
+     * @param _nuAssetFrom input nuasset address
+     * @param _nuAssetTo output nuasset address
+     * @param _receiver recipient address
+     * @param _amountToSwap amount in 
+     * @param _amountOutMinimum minimum output amount (slippage)
+     */
     function swapExactInput(
         address _nuAssetFrom,
         address _nuAssetTo,
@@ -687,6 +747,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
         return assetAmount;
     }
 
+    /**
+     * notice swap nuasset to nuasset, amount out specified
+     * @param _nuAssetFrom input nuasset address
+     * @param _nuAssetTo output nuasset address
+     * @param _receiver recipient address
+     * @param _amountToReceive amount out desired 
+     * @param _amountInMaximum maximum input amount (slippage)
+     */
     function swapExactOutput(
         address _nuAssetFrom,
         address _nuAssetTo,
