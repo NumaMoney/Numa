@@ -445,7 +445,7 @@ contract PrinterTest is Setup {
         moneyPrinter.pause();
         vm.stopPrank();
         vm.startPrank(userA);
-        vm.expectRevert(0xd93c0665);
+        vm.expectRevert(bytes4(0xd93c0665));
         moneyPrinter.mintAssetFromNumaInput(
             address(nuUSD),
             numaAmount,
@@ -811,7 +811,7 @@ contract PrinterTest is Setup {
         moneyPrinter.pause();
         vm.stopPrank();
         vm.startPrank(userA);
-        vm.expectRevert(0xd93c0665);
+        vm.expectRevert(bytes4(0xd93c0665));
         moneyPrinter.swapExactInput(
             address(nuUSD),
             address(nuBTC),
