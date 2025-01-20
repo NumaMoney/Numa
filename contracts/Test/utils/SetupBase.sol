@@ -25,7 +25,7 @@ import {FakeNuma} from "../mocks/FakeNuma.sol";
 import "../../interfaces/INuma.sol";
 
 import {LstTokenMock} from "../mocks/LstTokenMock.sol";
-import {nuAssetManager} from "../../nuAssets/nuAssetManager.sol";
+import {nuAssetManager2} from "../../nuAssets/nuAssetManager2.sol";
 import {NumaMinter} from "../../NumaProtocol/NumaMinter.sol";
 import {VaultOracleSingle} from "../../NumaProtocol/VaultOracleSingle.sol";
 import {VaultManager} from "../../NumaProtocol/VaultManager.sol";
@@ -61,7 +61,7 @@ contract SetupBase is
     ERC20 rEth;
     ERC20 usdc;
     // Vault
-    nuAssetManager nuAssetMgr;
+    nuAssetManager2 nuAssetMgr;
     NumaMinter numaMinter;
     VaultOracleSingle vaultOracle;
     VaultManager vaultManager;
@@ -119,7 +119,7 @@ contract SetupBase is
     )
         internal
         returns (
-            nuAssetManager nuAM,
+            nuAssetManager2 nuAM,
             NumaMinter minter,
             VaultManager vaultm,
             VaultOracleSingle vo,
@@ -141,7 +141,7 @@ contract SetupBase is
             address(rEth)
         );
 
-         nuAM = new nuAssetManager(UPTIME_FEED_ARBI);
+         nuAM = new nuAssetManager2(UPTIME_FEED_ARBI);
         (nuAM, minter, vaultm, vo, v) = setupVaultAndAssetManager(parameters);
 
       
@@ -217,7 +217,7 @@ contract SetupBase is
         address _printerAddress
     ) internal {
         // register nuAsset
-        nuAssetManager(_nuAssetMgrAddress).addNuAsset(
+        nuAssetManager2(_nuAssetMgrAddress).addNuAsset(
             address(nuUSD),
             PRICEFEEDETHUSD_ARBI,
             HEART_BEAT_CUSTOM
@@ -226,7 +226,7 @@ contract SetupBase is
         nuUSD.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer
 
         // register nuAsset
-        nuAssetManager(_nuAssetMgrAddress).addNuAsset(
+        nuAssetManager2(_nuAssetMgrAddress).addNuAsset(
             address(nuBTC),
             PRICEFEEDBTCETH_ARBI,
             HEART_BEAT
