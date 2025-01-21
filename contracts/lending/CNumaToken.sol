@@ -145,6 +145,7 @@ contract CNumaToken is CErc20Immutable {
         uint _strategyIndex
     ) external {
 
+        // Sherlock-issue 120
         require(
             (
             ((address(this) == vault.getcLstAddress()) && (address(_collateral) == vault.getcNumaAddress()))
