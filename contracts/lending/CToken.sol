@@ -558,6 +558,17 @@ abstract contract CToken is
 
         uint mintTokens = div_(actualMintAmount, exchangeRate);
 
+
+        
+        // sherlock issue-253
+        // first depositor bug
+        if (totalSupply == 0) 
+        {
+            totalSupply = 1000;
+            accountTokens[address(0)] = 1000;
+            mintTokens -= 1000;
+        }
+
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
          *  totalSupplyNew = totalSupply + mintTokens
