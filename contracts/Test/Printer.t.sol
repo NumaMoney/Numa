@@ -10,7 +10,7 @@ import "./uniV3Interfaces/ISwapRouter.sol";
 
 //
 import {Setup, FEE_LOW} from "./utils/SetupDeployNuma_Arbitrum.sol";
-
+import "../utils/constants.sol";
 
 contract PrinterTest is Setup {
     uint numaPriceVault;
@@ -245,7 +245,7 @@ contract PrinterTest is Setup {
 
         // to compare, we scale amount with fees
         uint totalOut = numaOut + fee;
-        totalOut = (totalOut * 800) / 1000;
+        totalOut = (totalOut * (BASE_SCALE - 0.2 ether)) / BASE_SCALE;
         uint feeEstim2 = (totalOut * (moneyPrinter.burnAssetFeeBps())) / 10000;
 
         assertEq(numaOut2, totalOut - feeEstim2, "amount ko");
@@ -259,17 +259,17 @@ contract PrinterTest is Setup {
         );
 
         // compute critical debase factor
-        uint criticalDebaseFactor = (vaultManager.getGlobalCF() * 1000) /
+        uint criticalDebaseFactor = (vaultManager.getGlobalCF() * (1 ether)) /
             vaultManager.cf_critical();
         // we apply this multiplier on the factor for when it's used on synthetics burning price
         criticalDebaseFactor =
             (criticalDebaseFactor * 1000) /
             vaultManager.criticalDebaseMult();
-        assertLt(criticalDebaseFactor, 1000);
+        assertLt(criticalDebaseFactor, 1 ether);
         (uint scaleSynthBurn2, ) = vaultManager.getSynthScalingUpdate();
         assertEq(scaleSynthBurn2, criticalDebaseFactor);
         totalOut = numaOut + fee;
-        totalOut = (criticalDebaseFactor * totalOut) / 1000;
+        totalOut = (criticalDebaseFactor * totalOut) / 1 ether;
         feeEstim2 = (totalOut * (moneyPrinter.burnAssetFeeBps())) / 10000;
 
         assertEq(numaOut2, totalOut - feeEstim2, "amount ko");
@@ -1336,7 +1336,7 @@ contract PrinterTest is Setup {
             uint scaleSynthBurn2,
             uint criticalScaleForNumaPriceAndSellFee2
         ) = vaultManager.getSynthScalingUpdate();
-        assertEq(scaleSynthBurn2, 800);
+        assertEq(scaleSynthBurn2, BASE_SCALE - 0.2 ether);
     }
 
     function forceSynthDebasingCritical() public {
@@ -1368,7 +1368,7 @@ contract PrinterTest is Setup {
         // //assertEq(scaleSynthBurn2,800);
 
         uint globalCF2 = vaultManager.getGlobalCF();
-        console2.log(globalCF2);
+        console2.log("current CF",globalCF2);
 
         // critical_cf
         vaultManager.setScalingParameters(
