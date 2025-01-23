@@ -1241,8 +1241,8 @@ contract PrinterTest is Setup {
     //     uint costWithoutFee = cost - amountToBurn;
     //     uint estimatedOutput = costWithoutFee;
 
-    //     console.log(cost);
-    //     console.log(amountToBurn);
+    //     console2.log(cost);
+    //     console2.log(amountToBurn);
     //     assertEq(fee, amountToBurn, "fees estim ko");
     //     assertApproxEqAbs(
     //         estimatedOutput,
@@ -1383,6 +1383,64 @@ contract PrinterTest is Setup {
             vaultManager.criticalDebaseMult()
         );
     }
+
+    function test_mintPastCF() public {  
+
+        uint numaAmount = 1000001e18;  
+    
+        vm.startPrank(deployer);  
+        numa.transfer(userA, numaAmount);  
+        vm.stopPrank();  
+
+        vm.startPrank(userA);  
+    
+        // compare getNbOfNuAssetFromNuma  
+        (uint256 nuUSDAmount, uint fee) = moneyPrinter.getNbOfNuAssetFromNuma(  
+            address(nuUSD),  
+            numaAmount  
+        );  
+        numa.approve(address(moneyPrinter), numaAmount);  
+    
+        // warning cf test block mint  
+        uint globalCFBefore = vaultManager.getGlobalCF();  
+    
+    
+        // put back warning cf  
+        vm.startPrank(deployer);  
+        vaultManager.setScalingParameters(  
+            vaultManager.cf_critical(),  
+            globalCFBefore - 1,  
+            vaultManager.cf_severe(),  
+            vaultManager.debaseValue(),  
+            vaultManager.rebaseValue(),  
+            1 hours,  
+            2 hours,  
+            vaultManager.minimumScale(),  
+            vaultManager.criticalDebaseMult()  
+        );  
+    
+        console2.log("globalCFBefore: %e", globalCFBefore);  
+        console2.log("warningCF: %e", vaultManager.getWarningCF());  
+    
+        vm.startPrank(userA);  
+    
+        vm.expectRevert("minting forbidden");
+        moneyPrinter.mintAssetFromNumaInput(  
+            address(nuUSD),  
+            numaAmount,  
+            nuUSDAmount,  
+            userA  
+        );  
+    
+        // uint globalCFAfter = vaultManager.getGlobalCF();  
+        // uint warningCF = vaultManager.getWarningCF();  
+    
+        // console2.log("globalCFAfter: %e", globalCFAfter);  
+        // console2.log("warningCF: %e", warningCF);  
+    
+        // assertGt(globalCFBefore, warningCF);  
+        // assertLt(globalCFAfter, warningCF);  
+    } 
 
     //     function test_SynthScaling() public {
     //         uint globalCF = vaultManager.getGlobalCF();
