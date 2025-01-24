@@ -220,7 +220,9 @@ contract SetupBase is
         nuAssetManager2(_nuAssetMgrAddress).addNuAsset(
             address(nuUSD),
             PRICEFEEDETHUSD_ARBI,
-            HEART_BEAT_CUSTOM
+            HEART_BEAT_CUSTOM,
+            true,
+            address(0)
         );
         // set printer as a NuUSD minter
         nuUSD.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer
@@ -229,7 +231,9 @@ contract SetupBase is
         nuAssetManager2(_nuAssetMgrAddress).addNuAsset(
             address(nuBTC),
             PRICEFEEDBTCETH_ARBI,
-            HEART_BEAT
+            HEART_BEAT,
+            false,
+            address(0)
         );
         // set printer as a NuUSD minter
         nuBTC.grantRole(MINTER_ROLE, _printerAddress); // owner is NuUSD deployer
