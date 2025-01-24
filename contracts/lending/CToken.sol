@@ -7,7 +7,7 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
-import "forge-std/console2.sol";
+
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -86,6 +86,9 @@ abstract contract CToken is
         address dst,
         uint tokens
     ) internal returns (uint) {
+        // sherlock issue 168
+        // Before transferring CToken, the accrueInterest() function should be called first
+        accrueInterest();
         /* Fail if transfer not allowed */
         uint allowed = comptroller.transferAllowed(
             address(this),
@@ -646,7 +649,7 @@ abstract contract CToken is
             redeemer,
             redeemTokens
         );
-        console2.log("redeem?",allowed);
+
         if (allowed != 0) {
             revert RedeemComptrollerRejection(allowed);
         }
