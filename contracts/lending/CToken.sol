@@ -1542,6 +1542,22 @@ abstract contract CToken is
     }
 
     /**
+     * @notice change borrowRateMaxMantissa
+     * @dev needed because values should be adjustedbased on chain block time
+     * @param _borrowRateMaxMantissa the new value    
+     */
+    function _setBorrowRateMaxMantissa(
+        uint _borrowRateMaxMantissa
+    ) public override
+    {
+        if (msg.sender != admin) {
+            revert SetBorrowRateMaxMantissaOwnerCheck();
+        }
+        borrowRateMaxMantissa = _borrowRateMaxMantissa;
+    }
+
+
+        /**
      * @notice accrues interest and updates the interest rate model using _setInterestRateModelFresh
      * @dev Admin function to accrue interest and update the interest rate model
      * @param newInterestRateModel the new interest rate model to use
@@ -1554,6 +1570,7 @@ abstract contract CToken is
         // _setInterestRateModelFresh emits interest-rate-model-update-specific logs on errors, so we don't need to.
         return _setInterestRateModelFresh(newInterestRateModel);
     }
+
 
     /**
      * @notice updates the interest rate model (*requires fresh interest accrual)

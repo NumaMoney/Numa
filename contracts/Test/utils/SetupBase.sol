@@ -327,6 +327,9 @@ contract SetupBase is
             address(_vault)
         );
 
+        cReth._setBorrowRateMaxMantissa(borrowRateMaxMantissa);
+        cNuma._setBorrowRateMaxMantissa(borrowRateMaxMantissa);
+
         _vault.setMaxBorrow(1000 ether);
         _vault.setCTokens(address(cNuma), address(cReth));
 

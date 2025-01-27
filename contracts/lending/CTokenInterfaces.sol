@@ -28,7 +28,7 @@ contract CTokenStorage {
     uint8 public decimals;
 
     // Maximum borrow rate that can ever be applied (.0005% / block)
-    uint internal constant borrowRateMaxMantissa = 0.0005e16;
+    uint public borrowRateMaxMantissa = 0.0005e16;
 
     // Maximum fraction of interest that can be set aside for reserves
     uint internal constant reserveFactorMaxMantissa = 1e18;
@@ -320,6 +320,11 @@ abstract contract CTokenInterface is CTokenStorage {
     function _setInterestRateModel(
         InterestRateModel newInterestRateModel
     ) external virtual returns (uint);
+
+    function _setBorrowRateMaxMantissa(
+        uint _borrowRateMaxMantissa 
+    ) external virtual;
+
 }
 
 contract CErc20Storage {
