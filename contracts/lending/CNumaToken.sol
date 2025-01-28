@@ -141,6 +141,7 @@ contract CNumaToken is CErc20Immutable {
     function leverageStrategy(
         uint _suppliedAmount,
         uint _borrowAmount,
+        uint _maxBorrowAmount,
         CNumaToken _collateral,
         uint _strategyIndex
     ) external {
@@ -189,19 +190,21 @@ contract CNumaToken is CErc20Immutable {
         );
 
         // send collateral to sender
-        uint receivedtokens = balCtokenAfter - balCtokenBefore;
-        require(receivedtokens > 0, "no collateral");
+        //uint receivedtokens = balCtokenAfter - balCtokenBefore;
+        require((balCtokenAfter - balCtokenBefore) > 0, "no collateral");
 
         // transfer collateral to sender
         SafeERC20.safeTransfer(
             IERC20(address(_collateral)),
             msg.sender,
-            receivedtokens
+            (balCtokenAfter - balCtokenBefore)
         );
 
         // how much to we need to borrow to repay vault
         uint borrowAmount = strat.getAmountIn(_borrowAmount, false);
-        //
+        
+        // sherlock issue-182
+        require(borrowAmount <= _maxBorrowAmount); 
 
         // Sherlock-issue 120
         //uint accountBorrowBefore = accountBorrows[msg.sender].principal;  
@@ -277,6 +280,7 @@ contract CNumaToken is CErc20Immutable {
     function closeLeverageStrategy(
         CNumaToken _collateral,
         uint _borrowtorepay,
+        uint _minRedeemedAmount,
         uint _strategyIndex
     ) external {
         // AUDITV2FIX
@@ -307,6 +311,8 @@ contract CNumaToken is CErc20Immutable {
             _borrowtorepay,
             _strategyIndex
         );
+        // sherlock issue-182
+        require(swapAmountIn >= _minRedeemedAmount); 
 
         SafeERC20.safeTransferFrom(
             IERC20(address(_collateral)),

@@ -18,6 +18,11 @@ import "../lending/INumaLeverageStrategy.sol";
 import "../lending/CToken.sol";
 import {Setup} from "./utils/SetupDeployNuma_Arbitrum.sol";
 contract LendingTest is Setup, ExponentialNoError {
+
+    uint constant strategyIndex1 = 1;
+
+    uint strategyindex;
+
     uint providedAmount = 10 ether;
     uint leverageAmount = 40 ether;
 
@@ -134,10 +139,18 @@ contract LendingTest is Setup, ExponentialNoError {
         numa.approve(address(cReth), providedAmount);
 
         // call strategy
-        uint strategyindex = 0;
+        strategyindex = 0;
+        // slippage check
+        uint amountInExpected = cReth.getAmountIn(
+            leverageAmount,
+            false,
+            strategyindex
+            );
+
         cReth.leverageStrategy(
             providedAmount,
             leverageAmount,
+            amountInExpected,
             cNuma,
             strategyindex
         );
@@ -188,7 +201,7 @@ contract LendingTest is Setup, ExponentialNoError {
         );
 
         cNuma.approve(address(cReth), cnumaAmount);
-        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance, strategyindex);
+        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance,swapAmountIn, strategyindex);
 
         (, ltv) = comptroller.getAccountLTVIsolate(userA, cNuma, cReth);
         console2.log("ltv after close");
@@ -248,10 +261,19 @@ contract LendingTest is Setup, ExponentialNoError {
         numa.approve(address(cReth), providedAmount2);
 
         // call strategy
-        uint strategyindex = 0;
+        strategyindex = 0;
+
+        // slippage check
+        uint amountInExpected = cReth.getAmountIn(
+            leverageAmount2,
+            false,
+            strategyindex
+            );
+
         cReth.leverageStrategy(
             providedAmount2,
             leverageAmount2,
+            amountInExpected,
             cNuma,
             strategyindex
         );
@@ -289,9 +311,17 @@ contract LendingTest is Setup, ExponentialNoError {
         numa.approve(address(cReth), providedAmount2);
 
         // call strategy
+        // slippage check
+        amountInExpected = cReth.getAmountIn(
+            leverageAmount2,
+            false,
+            strategyindex
+            );
+
         cReth.leverageStrategy(
             providedAmount2,
             leverageAmount2,
+            amountInExpected,
             cNuma,
             strategyindex
         );
@@ -318,9 +348,17 @@ contract LendingTest is Setup, ExponentialNoError {
         numa.approve(address(cReth), providedAmount2);
 
         // call strategy
+        // slippage check
+        amountInExpected = cReth.getAmountIn(
+            leverageAmount2,
+            false,
+            strategyindex
+            );
+
         cReth.leverageStrategy(
             providedAmount2,
             leverageAmount2,
+            amountInExpected,
             cNuma,
             strategyindex
         );
@@ -347,9 +385,17 @@ contract LendingTest is Setup, ExponentialNoError {
         numa.approve(address(cReth), providedAmount2);
 
         // call strategy
+        // slippage check
+        amountInExpected = cReth.getAmountIn(
+            leverageAmount2,
+            false,
+            strategyindex
+            );
+
         cReth.leverageStrategy(
             providedAmount2,
             leverageAmount2,
+            amountInExpected,
             cNuma,
             strategyindex
         );
@@ -378,9 +424,15 @@ contract LendingTest is Setup, ExponentialNoError {
         numa.approve(address(cReth), providedAmount2);
 
         // call strategy
+        amountInExpected = cReth.getAmountIn(
+            leverageAmount2,
+            false,
+            strategyindex
+            );        
         cReth.leverageStrategy(
             providedAmount2,
             leverageAmount2,
+            amountInExpected,
             cNuma,
             strategyindex
         );
@@ -448,12 +500,18 @@ contract LendingTest is Setup, ExponentialNoError {
         numa.approve(address(cReth), providedAmount);
 
         // call strategy
-        uint strategyindex = 1;
+    
+        uint amountInExpected = cReth.getAmountIn(
+            leverageAmount,
+            false,
+            strategyIndex1
+            );      
         cReth.leverageStrategy(
             providedAmount,
             leverageAmount,
+            amountInExpected,
             cNuma,
-            strategyindex
+            strategyIndex1
         );
 
         // check balances
@@ -516,11 +574,11 @@ contract LendingTest is Setup, ExponentialNoError {
         (uint cnumaAmount, uint swapAmountIn) = cReth.closeLeverageAmount(
             cNuma,
             borrowrEThBalance,
-            strategyindex
+            strategyIndex1
         );
 
         cNuma.approve(address(cReth), cnumaAmount);
-        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance, strategyindex);
+        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance,swapAmountIn, strategyIndex1);
 
         borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
         console2.log("borrow amount after");
@@ -568,7 +626,7 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(cReth.getAmountIn(leverageAmount, false, 1));
 
         // call strategy
-        uint strategyindex = 0;
+        strategyindex = 0;
 
         if (
             cReth.getAmountIn(leverageAmount, false, 1) <
@@ -581,6 +639,7 @@ contract LendingTest is Setup, ExponentialNoError {
         cReth.leverageStrategy(
             providedAmount,
             leverageAmount,
+            cReth.getAmountIn(leverageAmount, false, strategyindex),
             cNuma,
             strategyindex
         );
@@ -658,7 +717,7 @@ contract LendingTest is Setup, ExponentialNoError {
         );
 
         cNuma.approve(address(cReth), cnumaAmount);
-        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance, strategyindex);
+        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance, swapAmountIn,strategyindex);
 
         borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
         console2.log("borrow amount after");
@@ -714,7 +773,7 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(cReth.getAmountIn(leverageAmount, false, 1));
 
         // call strategy
-        uint strategyindex = 0;
+        strategyindex = 0;
 
         if (
             cReth.getAmountIn(leverageAmount, false, 1) <
@@ -724,9 +783,16 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log("strategy for open");
         console2.log(strategyindex);
         assertEq(strategyindex, 0);
+
+        uint amountInExpected = cReth.getAmountIn(
+            leverageAmount,
+            false,
+            strategyindex
+            ); 
         cReth.leverageStrategy(
             providedAmount,
             leverageAmount,
+            amountInExpected,
             cNuma,
             strategyindex
         );
@@ -806,7 +872,7 @@ contract LendingTest is Setup, ExponentialNoError {
         );
 
         cNuma.approve(address(cReth), cnumaAmount);
-        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance, strategyindex);
+        cReth.closeLeverageStrategy(cNuma, borrowrEThBalance,swapAmountIn, strategyindex);
 
         borrowrEThBalance = cReth.borrowBalanceCurrent(userA);
         console2.log("borrow amount after");
@@ -853,10 +919,16 @@ contract LendingTest is Setup, ExponentialNoError {
         rEth.approve(address(cNuma), providedAmount);
 
         // call strategy
-        uint strategyindex = 0;
+        strategyindex = 0;
+        uint amountInExpected = cReth.getAmountIn(
+            leverageAmount,
+            false,
+            strategyindex
+            );         
         cNuma.leverageStrategy(
             providedAmount,
             leverageAmount,
+            amountInExpected,
             cReth,
             strategyindex
         );
