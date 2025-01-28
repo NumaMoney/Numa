@@ -293,8 +293,7 @@ contract CNumaToken is CErc20Immutable {
         address underlyingCollateral = _collateral.underlying();
         // get borrowed amount
         uint borrowAmountFull = borrowBalanceStored(msg.sender);
-        require(borrowAmountFull >= _borrowtorepay, "no borrow");
-
+    
         // clip to borrowed amount
         if (_borrowtorepay > borrowAmountFull)
             _borrowtorepay = borrowAmountFull;
