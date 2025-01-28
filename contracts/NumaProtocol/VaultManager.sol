@@ -14,6 +14,7 @@ import "../interfaces/INumaPrinter.sol";
 
 import "../utils/constants.sol";
 
+
 contract VaultManager is IVaultManager, Ownable2Step {
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
@@ -63,13 +64,14 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint public cf_critical = 1100;
     uint public cf_severe = 1500;
     uint public cf_warning = 1700;
-    uint public debaseValue = 20; //base 1000
-    uint public rebaseValue = 30; //base 1000
-    uint public minimumScale = 500;
+    //
+    uint public debaseValue = 0.02 ether; 
+    uint public rebaseValue = 0.03 ether; 
+    uint public minimumScale = 0.5 ether;
     uint public criticalDebaseMult = 1100; //base 1000
     uint public deltaRebase = 24 hours;
     uint public deltaDebase = 24 hours;
-    uint lastSynthPID = BASE_1000;
+    uint lastSynthPID = BASE_SCALE;
     uint lastBlockTime;
 
     // the amount by which buyFee_PID increments/decrements at each event
@@ -444,12 +446,12 @@ contract VaultManager is IVaultManager, Ownable2Step {
         // we use criticalScaleForNumaPriceAndSellFee because we want to use this scale in our sell_fee only when cf_critical is reached
         (, , uint criticalScaleForNumaPriceAndSellFee, ) = getSynthScaling();
 
-        uint sell_fee_increaseCriticalCF = ((BASE_1000 -
-            criticalScaleForNumaPriceAndSellFee) * 1 ether) / BASE_1000;
+        uint sell_fee_increaseCriticalCF = ((BASE_SCALE -
+            criticalScaleForNumaPriceAndSellFee) * 1 ether) / BASE_SCALE;
         // add a multiplier on top
         sell_fee_increaseCriticalCF =
             (sell_fee_increaseCriticalCF * sell_fee_criticalMultiplier) /
-            1000;
+            BASE_1000;
 
         // here we use original fee value increase by this factor
         uint sell_fee_criticalCF;
@@ -524,7 +526,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     } else syntheticsCurrentPID = minimumScale;
                 }
             } else {
-                if (syntheticsCurrentPID < BASE_1000) {
+                if (syntheticsCurrentPID < BASE_SCALE) {
                     // rebase linearly
                     uint nrebase = ((blockTime - lastBlockTime) * rebaseValue) /
                         (deltaRebase);
@@ -535,26 +537,26 @@ contract VaultManager is IVaultManager, Ownable2Step {
                     } else {
                         syntheticsCurrentPID = syntheticsCurrentPID + nrebase;
 
-                        if (syntheticsCurrentPID > BASE_1000)
-                            syntheticsCurrentPID = BASE_1000;
+                        if (syntheticsCurrentPID > BASE_SCALE)
+                            syntheticsCurrentPID = BASE_SCALE;
                     }
                 }
             }
         }
         // apply scale to synth burn price
         uint scaleSynthBurn = syntheticsCurrentPID; // PID
-        uint criticalScaleForNumaPriceAndSellFee = BASE_1000;
+        uint criticalScaleForNumaPriceAndSellFee = BASE_SCALE;
         // CRITICAL_CF
         if (currentCF < cf_critical) {
             // scale such that currentCF = cf_critical
-            uint criticalDebaseFactor = (currentCF * BASE_1000) / cf_critical;
+            uint criticalDebaseFactor = (currentCF * BASE_SCALE) / cf_critical;
 
             // when reaching CF_CRITICAL, we use that criticalDebaseFactor in numa price so that numa price is clipped by this lower limit
             criticalScaleForNumaPriceAndSellFee = criticalDebaseFactor;
 
             // we apply this multiplier on the factor for when it's used on synthetics burning price
             criticalDebaseFactor =
-                (criticalDebaseFactor * BASE_1000) /
+                (criticalDebaseFactor * 1000) /
                 criticalDebaseMult;
 
             // for burning price we take the min between PID and criticalDebaseFactor
@@ -652,7 +654,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         );
 
         uint synthValueInEth = getTotalSynthValueEth();
-        synthValueInEth = (synthValueInEth * _synthScaling) / BASE_1000;
+        synthValueInEth = (synthValueInEth * _synthScaling) / BASE_SCALE;
         uint circulatingNuma = getNumaSupply();
 
         uint result;
@@ -702,7 +704,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
         uint synthValueInEth = getTotalSynthValueEth();
 
-        synthValueInEth = (synthValueInEth * _synthScaling) / BASE_1000;
+        synthValueInEth = (synthValueInEth * _synthScaling) / BASE_SCALE;
 
         uint circulatingNuma = getNumaSupply();
 

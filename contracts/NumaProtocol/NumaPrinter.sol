@@ -449,7 +449,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         (uint scaleSynthBurn, , , ) = vaultManager.getSynthScaling();
         // apply scale
-        costWithoutFee = (costWithoutFee * scaleSynthBurn) / BASE_1000;
+        costWithoutFee = (costWithoutFee * scaleSynthBurn) / BASE_SCALE;
         // burn fee
         uint256 amountToBurn = computeFeeAmountIn(
             costWithoutFee,
@@ -493,7 +493,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 nuAssetIn = oracle.ethToNuAssetRoundUp(_nuAsset, ethAmount);
         (uint scaleSynthBurn, , , ) = vaultManager.getSynthScaling();
         // apply scale
-        nuAssetIn = (nuAssetIn * BASE_1000) / scaleSynthBurn;
+        nuAssetIn = (nuAssetIn * BASE_SCALE) / scaleSynthBurn;
 
         return (nuAssetIn, amountWithFee - _numaAmount);
     }
