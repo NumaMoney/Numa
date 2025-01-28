@@ -576,27 +576,33 @@ contract NumaComptroller is
         );
 
         /* allow accounts to be liquidated if the market is deprecated */
+             
+        (
+            Error err,
+            ,
+            uint shortfall,
+            uint badDebt
+        ) = getAccountLiquidityIsolateInternal(
+                borrower,
+                CNumaToken(cTokenCollateral),
+                CNumaToken(cTokenBorrowed)
+            );
+        if (err != Error.NO_ERROR) {
+            return uint(err);
+        }
+
         if (isDeprecated(CToken(cTokenBorrowed))) {
             require(
                 borrowBalance >= repayAmount,
                 "Can not repay more than the total borrow"
             );
-        } else {
-            /* The borrower must have shortfall in order to be liquidatable */
-            (
-                Error err,
-                ,
-                uint shortfall,
-                uint badDebt
-            ) = getAccountLiquidityIsolateInternal(
-                    borrower,
-                    CNumaToken(cTokenCollateral),
-                    CNumaToken(cTokenBorrowed)
-                );
-            if (err != Error.NO_ERROR) {
-                return uint(err);
+            // sherlock issue 67. Even if deprecated we don't want that liquidation type if in bad debt
+            if (badDebt > 0) {
+                return uint(Error.BAD_DEBT);
             }
+        } else {
 
+            /* The borrower must have shortfall in order to be liquidatable */
             if (shortfall == 0) {
                 return uint(Error.INSUFFICIENT_SHORTFALL);
             }
@@ -639,28 +645,31 @@ contract NumaComptroller is
             borrower
         );
 
+        (
+            Error err,
+            ,
+            uint shortfall,
+            uint badDebt
+        ) = getAccountLiquidityIsolateInternal(
+                borrower,
+                CNumaToken(cTokenCollateral),
+                CNumaToken(cTokenBorrowed)
+            );
+        if (err != Error.NO_ERROR) {
+            return uint(err);
+        }
         /* allow accounts to be liquidated if the market is deprecated */
         if (isDeprecated(CToken(cTokenBorrowed))) {
             require(
                 borrowBalance >= repayAmount,
                 "Can not repay more than the total borrow"
             );
+            // sherlock issue 67. Even if deprecated some bad debt is needed 
+            if (badDebt == 0) {
+                return uint(Error.INSUFFICIENT_BADDEBT);
+            }
         } else {
             /* The borrower must have shortfall in order to be liquidatable */
-            (
-                Error err,
-                ,
-                uint shortfall,
-                uint badDebt
-            ) = getAccountLiquidityIsolateInternal(
-                    borrower,
-                    CNumaToken(cTokenCollateral),
-                    CNumaToken(cTokenBorrowed)
-                );
-            if (err != Error.NO_ERROR) {
-                return uint(err);
-            }
-
             if (shortfall == 0) {
                 return uint(Error.INSUFFICIENT_SHORTFALL);
             }
