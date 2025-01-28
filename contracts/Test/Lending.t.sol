@@ -1755,4 +1755,41 @@ contract LendingTest is Setup, ExponentialNoError {
  
     }
 
+    function test_require_principal_revert_bug() public {    
+        vm.startPrank(userA);    
+    
+        // Supplying funds to cNuma market for us to borrow during leverageStrategy    
+        // Supplier can be anybody need not to be userA    
+        numa.approve(address(cNuma),50 ether);    
+        cNuma.mint(50 ether);    
+    
+        //     
+        address[] memory t = new address[](2);    
+        t[0] = address(cNuma);    
+        t[1] = address(cReth);          
+        comptroller.enterMarkets(t);    
+    
+        // 1. Supply to numa market    
+        rEth.approve(address(cReth),50 ether);    
+        cReth.mint(50 ether);    
+    
+        // 2. User's previous borrow    
+        cNuma.borrow(10 ether);    
+            
+        // 3. Rolling blocks so that interest will be accrued on user's previous borrow    
+        vm.roll(block.number + 24 hours);    
+    
+            
+        rEth.approve(address(cNuma), 10 ether);    
+        // leverageStrategy will revert due to interest accurual    
+        // vm.expectRevert("borrow ko");    
+        cNuma.leverageStrategy(    
+            1 ether,    
+            4 ether,    
+            cReth,    
+            0    
+        );    
+    
+    } 
+
 }

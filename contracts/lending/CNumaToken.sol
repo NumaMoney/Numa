@@ -193,10 +193,14 @@ contract CNumaToken is CErc20Immutable {
         uint borrowAmount = strat.getAmountIn(_borrowAmount, false);
         //
 
-        uint accountBorrowBefore = accountBorrows[msg.sender].principal;
+        // Sherlock-issue 120
+        //uint accountBorrowBefore = accountBorrows[msg.sender].principal;  
+        uint accountBorrowBefore = borrowBalanceStored(msg.sender);  
+
         // borrow but do not transfer borrowed tokens
         borrowInternalNoTransfer(borrowAmount, msg.sender);
-        //uint accountBorrowAfter = accountBorrows[msg.sender].principal;
+
+        //     
         require(
             (accountBorrows[msg.sender].principal - accountBorrowBefore) ==
                 borrowAmount,
@@ -374,5 +378,5 @@ contract CNumaToken is CErc20Immutable {
             cTokenCollateral
         );
         return NO_ERROR;
-    }
+    }  
 }
