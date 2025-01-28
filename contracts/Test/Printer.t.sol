@@ -13,6 +13,8 @@ import {Setup, FEE_LOW} from "./utils/SetupDeployNuma_Arbitrum.sol";
 
 import "../NumaProtocol/USDToEthConverter.sol";
 import {NuAsset2} from "../nuAssets/nuAsset2.sol";
+import "../utils/constants.sol";
+
 contract PrinterTest is Setup {
     uint numaPriceVault;
     uint numaPriceVaultS;
@@ -206,6 +208,20 @@ contract PrinterTest is Setup {
         assertEq(numaNeeded2, numaNeeded, "fee ko");
     }
 
+
+    function test_maxSpotOffsetBps() external
+    {
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetPlus1SqrtBps(), 10072, "maxSpotOffsetPlus1SqrtBps ko");
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetMinus1SqrtBps(), 9927, "maxSpotOffsetMinus1SqrtBps ko");
+
+         //NumaOracle(address(numaOracle)).setMaxSpotOffsetBps(145);//1.45%
+         NumaOracle(address(numaOracle)).setMaxSpotOffset(0.0145 ether);//1.45%
+
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetPlus1SqrtBps(), 10072, "maxSpotOffsetPlus1SqrtBps ko");
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetMinus1SqrtBps(), 9927, "maxSpotOffsetMinus1SqrtBps ko");
+    }
+
+
     function test_getNbOfNumaFromAssetWithFee() external {
         vm.stopPrank();
         vm.startPrank(userA);
@@ -250,7 +266,7 @@ contract PrinterTest is Setup {
 
         // to compare, we scale amount with fees
         uint totalOut = numaOut + fee;
-        totalOut = (totalOut * 800) / 1000;
+        totalOut = (totalOut * (BASE_SCALE - 0.2 ether)) / BASE_SCALE;
         uint feeEstim2 = (totalOut * (moneyPrinter.burnAssetFeeBps())) / 10000;
 
         assertEq(numaOut2, totalOut - feeEstim2, "amount ko");
@@ -264,17 +280,17 @@ contract PrinterTest is Setup {
         );
 
         // compute critical debase factor
-        uint criticalDebaseFactor = (vaultManager.getGlobalCF() * 1000) /
+        uint criticalDebaseFactor = (vaultManager.getGlobalCF() * (1 ether)) /
             vaultManager.cf_critical();
         // we apply this multiplier on the factor for when it's used on synthetics burning price
         criticalDebaseFactor =
             (criticalDebaseFactor * 1000) /
             vaultManager.criticalDebaseMult();
-        assertLt(criticalDebaseFactor, 1000);
+        assertLt(criticalDebaseFactor, 1 ether);
         (uint scaleSynthBurn2, ) = vaultManager.getSynthScalingUpdate();
         assertEq(scaleSynthBurn2, criticalDebaseFactor);
         totalOut = numaOut + fee;
-        totalOut = (criticalDebaseFactor * totalOut) / 1000;
+        totalOut = (criticalDebaseFactor * totalOut) / 1 ether;
         feeEstim2 = (totalOut * (moneyPrinter.burnAssetFeeBps())) / 10000;
 
         assertEq(numaOut2, totalOut - feeEstim2, "amount ko");
@@ -1123,6 +1139,7 @@ contract PrinterTest is Setup {
         assertGt(numaNeeded2, (numaOut2 * 15) / 10, "amount ko");
     }
 
+
     function test_priceFeedNoEth() external {
 
         USDToEthConverter converter = new USDToEthConverter(PRICEFEEDETHUSD_ARBI,HEART_BEAT_CUSTOM,UPTIME_FEED_ARBI);       
@@ -1246,7 +1263,7 @@ contract PrinterTest is Setup {
             uint scaleSynthBurn2,
             uint criticalScaleForNumaPriceAndSellFee2
         ) = vaultManager.getSynthScalingUpdate();
-        assertEq(scaleSynthBurn2, 800);
+        assertEq(scaleSynthBurn2, BASE_SCALE - 0.2 ether);
     }
 
     function forceSynthDebasingCritical() public {
@@ -1278,7 +1295,7 @@ contract PrinterTest is Setup {
         // //assertEq(scaleSynthBurn2,800);
 
         uint globalCF2 = vaultManager.getGlobalCF();
-        console2.log(globalCF2);
+        console2.log("current CF",globalCF2);
 
         // critical_cf
         vaultManager.setScalingParameters(

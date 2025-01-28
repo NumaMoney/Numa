@@ -23,14 +23,14 @@ contract NumaOracle is Ownable2Step, INumaOracle {
     //uint maxSpotOffsetBps = 145;//1.45%
     //uint maxSpotOffsetSqrtBps = 1204;//sqrt(1.45%)
 
-    uint160 maxSpotOffsetPlus1SqrtBps = 10072;
-    uint160 maxSpotOffsetMinus1SqrtBps = 9927;
+    uint160 public maxSpotOffsetPlus1SqrtBps = 10072;
+    uint160 public maxSpotOffsetMinus1SqrtBps = 9927;
 
     nuAssetManager public nuAManager;
 
     event IntervalShort(uint32 _intervalShort);
     event IntervalLong(uint32 _intervalLong);
-    event MaxSpotOffsetBps(uint _maxSpotOffsetBps);
+    event MaxSpotOffset(uint _maxSpotOffset);
     constructor(
         address _token,
         uint32 _intervalShort,
@@ -69,20 +69,18 @@ contract NumaOracle is Ownable2Step, INumaOracle {
 
     /**
      * 
-     * @param _maxSpotOffsetBps offset percentage variable (cf doc)
+     * @param _maxSpotOffset offset percentage variable (cf doc)
      */
-    function setMaxSpotOffsetBps(uint _maxSpotOffsetBps) external onlyOwner {
-        require(_maxSpotOffsetBps < 10000, "percentage must be less than 100");
+    function setMaxSpotOffset(uint _maxSpotOffset) external onlyOwner {
+        require(_maxSpotOffset < 1 ether, "percentage must be less than 100");
 
-        maxSpotOffsetPlus1SqrtBps =
-            100 *
-            uint160(Math.sqrt(10000 + _maxSpotOffsetBps));
+        maxSpotOffsetPlus1SqrtBps =           
+            uint160(Math.sqrt(1 ether + _maxSpotOffset))/1e5;
 
-        maxSpotOffsetMinus1SqrtBps =
-            100 *
-            uint160(Math.sqrt(10000 - _maxSpotOffsetBps));
+        maxSpotOffsetMinus1SqrtBps =           
+            uint160(Math.sqrt(1 ether - _maxSpotOffset))/1e5;
 
-        emit MaxSpotOffsetBps(_maxSpotOffsetBps);
+        emit MaxSpotOffset(_maxSpotOffset);
     }
 
     /**

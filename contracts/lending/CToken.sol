@@ -7,7 +7,7 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
-import "forge-std/console2.sol";
+
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -558,6 +558,17 @@ abstract contract CToken is
 
         uint mintTokens = div_(actualMintAmount, exchangeRate);
 
+
+        
+        // sherlock issue-253
+        // first depositor bug
+        if (totalSupply == 0) 
+        {
+            totalSupply = 1000;
+            accountTokens[address(0)] = 1000;
+            mintTokens -= 1000;
+        }
+
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
          *  totalSupplyNew = totalSupply + mintTokens
@@ -646,7 +657,7 @@ abstract contract CToken is
             redeemer,
             redeemTokens
         );
-        console2.log("redeem?",allowed);
+
         if (allowed != 0) {
             revert RedeemComptrollerRejection(allowed);
         }
