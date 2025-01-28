@@ -86,6 +86,9 @@ abstract contract CToken is
         address dst,
         uint tokens
     ) internal returns (uint) {
+        // sherlock issue 168
+        // Before transferring CToken, the accrueInterest() function should be called first
+        accrueInterest();
         /* Fail if transfer not allowed */
         uint allowed = comptroller.transferAllowed(
             address(this),
