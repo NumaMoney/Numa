@@ -201,6 +201,20 @@ contract PrinterTest is Setup {
         assertEq(numaNeeded2, numaNeeded, "fee ko");
     }
 
+
+    function test_maxSpotOffsetBps() external
+    {
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetPlus1SqrtBps(), 10072, "maxSpotOffsetPlus1SqrtBps ko");
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetMinus1SqrtBps(), 9927, "maxSpotOffsetMinus1SqrtBps ko");
+
+         //NumaOracle(address(numaOracle)).setMaxSpotOffsetBps(145);//1.45%
+         NumaOracle(address(numaOracle)).setMaxSpotOffset(0.0145 ether);//1.45%
+
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetPlus1SqrtBps(), 10072, "maxSpotOffsetPlus1SqrtBps ko");
+         assertEq(NumaOracle(address(numaOracle)).maxSpotOffsetMinus1SqrtBps(), 9927, "maxSpotOffsetMinus1SqrtBps ko");
+    }
+
+
     function test_getNbOfNumaFromAssetWithFee() external {
         vm.stopPrank();
         vm.startPrank(userA);
