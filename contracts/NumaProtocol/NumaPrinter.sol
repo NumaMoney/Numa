@@ -68,10 +68,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _amountReceived
     );
 
+    // sherlock issue 41
+    // CF warning can be bypassed
     modifier notInWarningCF() {
+        _;
         uint currentCF = vaultManager.getGlobalCF();
         require(currentCF > vaultManager.getWarningCF(), "minting forbidden");
-        _;
     }
 
     constructor(
