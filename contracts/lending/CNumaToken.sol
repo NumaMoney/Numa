@@ -144,6 +144,16 @@ contract CNumaToken is CErc20Immutable {
         CNumaToken _collateral,
         uint _strategyIndex
     ) external {
+
+        // Sherlock-issue 120
+        require(
+            (
+            ((address(this) == vault.getcLstAddress()) && (address(_collateral) == vault.getcNumaAddress()))
+            ||
+            ((address(this) == vault.getcNumaAddress()) && (address(_collateral) == vault.getcLstAddress()))
+            )
+             , "invalid collateral");
+
         // AUDITV2FIX if we don't do that, borrow balance might change when calling borrowinternal
         accrueInterest();
         _collateral.accrueInterest();
