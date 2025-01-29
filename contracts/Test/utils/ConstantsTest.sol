@@ -62,6 +62,9 @@ contract ConstantsTest {
 
     // lending protocol
     uint blocksPerYear = 2102400; // TODO here eth values for test
+    uint borrowRateMaxMantissa = 0.0005e16;// TODO here eth values for test
+
+
     uint baseRatePerYear = 0.02 ether; // 2%
     uint multiplierPerYear = 0.01 ether; // 1%
     uint jumpMultiplierPerYear = 4 ether; //400%
