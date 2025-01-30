@@ -18,4 +18,6 @@ interface INumaVault {
     function updateVault() external;
     function getcNumaAddress() external view returns (address);
     function getcLstAddress() external view returns (address);
+
+    function borrowAllowed(address _ctokenAddress) external returns (bool);
 }

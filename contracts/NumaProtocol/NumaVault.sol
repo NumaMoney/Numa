@@ -1318,4 +1318,14 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         }
         return (extSize > 0);
     }
+
+
+    function borrowAllowed(address _ctokenAddress) external view returns (bool allowed)
+    {
+        allowed = true;
+        if (_ctokenAddress == address(cNuma)) 
+        {
+            vaultManager.numaBorrowAllowed();
+        }
+    }
 }

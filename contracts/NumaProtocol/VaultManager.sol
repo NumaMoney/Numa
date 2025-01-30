@@ -943,4 +943,17 @@ contract VaultManager is IVaultManager, Ownable2Step {
             return MAX_CF;
         }
     }
+
+    function numaBorrowAllowed() external view returns (bool allowed)
+    {
+        allowed = true;
+       
+        // is numa borrow allowed
+        uint currentCF = getGlobalCF();
+ 
+        if (currentCF < cf_severe)
+        {
+             allowed = false;
+        }      
+    }
 }
