@@ -396,6 +396,7 @@ contract CNumaToken is CErc20Immutable {
         }
 
         // check if vault allows borrows 
+        // borrowing numa is not allowed when CF < CF_SEVERE
         // only needed for numa borrows (lst borrows will go through CNumaLst::borrowFreshNoTransfer)
         if (address(vault) != address(0)) {
             if (!vault.borrowAllowed(address(this)))

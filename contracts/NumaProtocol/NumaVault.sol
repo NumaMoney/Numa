@@ -1325,7 +1325,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         allowed = true;
         if (_ctokenAddress == address(cNuma)) 
         {
-            vaultManager.numaBorrowAllowed();
+            allowed = vaultManager.numaBorrowAllowed();
         }
     }
 }

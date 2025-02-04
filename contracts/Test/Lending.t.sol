@@ -16,6 +16,8 @@ import {NumaLeverageLPSwap} from "../Test/mocks/NumaLeverageLPSwap.sol";
 import "../lending/ExponentialNoError.sol";
 import "../lending/INumaLeverageStrategy.sol";
 import "../lending/CToken.sol";
+
+import {TokenErrorReporter} from "../lending/ErrorReporter.sol";
 import {Setup} from "./utils/SetupDeployNuma_Arbitrum.sol";
 contract LendingTest is Setup, ExponentialNoError {
     uint providedAmount = 10 ether;
@@ -1168,6 +1170,8 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(badDebt);
     }
 
+
+
     function prepare_numaBorrow_JRV4() public {
         vm.startPrank(deployer);
         vault.setMaxBorrow(0);
@@ -1204,6 +1208,45 @@ contract LendingTest is Setup, ExponentialNoError {
         // around 50% UR
         uint borrowAmount = (depositAmount * rEthCollateralFactor) /
             (2 * 1 ether);
+
+
+        // test block numa borrow when CF < cf_severe
+        vm.stopPrank();
+        vm.startPrank(deployer);
+        vaultManager.setScalingParameters(
+            vaultManager.cf_critical(),
+            vaultManager.cf_warning(),
+            100001,// so that we are below severe (if there are no synth CF is 100000)
+            vaultManager.debaseValue(),
+            vaultManager.rebaseValue(),
+            1 hours,
+            2 hours,
+            vaultManager.minimumScale(),
+            vaultManager.criticalDebaseMult()
+        );
+        vm.stopPrank();
+
+        vm.startPrank(userA);
+        vm.expectRevert(TokenErrorReporter.BorrowNotAllowed.selector);
+        //vm.expectRevert();
+        cNuma.borrow(borrowAmount);
+        vm.stopPrank();
+        //
+         vm.startPrank(deployer);
+        vaultManager.setScalingParameters(
+            vaultManager.cf_critical(),
+            vaultManager.cf_warning(),
+            0,// we don't care, it's not used 
+            vaultManager.debaseValue(),
+            vaultManager.rebaseValue(),
+            1 hours,
+            2 hours,
+            vaultManager.minimumScale(),
+            vaultManager.criticalDebaseMult()
+        );
+        vm.stopPrank();
+        //
+        vm.startPrank(userA);
         cNuma.borrow(borrowAmount);
         assertEq(numa.balanceOf(userA) - numaBalBefore, borrowAmount);
 
@@ -1261,6 +1304,11 @@ contract LendingTest is Setup, ExponentialNoError {
         console2.log(liquidity);
         console2.log(shortfall);
         console2.log(badDebt);
+    }
+
+    function test_prepare() public
+    {
+        prepare_numaBorrow_JRV4();
     }
 
     function test_NumaBorrow_JRV4_liquidateSwap() public {
