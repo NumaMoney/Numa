@@ -393,5 +393,70 @@ contract CNumaToken is CErc20Immutable {
             cTokenCollateral
         );
         return NO_ERROR;
+    }
+
+
+     /**
+     * @notice Users borrow assets from the protocol to their own address
+     * @param borrowAmount The amount of the underlying asset to borrow
+     */
+    function borrowFreshNoTransfer(
+        address payable borrower,
+        uint borrowAmount
+    ) internal virtual override {
+        /* Fail if borrow not allowed */
+        uint allowed = comptroller.borrowAllowed(
+            address(this),
+            borrower,
+            borrowAmount
+        );
+        if (allowed != 0) {
+            revert BorrowComptrollerRejection(allowed);
+        }
+
+        // check if vault allows borrows 
+        // borrowing numa is not allowed when CF < CF_SEVERE
+        // only needed for numa borrows (lst borrows will go through CNumaLst::borrowFreshNoTransfer)
+        if (address(vault) != address(0)) {
+            if (!vault.borrowAllowed(address(this)))
+            {
+                revert BorrowNotAllowed();
+            }
+        }
+
+
+        /* Verify market's block number equals current block number */
+        if (accrualBlockNumber != getBlockNumber()) {
+            revert BorrowFreshnessCheck();
+        }
+
+        /* Fail gracefully if protocol has insufficient underlying cash */
+        if (getCashPrior() < borrowAmount) {
+            revert BorrowCashNotAvailable();
+        }
+
+        /*
+         * We calculate the new borrower and total borrow balances, failing on overflow:
+         *  accountBorrowNew = accountBorrow + borrowAmount
+         *  totalBorrowsNew = totalBorrows + borrowAmount
+         */
+        uint accountBorrowsPrev = borrowBalanceStoredInternal(borrower);
+        uint accountBorrowsNew = accountBorrowsPrev + borrowAmount;
+        uint totalBorrowsNew = totalBorrows + borrowAmount;
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        /*
+         * We write the previously calculated values into storage.
+         *  Note: Avoid token reentrancy attacks by writing increased borrow before external transfer.
+        `*/
+        accountBorrows[borrower].principal = accountBorrowsNew;
+        accountBorrows[borrower].interestIndex = borrowIndex;
+        totalBorrows = totalBorrowsNew;
+
+        /* We emit a Borrow event */
+        emit Borrow(borrower, borrowAmount, accountBorrowsNew, totalBorrowsNew);
     }  
 }

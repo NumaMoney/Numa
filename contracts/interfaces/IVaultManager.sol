@@ -50,4 +50,5 @@ interface IVaultManager {
 
     function getSynthScaling() external view returns (uint, uint, uint, uint);
     function getWarningCF() external view returns (uint);
+    function numaBorrowAllowed() external view returns (bool allowed);
 }
