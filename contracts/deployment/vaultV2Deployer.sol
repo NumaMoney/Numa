@@ -4,7 +4,7 @@ import "../interfaces/INuma.sol";
 
 import "./utils.sol";
 
-import {nuAssetManager} from "../nuAssets/nuAssetManager.sol";
+import {nuAssetManager2} from "../nuAssets/nuAssetManager2.sol";
 import {NumaMinter} from "../NumaProtocol/NumaMinter.sol";
 import {VaultOracleSingle} from "../NumaProtocol/VaultOracleSingle.sol";
 import {VaultManager} from "../NumaProtocol/VaultManager.sol";
@@ -27,7 +27,7 @@ contract vaultV2Deployer is deployUtils {
     address uptimefeed;
 
     // out
-    nuAssetManager public nuAssetMgr;
+    nuAssetManager2 public nuAssetMgr;
     NumaMinter public numaMinter;
     VaultOracleSingle public vaultOracle;
     VaultManager public vaultManager;

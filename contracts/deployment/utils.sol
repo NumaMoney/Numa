@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 import "../interfaces/INuma.sol";
-import {nuAssetManager} from "../nuAssets/nuAssetManager.sol";
+import {nuAssetManager2} from "../nuAssets/nuAssetManager2.sol";
 import {NumaMinter} from "../NumaProtocol/NumaMinter.sol";
 import {VaultOracleSingle} from "../NumaProtocol/VaultOracleSingle.sol";
 import {VaultManager} from "../NumaProtocol/VaultManager.sol";
@@ -30,7 +30,7 @@ contract deployUtils {
     )
         public
         returns (
-            nuAssetManager nuAM,
+            nuAssetManager2 nuAM,
             NumaMinter minter,
             VaultManager vaultm,
             VaultOracleSingle vo,
@@ -39,9 +39,9 @@ contract deployUtils {
     {
         // nuAssetManager
         if (_parameters._existingAssetManager != address(0)) {
-            nuAM = nuAssetManager(_parameters._existingAssetManager);
+            nuAM = nuAssetManager2(_parameters._existingAssetManager);
         } else {
-            nuAM = new nuAssetManager(_parameters._uptimefeed);
+            nuAM = new nuAssetManager2(_parameters._uptimefeed);
         }
 
 

@@ -131,5 +131,6 @@ contract TokenErrorReporter {
     error ReduceReservesCashValidation();
 
     error SetInterestRateModelOwnerCheck();
+    error SetBorrowRateMaxMantissaOwnerCheck();
     error SetInterestRateModelFreshCheck();
 }

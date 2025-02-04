@@ -68,10 +68,12 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _amountReceived
     );
 
+    // sherlock issue 41
+    // CF warning can be bypassed
     modifier notInWarningCF() {
+        _;
         uint currentCF = vaultManager.getGlobalCF();
         require(currentCF > vaultManager.getWarningCF(), "minting forbidden");
-        _;
     }
 
     constructor(
@@ -449,7 +451,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
         (uint scaleSynthBurn, , , ) = vaultManager.getSynthScaling();
         // apply scale
-        costWithoutFee = (costWithoutFee * scaleSynthBurn) / BASE_1000;
+        costWithoutFee = (costWithoutFee * scaleSynthBurn) / BASE_SCALE;
         // burn fee
         uint256 amountToBurn = computeFeeAmountIn(
             costWithoutFee,
@@ -493,7 +495,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 nuAssetIn = oracle.ethToNuAssetRoundUp(_nuAsset, ethAmount);
         (uint scaleSynthBurn, , , ) = vaultManager.getSynthScaling();
         // apply scale
-        nuAssetIn = (nuAssetIn * BASE_1000) / scaleSynthBurn;
+        nuAssetIn = (nuAssetIn * BASE_SCALE) / scaleSynthBurn;
 
         return (nuAssetIn, amountWithFee - _numaAmount);
     }
