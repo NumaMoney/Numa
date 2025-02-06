@@ -14,10 +14,11 @@ import "../interfaces/INumaVault.sol";
 
 import "./NumaMinter.sol";
 import "../lending/CNumaToken.sol";
-
+import "../lending/NumaComptroller.sol";
 import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "../utils/constants.sol";
 
+import "forge-std/console2.sol";
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -996,6 +997,18 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                     criticalScaleForNumaPriceAndSellFee
                 );
             uint minAmount = minBorrowAmountAllowPartialLiquidationNuma;
+
+            // sherlock issue xxx enable partial liquidations if LTV > X
+            NumaComptroller comptroller = NumaComptroller(address(cNuma.comptroller()));
+            (,,,,uint ltv) = comptroller.getAccountLiquidityIsolate(_borrower, cLstToken,cNuma);
+            console2.log("************ltv************",ltv);
+
+            if (ltv > 1.05 ether)//105% todo param
+            {
+                minAmount = 0;// enable partial
+
+            }
+
             if (borrowAmount < minAmount) minAmount = borrowAmount;
             require(numaAmount >= minAmount, "min liquidation");
         }

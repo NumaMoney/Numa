@@ -581,7 +581,8 @@ contract NumaComptroller is
             Error err,
             ,
             uint shortfall,
-            uint badDebt
+            uint badDebt,
+
         ) = getAccountLiquidityIsolateInternal(
                 borrower,
                 CNumaToken(cTokenCollateral),
@@ -649,7 +650,8 @@ contract NumaComptroller is
             Error err,
             ,
             uint shortfall,
-            uint badDebt
+            uint badDebt,
+
         ) = getAccountLiquidityIsolateInternal(
                 borrower,
                 CNumaToken(cTokenCollateral),
@@ -869,14 +871,15 @@ contract NumaComptroller is
         address account,
         CNumaToken collateral,
         CNumaToken borrow
-    ) public view returns (uint, uint, uint, uint) {
+    ) public view returns (uint, uint, uint, uint,uint) {
         (
             Error err,
             uint liquidity,
             uint shortfall,
-            uint badDebt
+            uint badDebt,
+            uint ltv
         ) = getAccountLiquidityIsolateInternal(account, collateral, borrow);
-        return (uint(err), liquidity, shortfall, badDebt);
+        return (uint(err), liquidity, shortfall, badDebt,ltv);
     }
 
     function getAccountLTVIsolate(
@@ -902,7 +905,7 @@ contract NumaComptroller is
         address account,
         CNumaToken collateral,
         CNumaToken borrow
-    ) internal view returns (Error, uint, uint, uint) {
+    ) internal view returns (Error, uint, uint, uint,uint) {
         AccountLiquidityLocalVars memory vars; // Holds all our calculation results
         uint oErr;
 
@@ -917,7 +920,7 @@ contract NumaComptroller is
         ) = collateral.getAccountSnapshot(account);
         if (oErr != 0) {
             // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
-            return (Error.SNAPSHOT_ERROR, 0, 0, 0);
+            return (Error.SNAPSHOT_ERROR, 0, 0, 0,0);
         }
         vars.collateralFactor = Exp({
             mantissa: markets[address(collateral)].collateralFactorMantissa
@@ -928,7 +931,7 @@ contract NumaComptroller is
         vars.oraclePriceMantissaCollateral = oracle
             .getUnderlyingPriceAsCollateral(collateral);
         if (vars.oraclePriceMantissaCollateral == 0) {
-            return (Error.PRICE_ERROR, 0, 0, 0);
+            return (Error.PRICE_ERROR, 0, 0, 0,0);
         }
         vars.oraclePriceCollateral = Exp({
             mantissa: vars.oraclePriceMantissaCollateral
@@ -967,7 +970,7 @@ contract NumaComptroller is
         ) = borrow.getAccountSnapshot(account);
         if (oErr != 0) {
             // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
-            return (Error.SNAPSHOT_ERROR, 0, 0, 0);
+            return (Error.SNAPSHOT_ERROR, 0, 0, 0,0);
         }
         // Get the normalized price of the asset
         vars.oraclePriceMantissaBorrowed = oracle.getUnderlyingPriceAsBorrowed(
@@ -975,7 +978,7 @@ contract NumaComptroller is
         );
 
         if (vars.oraclePriceMantissaBorrowed == 0) {
-            return (Error.PRICE_ERROR, 0, 0, 0);
+            return (Error.PRICE_ERROR, 0, 0, 0,0);
         }
         //vars.oraclePriceCollateral = Exp({mantissa: vars.oraclePriceMantissaCollateral});
         vars.oraclePriceBorrowed = Exp({
@@ -990,13 +993,18 @@ contract NumaComptroller is
             vars.sumBorrowPlusEffects
         );
 
+        uint ltv;
+        if (vars.sumCollateral > 0)
+            ltv = (vars.sumBorrowPlusEffects * 1 ether) / vars.sumCollateral;
+
         // These are safe, as the underflow condition is checked first
         if (vars.sumCollateral > vars.sumBorrowPlusEffects) {
             return (
                 Error.NO_ERROR,
                 vars.sumCollateral - vars.sumBorrowPlusEffects,
                 0,
-                0
+                0,
+                ltv
             );
         } else {
             if (
@@ -1006,7 +1014,8 @@ contract NumaComptroller is
                     Error.NO_ERROR,
                     0,
                     vars.sumBorrowPlusEffects - vars.sumCollateral,
-                    0
+                    0,
+                    ltv
                 );
             // returning bad debt
             else
@@ -1015,7 +1024,8 @@ contract NumaComptroller is
                     0,
                     vars.sumBorrowPlusEffects - vars.sumCollateral,
                     vars.sumBorrowPlusEffects -
-                        vars.sumCollateralNoCollateralFactor
+                        vars.sumCollateralNoCollateralFactor,
+                        ltv
                 );
         }
     }
@@ -1114,7 +1124,7 @@ contract NumaComptroller is
 
         return (
             Error.NO_ERROR,
-            (vars.sumBorrowPlusEffects * 1000) / vars.sumCollateral
+            (vars.sumBorrowPlusEffects * 1 ether) / vars.sumCollateral
         );
     }
 
