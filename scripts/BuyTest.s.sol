@@ -26,11 +26,18 @@ contract BuySepolia is Script {
         uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
         vm.startBroadcast(deployerPrivateKey);
 
-       
-        NumaVault vault = NumaVault(0xe494468dA7938039B858f260B01CA268ab024C9a);
-        ERC20 lst = ERC20(lstAddress);
-        lst.approve(address(vault),1000000 ether);
-        vault.buy(1 ether,0,msg.sender);
-        vm.stopBroadcast();
+        // Buy test  
+        // NumaVault vault = NumaVault(0xe494468dA7938039B858f260B01CA268ab024C9a);
+        // ERC20 lst = ERC20(lstAddress);
+        // lst.approve(address(vault),1000000 ether);
+        // vault.buy(1 ether,0,msg.sender);
+        // vm.stopBroadcast();
+
+        // // Leverage test
+        // vm.startPrank(0xB0D3221A1844950b74C4ac7af1fF934182E2c67d);
+        // CNumaToken clst = CNumaToken(0x035e59E8124B2E77B621207D2343e0d0101E0437);
+        // CNumaToken cnuma = CNumaToken(0xBc5117cbe75CBB64D78aF8dA55caAd69D97D7987);
+        // clst.leverageStrategy(10000000000000000000,	1000000000000000000,0xBc5117cbe75CBB64D78aF8dA55caAd69D97D7987);
+
     }
 }
