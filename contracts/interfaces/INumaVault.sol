@@ -18,4 +18,5 @@ interface INumaVault {
     function updateVault() external;
     function getcNumaAddress() external view returns (address);
     function getcLstAddress() external view returns (address);
+    function getMinBorrowAmountAllowPartialLiquidation(address) external view returns (uint);
 }

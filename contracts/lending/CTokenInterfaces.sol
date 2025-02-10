@@ -347,7 +347,7 @@ abstract contract CErc20Interface is CErc20Storage {
         address borrower,
         uint repayAmount,
         CTokenInterface cTokenCollateral
-    ) external virtual returns (uint);
+    ) external virtual returns (uint,uint);
     function liquidateBadDebt(
         address borrower,
         uint repayAmount,

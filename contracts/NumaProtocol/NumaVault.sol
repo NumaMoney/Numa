@@ -18,7 +18,7 @@ import "../lending/NumaComptroller.sol";
 import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "../utils/constants.sol";
 
-import "forge-std/console2.sol";
+
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -173,12 +173,45 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     }
 
     /**
-     * @dev minimum reth borrow balance needed to allow partial liquidations
+     * @dev minimum lst borrow balance needed to allow partial liquidations
      */
     function setMinBorrowAmountAllowPartialLiquidation(
         uint _minBorrowAmountAllowPartialLiquidation
     ) external onlyOwner {
         minBorrowAmountAllowPartialLiquidation = _minBorrowAmountAllowPartialLiquidation;
+    }
+
+    /**
+     * @dev minimum borrow balance needed to allow partial liquidations in numa or in lst
+     */
+    function getMinBorrowAmountAllowPartialLiquidation(address _cBorrowToken) external view returns (uint) {
+        if (_cBorrowToken == address(cNuma) )
+        {
+            // numa borrower
+            // min amount in numa
+            (
+            ,
+            ,
+            uint criticalScaleForNumaPriceAndSellFee,
+            ) = vaultManager.getSynthScaling();
+
+            uint minBorrowAmountAllowPartialLiquidationNuma = vaultManager
+                .tokenToNuma(
+                    minBorrowAmountAllowPartialLiquidation,
+                    last_lsttokenvalueWei,
+                    decimals,
+                    criticalScaleForNumaPriceAndSellFee
+                );
+            return minBorrowAmountAllowPartialLiquidationNuma;
+
+        }
+        else
+        {
+            return minBorrowAmountAllowPartialLiquidation;
+
+        }
+
+
     }
 
     /**
@@ -986,32 +1019,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         // AUDITV2FIX: handle max liquidations
         if (_numaAmount == type(uint256).max) {
             numaAmount = borrowAmount;
-        } else {
-            // min liquidation amount
-            // convert minimum amount for partial liquidations in numa
-            uint minBorrowAmountAllowPartialLiquidationNuma = vaultManager
-                .tokenToNuma(
-                    minBorrowAmountAllowPartialLiquidation,
-                    last_lsttokenvalueWei,
-                    decimals,
-                    criticalScaleForNumaPriceAndSellFee
-                );
-            uint minAmount = minBorrowAmountAllowPartialLiquidationNuma;
-
-            // sherlock issue xxx enable partial liquidations if LTV > X
-            NumaComptroller comptroller = NumaComptroller(address(cNuma.comptroller()));
-            (,,,,uint ltv) = comptroller.getAccountLiquidityIsolate(_borrower, cLstToken,cNuma);
-            console2.log("************ltv************",ltv);
-
-            if (ltv > 1.05 ether)//105% todo param
-            {
-                minAmount = 0;// enable partial
-
-            }
-
-            if (borrowAmount < minAmount) minAmount = borrowAmount;
-            require(numaAmount >= minAmount, "min liquidation");
-        }
+        } 
 
         if (_flashloan) {
             // mint
@@ -1028,7 +1036,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
         // liquidate
         numa.approve(address(cNuma), numaAmount);
-        cNuma.liquidateBorrow(
+        (,uint badDebt) = cNuma.liquidateBorrow(
             _borrower,
             numaAmount,
             CTokenInterface(address(cLstToken))
@@ -1066,7 +1074,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             );
 
             // cap profit
-            if (numaLiquidatorProfit > maxNumaProfitForLiquidations)
+            // sherlock 101 153 
+            // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
+            // should not be capped 
+            if ((badDebt ==  0) && (numaLiquidatorProfit > maxNumaProfitForLiquidations))
                 numaLiquidatorProfit = maxNumaProfitForLiquidations;
 
             uint numaToSend = numaLiquidatorProfit;
@@ -1099,8 +1110,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 lstLiquidatorProfit = receivedlst - lstProvidedEstimate;
             }
 
+
+            // cap profit
+            // sherlock 101 153 
+            // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
+            // should not be capped 
             uint vaultProfit;
-            if (lstLiquidatorProfit > maxLstProfitForLiquidations) {
+            if ((badDebt == 0) && (lstLiquidatorProfit > maxLstProfitForLiquidations)) {
                 vaultProfit = lstLiquidatorProfit - maxLstProfitForLiquidations;
             }
 
@@ -1145,10 +1161,6 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             lstAmount = borrowAmount;
         }
 
-        uint minAmount = minBorrowAmountAllowPartialLiquidation;
-        if (borrowAmount < minAmount) minAmount = borrowAmount;
-
-        require(lstAmount >= minAmount, "min liquidation");
 
         uint criticalScaleForNumaPriceAndSellFee = startLiquidation();
 
@@ -1164,7 +1176,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
         // liquidate
         IERC20(lstToken).approve(address(cLstToken), lstAmount);
-        cLstToken.liquidateBorrow(
+        (,uint badDebt) = cLstToken.liquidateBorrow(
             _borrower,
             lstAmount,
             CTokenInterface(address(cNuma))
@@ -1189,7 +1201,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             uint lstLiquidatorProfit = lstReceived - lstAmount;
 
             // cap profit
-            if (lstLiquidatorProfit > maxLstProfitForLiquidations)
+            // sherlock 101 153 
+            // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
+            // should not be capped
+            if ((badDebt == 0) && (lstLiquidatorProfit > maxLstProfitForLiquidations))
                 lstLiquidatorProfit = maxLstProfitForLiquidations;
 
             uint lstToSend = lstLiquidatorProfit;
@@ -1221,7 +1236,11 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             }
 
             uint vaultProfit;
-            if (numaLiquidatorProfit > maxNumaProfitForLiquidations) {
+            // cap profit
+            // sherlock 101 153 
+            // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
+            // should not be capped
+            if ((badDebt == 0) && (numaLiquidatorProfit > maxNumaProfitForLiquidations)) {
                 vaultProfit =
                     numaLiquidatorProfit -
                     maxNumaProfitForLiquidations;

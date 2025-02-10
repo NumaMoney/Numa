@@ -232,6 +232,7 @@ contract DeployLending is Script {
         // 100% liquidation close factor
         comptroller._setCloseFactor(closeFactor);
         comptroller._setLiquidationIncentive(liquidationIncentive);
+        comptroller._setLtvThresholds(0.98 ether,1.1 ether);
         vault.setMaxLiquidationsProfit(maxLiquidationProfit);
 
         // strategies

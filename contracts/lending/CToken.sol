@@ -7,7 +7,6 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
-import "forge-std/console2.sol";
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -646,7 +645,7 @@ abstract contract CToken is
             redeemer,
             redeemTokens
         );
-        console2.log("redeem?",allowed);
+
         if (allowed != 0) {
             revert RedeemComptrollerRejection(allowed);
         }
@@ -897,12 +896,13 @@ abstract contract CToken is
      * @param borrower The borrower of this cToken to be liquidated
      * @param cTokenCollateral The market in which to seize collateral from the borrower
      * @param repayAmount The amount of the underlying borrowed asset to repay
+     * @return badDebt the amount of baddebt the position had
      */
     function liquidateBorrowInternal(
         address borrower,
         uint repayAmount,
         CTokenInterface cTokenCollateral
-    ) internal nonReentrant {
+    ) internal nonReentrant returns (uint){
         accrueInterest();
 
         uint error = cTokenCollateral.accrueInterest();
@@ -912,7 +912,7 @@ abstract contract CToken is
         }
 
         // liquidateBorrowFresh emits borrow-specific logs on errors, so we don't need to
-        liquidateBorrowFresh(
+        return liquidateBorrowFresh(
             msg.sender,
             borrower,
             repayAmount,
@@ -950,18 +950,18 @@ abstract contract CToken is
      * @param liquidator The address repaying the borrow and seizing collateral
      * @param cTokenCollateral The market in which to seize collateral from the borrower
      * @param repayAmount The amount of the underlying borrowed asset to repay
+     * @return badDebt the amount of baddebt the position had
      */
     function liquidateBorrowFresh(
         address liquidator,
         address borrower,
         uint repayAmount,
         CTokenInterface cTokenCollateral
-    ) internal {
+    ) internal returns (uint) {
         /* Fail if liquidate not allowed */
-        uint allowed = comptroller.liquidateBorrowAllowed(
+        (uint allowed,uint badDebt,uint restOfDebt) = comptroller.liquidateBorrowAllowed(
             address(this),
             address(cTokenCollateral),
-            liquidator,
             borrower,
             repayAmount
         );
@@ -1017,11 +1017,24 @@ abstract contract CToken is
             "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED"
         );
 
-        /* Revert if borrower collateral token balance < seizeTokens */
-        require(
-            cTokenCollateral.balanceOf(borrower) >= seizeTokens,
-            "LIQUIDATE_SEIZE_TOO_MUCH"
-        );
+
+
+        if (cTokenCollateral.balanceOf(borrower) < seizeTokens) {
+            // sherlock 101 153 
+            // not enough collateral to pay liquidator with incentives
+            // if we are not in bad debt territory, it will still be profitable to take all collateral
+            // but we do this only if it's a full liquidation, so that we don't become in bad debt after
+            if ((badDebt == 0) && (restOfDebt == 0)) {
+                // no bad debt
+                // full borrow balance liquidation
+                seizeTokens = cTokenCollateral.balanceOf(borrower);
+            }
+            else
+            {
+               revert("LIQUIDATE_SEIZE_TOO_MUCH") ;
+            }
+            
+        }
 
         // If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
         if (address(cTokenCollateral) == address(this)) {
@@ -1042,6 +1055,9 @@ abstract contract CToken is
             address(cTokenCollateral),
             seizeTokens
         );
+        // sherlock 101 153 returning bad debt so that vault can decide whether to clip
+        // profit or not
+        return badDebt;
     }
 
     function liquidateBadDebtFresh(
