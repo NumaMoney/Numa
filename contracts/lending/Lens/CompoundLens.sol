@@ -14,7 +14,7 @@ interface ComptrollerLensInterface {
         address,
         CToken,
         CToken
-    ) external view returns (uint, uint, uint, uint);
+    ) external view returns (uint, uint, uint, uint,uint);
     function getAssetsIn(address) external view returns (CToken[] memory);
     function borrowCaps(address) external view returns (uint);
 }
@@ -222,7 +222,8 @@ contract CompoundLens {
             uint errorCode,
             uint liquidity,
             uint shortfall,
-            uint badDebt
+            uint badDebt,
+            
         ) = comptroller.getAccountLiquidityIsolate(account, collateral, borrow);
         require(errorCode == 0);
 
