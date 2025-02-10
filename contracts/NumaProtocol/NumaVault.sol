@@ -889,11 +889,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     function startLiquidation()
         internal
-        returns (uint criticalScaleForNumaPriceAndSellFee)
+        returns (uint criticalScaleForNumaPriceAndSellFee, uint sell_fee)
     {
         (
             ,
             criticalScaleForNumaPriceAndSellFee,
+            sell_fee
 
         ) = updateVaultAndUpdateDebasing();
         // lock numa supply
@@ -1009,7 +1010,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             "invalid param"
         );
 
-        uint criticalScaleForNumaPriceAndSellFee = startLiquidation();
+        (uint criticalScaleForNumaPriceAndSellFee,) = startLiquidation();
 
         uint numaAmount = _numaAmount;
 
@@ -1072,6 +1073,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 decimals,
                 criticalScaleForNumaPriceAndSellFee
             );
+            // sherlock 86 42
+            // for numa borrow, numa <-> lst conversions should use buyPrice
+            maxNumaProfitForLiquidations = (maxNumaProfitForLiquidations * vaultManager.getBuyFee()) / 1 ether;
 
             // cap profit
             // sherlock 101 153 
@@ -1102,6 +1106,9 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 decimals,
                 criticalScaleForNumaPriceAndSellFee
             );
+            // sherlock 86 42
+            // for numa borrow, numa <-> lst conversions should use buyPrice
+            lstProvidedEstimate = (lstProvidedEstimate * 1 ether) / vaultManager.getBuyFee();
 
             uint lstLiquidatorProfit;
             // we don't revert if liquidation is not profitable because it might be profitable
@@ -1162,7 +1169,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         }
 
 
-        uint criticalScaleForNumaPriceAndSellFee = startLiquidation();
+        
+        (uint criticalScaleForNumaPriceAndSellFee,uint sellfee) = startLiquidation();
 
         if (!_flashloan) {
             // user supplied funds
@@ -1221,12 +1229,20 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
                 decimals,
                 criticalScaleForNumaPriceAndSellFee
             );
+            // sherlock 86 42
+            // for lst borrow, numa <-> lst conversions should use sellPrice        
+            numaProvidedEstimate = (numaProvidedEstimate * 1 ether) / sellfee;
+
             uint maxNumaProfitForLiquidations = vaultManager.tokenToNuma(
                 maxLstProfitForLiquidations,
                 last_lsttokenvalueWei,
                 decimals,
                 criticalScaleForNumaPriceAndSellFee
             );
+            // sherlock 86 42
+            // for lst borrow, numa <-> lst conversions should use sellPrice
+            maxNumaProfitForLiquidations = (maxNumaProfitForLiquidations * 1 ether) / sellfee;
+
 
             uint numaLiquidatorProfit;
             // we don't revert if liquidation is not profitable because it might be profitable
@@ -1349,5 +1365,15 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             extSize := extcodesize(addr) // returns 0 if EOA, >0 if smart contract
         }
         return (extSize > 0);
+    }
+
+
+    function borrowAllowed(address _ctokenAddress) external view returns (bool allowed)
+    {
+        allowed = true;
+        if (_ctokenAddress == address(cNuma)) 
+        {
+            allowed = vaultManager.numaBorrowAllowed();
+        }
     }
 }

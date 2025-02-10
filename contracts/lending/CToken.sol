@@ -7,6 +7,7 @@ import "./ErrorReporter.sol";
 import "./EIP20Interface.sol";
 import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
+
 /**
  * @title Compound's CToken Contract
  * @notice Abstract base for CTokens
@@ -85,6 +86,9 @@ abstract contract CToken is
         address dst,
         uint tokens
     ) internal returns (uint) {
+        // sherlock issue 168
+        // Before transferring CToken, the accrueInterest() function should be called first
+        accrueInterest();
         /* Fail if transfer not allowed */
         uint allowed = comptroller.transferAllowed(
             address(this),
@@ -556,6 +560,17 @@ abstract contract CToken is
          */
 
         uint mintTokens = div_(actualMintAmount, exchangeRate);
+
+
+        
+        // sherlock issue-253
+        // first depositor bug
+        if (totalSupply == 0) 
+        {
+            totalSupply = 1000;
+            accountTokens[address(0)] = 1000;
+            mintTokens -= 1000;
+        }
 
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
@@ -1558,6 +1573,22 @@ abstract contract CToken is
     }
 
     /**
+     * @notice change borrowRateMaxMantissa
+     * @dev needed because values should be adjustedbased on chain block time
+     * @param _borrowRateMaxMantissa the new value    
+     */
+    function _setBorrowRateMaxMantissa(
+        uint _borrowRateMaxMantissa
+    ) public override
+    {
+        if (msg.sender != admin) {
+            revert SetBorrowRateMaxMantissaOwnerCheck();
+        }
+        borrowRateMaxMantissa = _borrowRateMaxMantissa;
+    }
+
+
+        /**
      * @notice accrues interest and updates the interest rate model using _setInterestRateModelFresh
      * @dev Admin function to accrue interest and update the interest rate model
      * @param newInterestRateModel the new interest rate model to use
@@ -1570,6 +1601,7 @@ abstract contract CToken is
         // _setInterestRateModelFresh emits interest-rate-model-update-specific logs on errors, so we don't need to.
         return _setInterestRateModelFresh(newInterestRateModel);
     }
+
 
     /**
      * @notice updates the interest rate model (*requires fresh interest accrual)

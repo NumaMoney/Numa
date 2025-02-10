@@ -71,6 +71,10 @@ contract DeployLending is Script {
     // uint liquidationIncentive = 1.02 ether;
     // uint maxLiquidationProfit;
 
+    // 0.0005e16 for ethereum chain, should be 10 x less for arbitrum as blocktime is /10
+    //uint borrowRateMaxMantissaARBI = 0.0005e16;
+    uint borrowRateMaxMantissaARBI = 0.00005e16;
+
     // SEPOLIA
     address constant VAULT_ADMIN = 0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69;
     address constant NUMA_ADMIN = 0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69;
@@ -214,7 +218,9 @@ contract DeployLending is Script {
             address(vault)
         );
 
-
+        // arbitrum values
+        cReth._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI);
+        cNuma._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI);
 
         vault.setMaxBorrow(1000 ether);
         vault.setCTokens(address(cNuma), address(cReth));

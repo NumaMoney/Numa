@@ -141,9 +141,20 @@ contract CNumaToken is CErc20Immutable {
     function leverageStrategy(
         uint _suppliedAmount,
         uint _borrowAmount,
+        uint _maxBorrowAmount,
         CNumaToken _collateral,
         uint _strategyIndex
     ) external {
+
+        // Sherlock-issue 120
+        require(
+            (
+            ((address(this) == vault.getcLstAddress()) && (address(_collateral) == vault.getcNumaAddress()))
+            ||
+            ((address(this) == vault.getcNumaAddress()) && (address(_collateral) == vault.getcLstAddress()))
+            )
+             , "invalid collateral");
+
         // AUDITV2FIX if we don't do that, borrow balance might change when calling borrowinternal
         accrueInterest();
         _collateral.accrueInterest();
@@ -179,24 +190,30 @@ contract CNumaToken is CErc20Immutable {
         );
 
         // send collateral to sender
-        uint receivedtokens = balCtokenAfter - balCtokenBefore;
-        require(receivedtokens > 0, "no collateral");
+        //uint receivedtokens = balCtokenAfter - balCtokenBefore;
+        require((balCtokenAfter - balCtokenBefore) > 0, "no collateral");
 
         // transfer collateral to sender
         SafeERC20.safeTransfer(
             IERC20(address(_collateral)),
             msg.sender,
-            receivedtokens
+            (balCtokenAfter - balCtokenBefore)
         );
 
         // how much to we need to borrow to repay vault
         uint borrowAmount = strat.getAmountIn(_borrowAmount, false);
-        //
+        
+        // sherlock issue-182
+        require(borrowAmount <= _maxBorrowAmount); 
 
-        uint accountBorrowBefore = accountBorrows[msg.sender].principal;
+        // Sherlock-issue 120
+        //uint accountBorrowBefore = accountBorrows[msg.sender].principal;  
+        uint accountBorrowBefore = borrowBalanceStored(msg.sender);  
+
         // borrow but do not transfer borrowed tokens
         borrowInternalNoTransfer(borrowAmount, msg.sender);
-        //uint accountBorrowAfter = accountBorrows[msg.sender].principal;
+
+        //     
         require(
             (accountBorrows[msg.sender].principal - accountBorrowBefore) ==
                 borrowAmount,
@@ -263,6 +280,7 @@ contract CNumaToken is CErc20Immutable {
     function closeLeverageStrategy(
         CNumaToken _collateral,
         uint _borrowtorepay,
+        uint _minRedeemedAmount,
         uint _strategyIndex
     ) external {
         // AUDITV2FIX
@@ -275,8 +293,7 @@ contract CNumaToken is CErc20Immutable {
         address underlyingCollateral = _collateral.underlying();
         // get borrowed amount
         uint borrowAmountFull = borrowBalanceStored(msg.sender);
-        require(borrowAmountFull >= _borrowtorepay, "no borrow");
-
+    
         // clip to borrowed amount
         if (_borrowtorepay > borrowAmountFull)
             _borrowtorepay = borrowAmountFull;
@@ -293,6 +310,8 @@ contract CNumaToken is CErc20Immutable {
             _borrowtorepay,
             _strategyIndex
         );
+        // sherlock issue-182
+        require(swapAmountIn >= _minRedeemedAmount); 
 
         SafeERC20.safeTransferFrom(
             IERC20(address(_collateral)),
@@ -376,4 +395,69 @@ contract CNumaToken is CErc20Immutable {
         );
         return NO_ERROR;
     }
+
+
+     /**
+     * @notice Users borrow assets from the protocol to their own address
+     * @param borrowAmount The amount of the underlying asset to borrow
+     */
+    function borrowFreshNoTransfer(
+        address payable borrower,
+        uint borrowAmount
+    ) internal virtual override {
+        /* Fail if borrow not allowed */
+        uint allowed = comptroller.borrowAllowed(
+            address(this),
+            borrower,
+            borrowAmount
+        );
+        if (allowed != 0) {
+            revert BorrowComptrollerRejection(allowed);
+        }
+
+        // check if vault allows borrows 
+        // borrowing numa is not allowed when CF < CF_SEVERE
+        // only needed for numa borrows (lst borrows will go through CNumaLst::borrowFreshNoTransfer)
+        if (address(vault) != address(0)) {
+            if (!vault.borrowAllowed(address(this)))
+            {
+                revert BorrowNotAllowed();
+            }
+        }
+
+
+        /* Verify market's block number equals current block number */
+        if (accrualBlockNumber != getBlockNumber()) {
+            revert BorrowFreshnessCheck();
+        }
+
+        /* Fail gracefully if protocol has insufficient underlying cash */
+        if (getCashPrior() < borrowAmount) {
+            revert BorrowCashNotAvailable();
+        }
+
+        /*
+         * We calculate the new borrower and total borrow balances, failing on overflow:
+         *  accountBorrowNew = accountBorrow + borrowAmount
+         *  totalBorrowsNew = totalBorrows + borrowAmount
+         */
+        uint accountBorrowsPrev = borrowBalanceStoredInternal(borrower);
+        uint accountBorrowsNew = accountBorrowsPrev + borrowAmount;
+        uint totalBorrowsNew = totalBorrows + borrowAmount;
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        /*
+         * We write the previously calculated values into storage.
+         *  Note: Avoid token reentrancy attacks by writing increased borrow before external transfer.
+        `*/
+        accountBorrows[borrower].principal = accountBorrowsNew;
+        accountBorrows[borrower].interestIndex = borrowIndex;
+        totalBorrows = totalBorrowsNew;
+
+        /* We emit a Borrow event */
+        emit Borrow(borrower, borrowAmount, accountBorrowsNew, totalBorrowsNew);
+    }  
 }

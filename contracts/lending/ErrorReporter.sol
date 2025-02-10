@@ -96,6 +96,8 @@ contract TokenErrorReporter {
     error BorrowFreshnessCheck();
     error BorrowCashNotAvailable();
 
+    error BorrowNotAllowed();
+
     error RepayBorrowComptrollerRejection(uint256 errorCode);
     error RepayBorrowFreshnessCheck();
 
@@ -129,5 +131,6 @@ contract TokenErrorReporter {
     error ReduceReservesCashValidation();
 
     error SetInterestRateModelOwnerCheck();
+    error SetBorrowRateMaxMantissaOwnerCheck();
     error SetInterestRateModelFreshCheck();
 }

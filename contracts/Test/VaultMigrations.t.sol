@@ -19,7 +19,7 @@ import "forge-std/console2.sol";
 import {Setup} from "./utils/Setup_ArbitrumFork.sol";
 import "../lending/ExponentialNoError.sol";
 import "../interfaces/IVaultManager.sol";
-import {nuAssetManager} from "./../nuAssets/nuAssetManager.sol";
+import {nuAssetManager2} from "./../nuAssets/nuAssetManager2.sol";
 import {NumaMinter} from "./../NumaProtocol/NumaMinter.sol";
 import {VaultOracleSingle} from "./../NumaProtocol/VaultOracleSingle.sol";
 import {VaultManager} from "./../NumaProtocol/VaultManager.sol";
@@ -39,7 +39,7 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
     // uint sellResult;
 
     //
-    nuAssetManager nuAssetMgr2;
+    nuAssetManager2 nuAssetMgr2;
     NumaMinter numaMinter2;
     VaultOracleSingle vaultOracle2;
     VaultManager vaultManager2;
