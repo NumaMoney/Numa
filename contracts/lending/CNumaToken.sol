@@ -365,17 +365,18 @@ contract CNumaToken is CErc20Immutable {
      * @param borrower The borrower of this cToken to be liquidated
      * @param repayAmount The amount of the underlying borrowed asset to repay
      * @param cTokenCollateral The market in which to seize collateral from the borrower
-     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
-     */
+     * @return (uint error, uint badDebt) The error code and amount of bad debt */
     function liquidateBorrow(
         address borrower,
         uint repayAmount,
         CTokenInterface cTokenCollateral
-    ) external override returns (uint) {
+    ) external override returns (uint,uint) {
         // only vault can liquidate
         require(msg.sender == address(vault), "vault only");
-        liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
-        return NO_ERROR;
+        // sherlock 101 153 returning bad debt so that vault can decide whether to clip
+        // profit or not
+        uint badDebt = liquidateBorrowInternal(borrower, repayAmount, cTokenCollateral);
+        return (NO_ERROR,badDebt);
     }
 
     function liquidateBadDebt(

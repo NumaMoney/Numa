@@ -19,5 +19,7 @@ interface INumaVault {
     function getcNumaAddress() external view returns (address);
     function getcLstAddress() external view returns (address);
 
+    function getMinBorrowAmountAllowPartialLiquidation(address) external view returns (uint);
     function borrowAllowed(address _ctokenAddress) external returns (bool);
+
 }
