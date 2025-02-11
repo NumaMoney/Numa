@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 import {Setup} from "./utils/SetupDeployNuma_Arbitrum.sol";
 import "../lending/ExponentialNoError.sol";
 import "../interfaces/IVaultManager.sol";
-
+import "../utils/constants.sol";
 contract VaultBuySellFeeTest is Setup, ExponentialNoError {
     uint buy_fee_PID;
     function setUp() public virtual override {
@@ -682,10 +682,24 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         uint globalCF = vaultManager.getGlobalCF();
         assertGt(globalCF, vaultManager.cf_critical());
      
-        vm.prank(deployer);
+        vm.startPrank(deployer);
         numa.approve(address(moneyPrinter), 10000000 ether);
-        //     function mintAssetOutputFromNuma(
-        vm.prank(deployer);
+
+        // change warning cf so that we can mint enough
+        uint warningCF = vaultManager.cf_warning();
+        vaultManager.setScalingParameters(
+            vaultManager.cf_critical(),
+            0,
+            vaultManager.cf_severe(),
+            vaultManager.debaseValue(),
+            vaultManager.rebaseValue(),
+            1 hours,
+            2 hours,
+            vaultManager.minimumScale(),
+            vaultManager.criticalDebaseMult()
+        );
+        
+      
         moneyPrinter.mintAssetOutputFromNuma(
             address(nuUSD),
             4500000 ether,
@@ -701,7 +715,7 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             1200,
-            vaultManager.cf_warning(),
+            warningCF,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -711,12 +725,14 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
             vaultManager.criticalDebaseMult()
         );
 
-        uint criticalScaleForNumaPriceAndSellFee = (1000 * globalCF2) /
+        uint criticalScaleForNumaPriceAndSellFee = (BASE_SCALE * globalCF2) /
             vaultManager.cf_critical();
        
+         console2.log("criticalScaleForNumaPriceAndSellFee TEST", criticalScaleForNumaPriceAndSellFee);
 
-        uint sell_fee_increaseCriticalCF = ((1000 -
-            criticalScaleForNumaPriceAndSellFee) * 1 ether) / 1000;
+
+        uint sell_fee_increaseCriticalCF = ((BASE_SCALE -
+            criticalScaleForNumaPriceAndSellFee) * 1 ether) / BASE_SCALE;
         // add a multiplier on top
         sell_fee_increaseCriticalCF =
             (sell_fee_increaseCriticalCF *
@@ -733,8 +749,9 @@ contract VaultBuySellFeeTest is Setup, ExponentialNoError {
         if (sell_fee_criticalCF < vaultManager.sell_fee_minimum_critical())
             sell_fee_criticalCF = vaultManager.sell_fee_minimum_critical();
         (sell_feePID, , ) = vaultManager.getSellFeeScaling();
-     
+        console2.log("sell_fee_criticalCF", sell_fee_criticalCF);
+        console2.log("sell_feePID", sell_feePID);
 
-        assertEq(sell_feePID, sell_fee_criticalCF);
+        assertEq(sell_feePID, sell_fee_criticalCF,"sell fee critical");
     }
 }

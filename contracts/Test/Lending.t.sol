@@ -1920,14 +1920,15 @@ contract LendingTest is Setup, ExponentialNoError {
         // vm.roll(block.number + blocksPerYear/4);
         // cNuma.accrueInterest();
         vm.startPrank(deployer);
-        vaultManager.setBuyFee(0.85 ether);
+        vaultManager.setBuyFee(0.8 ether);
         comptroller._setLtvThresholds(0.98 ether,1.05 ether);
         vault.setMinBorrowAmountAllowPartialLiquidation(1000000000 ether);
-        (, uint liquidity, uint shortfall, uint badDebt,) = comptroller
+        (, uint liquidity, uint shortfall, uint badDebt,uint ltv) = comptroller
             .getAccountLiquidityIsolate(userA, cReth, cNuma);
-        console2.log(liquidity);
-        console2.log(shortfall);
-        console2.log(badDebt);
+        console2.log("liquidity",liquidity);
+        console2.log("shortfall",shortfall);
+        console2.log("badDebt",badDebt);
+        console2.log("ltv",ltv);
         // liquidate
 
         vm.startPrank(userC);
@@ -2024,7 +2025,8 @@ contract LendingTest is Setup, ExponentialNoError {
         // vm.expectRevert("borrow ko");    
         cNuma.leverageStrategy(    
             1 ether,    
-            4 ether,    
+            4 ether,  
+            5 ether,// max borrow  
             cReth,    
             0    
         );    

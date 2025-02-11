@@ -418,6 +418,7 @@ contract PrinterTest is Setup {
         uint globalCF = vaultManager.getGlobalCF();
 
         vm.startPrank(deployer);
+        uint warningCF = vaultManager.cf_warning();
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
             globalCF + 1,
@@ -429,6 +430,8 @@ contract PrinterTest is Setup {
             vaultManager.minimumScale(),
             vaultManager.criticalDebaseMult()
         );
+
+       
         vm.startPrank(userA);
         vm.expectRevert("minting forbidden");
         moneyPrinter.mintAssetFromNumaInput(
@@ -441,7 +444,7 @@ contract PrinterTest is Setup {
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            globalCF - 1,
+            warningCF,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -450,6 +453,7 @@ contract PrinterTest is Setup {
             vaultManager.minimumScale(),
             vaultManager.criticalDebaseMult()
         );
+       
         vm.startPrank(userA);
         // slippage test
         vm.expectRevert("min amount");
@@ -465,6 +469,7 @@ contract PrinterTest is Setup {
         vm.startPrank(deployer);
         moneyPrinter.pause();
         vm.stopPrank();
+     
         vm.startPrank(userA);
         vm.expectRevert(bytes4(0xd93c0665));
         moneyPrinter.mintAssetFromNumaInput(
@@ -483,6 +488,7 @@ contract PrinterTest is Setup {
         uint balnuUSD = nuUSD.balanceOf(userA);
         uint balnuma = numa.balanceOf(userA);
 
+  
         moneyPrinter.mintAssetFromNumaInput(
             address(nuUSD),
             numaAmount,
@@ -529,6 +535,7 @@ contract PrinterTest is Setup {
         uint globalCF = vaultManager.getGlobalCF();
 
         vm.startPrank(deployer);
+        uint warningCF = vaultManager.cf_warning();
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
             globalCF + 1,
@@ -552,7 +559,7 @@ contract PrinterTest is Setup {
         vm.startPrank(deployer);
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            globalCF - 1,
+            warningCF,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -1223,11 +1230,15 @@ contract PrinterTest is Setup {
  
     function forceSynthDebasing() public {
         uint globalCF = vaultManager.getGlobalCF();
-
+        console2.log("globalCF", globalCF);
         vm.startPrank(deployer);
+        // now we can not mint if after mint we become below warningCF.
+        // so I can not mint such that we become in cf_severe.
+        // simulate cf_severe can only be done by changing oracle prices
+        // or modifying cf_warning 
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            vaultManager.cf_warning(),
+            vaultManager.cf_warning() -1000,
             vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
@@ -1236,6 +1247,18 @@ contract PrinterTest is Setup {
             vaultManager.minimumScale(),
             vaultManager.criticalDebaseMult()
         );
+
+        // vaultManager.setScalingParameters(
+        //     vaultManager.cf_critical(),
+        //     vaultManager.cf_warning(),
+        //     vaultManager.cf_severe(),
+        //     vaultManager.debaseValue(),
+        //     vaultManager.rebaseValue(),
+        //     1 hours,
+        //     2 hours,
+        //     vaultManager.minimumScale(),
+        //     vaultManager.criticalDebaseMult()
+        // );
 
         numa.approve(address(moneyPrinter), 10000000 ether);
 
@@ -1263,7 +1286,20 @@ contract PrinterTest is Setup {
             uint scaleSynthBurn2,
             uint criticalScaleForNumaPriceAndSellFee2
         ) = vaultManager.getSynthScalingUpdate();
+
         assertEq(scaleSynthBurn2, BASE_SCALE - 0.2 ether);
+        // put it back
+          vaultManager.setScalingParameters(
+            vaultManager.cf_critical(),
+            vaultManager.cf_warning() + 1000,
+            vaultManager.cf_severe(),
+            vaultManager.debaseValue(),
+            vaultManager.rebaseValue(),
+            1 hours,
+            2 hours,
+            vaultManager.minimumScale(),
+            vaultManager.criticalDebaseMult()
+        );
     }
 
     function forceSynthDebasingCritical() public {
