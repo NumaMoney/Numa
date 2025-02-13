@@ -27,6 +27,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
     uint public constantRemovedSupply;
 
+    address public oftAdapter;
+
     bool public islockedSupply;
     uint public lockedSupply;
 
@@ -100,6 +102,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint public nextCheckBlockWindowDelta = 4 hours;
 
     //
+    event SetOFTAdapterAddress(address);
     event SetNuAssetManager(address nuAssetManager);
     event RemovedVault(address);
     event AddedVault(address);
@@ -152,9 +155,15 @@ contract VaultManager is IVaultManager, Ownable2Step {
         isDecaying = true;
     }
 
+
     function setMinimumNumaPriceEth(uint _minimumPriceEth) external onlyOwner {
         minNumaPriceEth = _minimumPriceEth;
         emit SetMinimumNumaPriceEth(_minimumPriceEth);
+    }
+
+    function setOftAdapterAddress(address _oftAdapterAddress) external onlyOwner {
+        oftAdapter = _oftAdapterAddress;
+        emit SetOFTAdapterAddress(_oftAdapterAddress);
     }
 
     function setConstantRemovedSupply(
@@ -847,7 +856,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
             circulatingNuma -
             currentRemovedSupply -
             currentLPRemovedSupply -
-            constantRemovedSupply;
+            constantRemovedSupply - 
+            numa.balanceOf(oftAdapter);// numa locked in adapter is removed as it's considered bridged
         return circulatingNuma;
     }
 
