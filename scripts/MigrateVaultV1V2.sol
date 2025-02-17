@@ -15,8 +15,6 @@ import {VaultManagerOld} from "../contracts/oldV1/VaultManagerOld.sol";
 import {NumaVaultOld} from "../contracts/oldV1/NumaVaultOld.sol";
 
 import {VaultMockOracle} from "../contracts/Test/mocks/VaultMockOracle.sol";
-import {FakeNuma} from "../contracts/Test/mocks/FakeNuma.sol";
-
 
 
 import {Script} from "forge-std/Script.sol";

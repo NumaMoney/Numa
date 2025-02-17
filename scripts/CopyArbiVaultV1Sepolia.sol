@@ -15,10 +15,10 @@ import {VaultManagerOld} from "../contracts/oldV1/VaultManagerOld.sol";
 import {NumaVaultOld} from "../contracts/oldV1/NumaVaultOld.sol";
 
 import {VaultMockOracle} from "../contracts/Test/mocks/VaultMockOracle.sol";
-//import {FakeNuma} from "../contracts/Test/mocks/FakeNuma.sol";
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import  "../contracts/Numa.sol";
+// //import {FakeNuma} from "../contracts/Test/mocks/FakeNuma.sol";
 
+import "../contracts/Deployment/ERC1967/ERC1967Proxy.sol";
+import  "../contracts/Numa.sol";
 
 import {Script} from "forge-std/Script.sol";
 import "forge-std/console2.sol";
@@ -49,9 +49,9 @@ contract CopySepolia is Script {
     uint decayPeriod = 31536000;
 
     // to be updated before call
-    uint vaultBalance = 630785542569605001191;
-    uint numaSupplyVM = 6682082258562412163649488;
-    uint numaSupply = 7695731573630905300000000;
+    uint vaultBalance = 642001000291504102858;
+    uint numaSupplyVM = 7187760823707127985275514;
+    uint numaSupply = 7787332741515347163357706;
   
     //
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
