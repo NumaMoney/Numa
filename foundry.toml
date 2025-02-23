@@ -1,7 +1,8 @@
 [profile.default]
+fs_permissions = [{ access = "read-write", path = "./"}]
 src = 'contracts'
 out = 'out'
-#viaIR = true
+viaIR = true
 libs = ['node_modules', 'lib']
 test = 'test'
 cache_path  = 'cache_forge'
@@ -11,7 +12,6 @@ optimizer_runs = 100
 
 [profile.lite.optimizer_details.yulDetails]
 optimizerSteps = ''
-
 
 [rpc_endpoints]
 sepolia = "${URL4}"

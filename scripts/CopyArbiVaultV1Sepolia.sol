@@ -49,10 +49,10 @@ contract CopySepolia is Script {
     uint decayPeriod = 31536000;
 
     // to be updated before call
-    uint vaultBalance = 642001000291504102858;
-    uint numaSupplyVM = 7187760823707127985275514;
-    uint numaSupply = 7787332741515347163357706;
-  
+    uint vaultBalance = 654964547268182262701;
+    uint numaSupplyVM = 7340315650182393309946644;
+    uint numaSupply = 7906601666164128469763996;
+
     //
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
@@ -69,14 +69,9 @@ contract CopySepolia is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
       
-        // vm.deal(deployer, 1000 ether);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        //numa = INuma(numa_address);
-
-        // numa = new FakeNuma(deployer, deployer, deployer); 
-        // numa.mint(deployer, numaSupply);
 
         // Deploy the implementation contract
         address implementation = address(new NUMA());

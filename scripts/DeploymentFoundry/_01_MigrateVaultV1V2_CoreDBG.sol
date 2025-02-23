@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
-import "../contracts/interfaces/INuma.sol";
+import "../../contracts/interfaces/INuma.sol";
 
-import "../contracts/deployment/utils.sol";
+import "../../contracts/deployment/utils.sol";
 import "@openzeppelin/contracts_5.0.2/token/ERC20/ERC20.sol";
-import {nuAssetManager2} from "../contracts/nuAssets/nuAssetManager2.sol";
-import {NumaMinter} from "../contracts/NumaProtocol/NumaMinter.sol";
-import {VaultOracleSingle} from "../contracts/NumaProtocol/VaultOracleSingle.sol";
-import {VaultManager} from "../contracts/NumaProtocol/VaultManager.sol";
-import {NumaVault} from "../contracts/NumaProtocol/NumaVault.sol";
+import {nuAssetManager2} from "../../contracts/nuAssets/nuAssetManager2.sol";
+import {NumaMinter} from "../../contracts/NumaProtocol/NumaMinter.sol";
+import {VaultOracleSingle} from "../../contracts/NumaProtocol/VaultOracleSingle.sol";
+import {VaultManager} from "../../contracts/NumaProtocol/VaultManager.sol";
+import {NumaVault} from "../../contracts/NumaProtocol/NumaVault.sol";
 
-import {nuAssetManagerOld} from "../contracts/oldV1/nuAssetManagerOld.sol";
-import {VaultManagerOld} from "../contracts/oldV1/VaultManagerOld.sol";
-import {NumaVaultOld} from "../contracts/oldV1/NumaVaultOld.sol";
+import {nuAssetManagerOld} from "../../contracts/oldV1/nuAssetManagerOld.sol";
+import {VaultManagerOld} from "../../contracts/oldV1/VaultManagerOld.sol";
+import {NumaVaultOld} from "../../contracts/oldV1/NumaVaultOld.sol";
 
-import {VaultMockOracle} from "../contracts/Test/mocks/VaultMockOracle.sol";
+import {VaultMockOracle} from "../../contracts/Test/mocks/VaultMockOracle.sol";
 
 
 import {Script} from "forge-std/Script.sol";
@@ -92,57 +92,11 @@ contract MigrateV1V2 is Script {
         uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
         vm.startBroadcast(deployerPrivateKey);
 
-        // Tokens
         numa = INuma(numa_address);
-        ERC20 rEth = ERC20(lstAddress);
+        numaMinter = NumaMinter(0x72643674D8898D29f13A43f2c0C89E946f948739);
+        // deployer needs to be numa_admin
+        numa.grantRole(MINTER_ROLE, address(numaMinter));
 
-        // ****************** DEPLOY nuAssetManager ************************
-        nuAssetMgr = new nuAssetManager2(uptime_feed);
-        
-        // ****************** DEPLOY numaMinter ************************
-        numaMinter = new NumaMinter();
-        numaMinter.setTokenAddress(address(numa));
-
-
-        
-        // ****************** DEPLOY vaultManager ************************
-        vaultManager = new VaultManager(address(numa), address(nuAssetMgr));
-
-
-
-        // ****************** DEPLOY vaultOracle ************************
-        if (isTestNet)
-        {
-            VaultMockOracle vaultOracleDeploy = new VaultMockOracle(lstAddress);
-            vaultOracle = VaultOracleSingle(address(vaultOracleDeploy));
-        }
-        else
-        {
-            vaultOracle = new VaultOracleSingle(lstAddress,price_feed,heartbeat,uptime_feed);
-        }
-
-        // ****************** DEPLOY vault ************************
-        vault = new NumaVault(
-            address(numa),
-            lstAddress,
-            1 ether,
-            address(vaultOracle),
-            address(numaMinter),
-            debt,
-            rwdFromDebt
-        );
-
-        // add vault as a numa minter
-        numaMinter.addToMinters(address(vault));
-        // link vault & vaultManager
-        vaultManager.addVault(address(vault));
-        vault.setVaultManager(address(vaultManager));
-        // set fee&rwd addresses
-        vault.setFeeAddress(feeReceiver, false);
-        vault.setRwdAddress(rwdReceiver, false);
-
-
-      
 
 
 
