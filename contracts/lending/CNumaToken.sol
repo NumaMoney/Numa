@@ -102,11 +102,6 @@ contract CNumaToken is CErc20Immutable {
         return (leverageStrategies.contains(_addy));
     }
 
-    // function borrowOnBehalf(uint borrowAmount,address payable borrower,address payable receiver) internal nonReentrant {
-    //     accrueInterest();
-    //     // borrowFresh emits borrow-specific logs on errors, so we don't need to
-    //     borrowFreshOnBehalf(borrower,receiver, borrowAmount);
-    // }
 
     function borrowInternalNoTransfer(
         uint borrowAmount,
