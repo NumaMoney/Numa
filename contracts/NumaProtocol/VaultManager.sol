@@ -851,13 +851,18 @@ contract VaultManager is IVaultManager, Ownable2Step {
                 }
             }
         }
+        uint numaLockedOFT = 0;
+        if (oftAdapter != address(0)) {
+            numaLockedOFT = numa.balanceOf(oftAdapter);
+        }
+
 
         circulatingNuma =
             circulatingNuma -
             currentRemovedSupply -
             currentLPRemovedSupply -
             constantRemovedSupply - 
-            numa.balanceOf(oftAdapter);// numa locked in adapter is removed as it's considered bridged
+            numaLockedOFT;// numa locked in adapter is removed as it's considered bridged
         return circulatingNuma;
     }
 
