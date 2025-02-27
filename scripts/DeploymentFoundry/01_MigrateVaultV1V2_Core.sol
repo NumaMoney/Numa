@@ -119,7 +119,7 @@ contract MigrateV1V2 is Script  {
 
 
         // deployer needs to be numa_admin
-        INuma(numa_address).grantRole(MINTER_ROLE, address(numaMinter));
+        //INuma(numa_address).grantRole(MINTER_ROLE, address(numaMinter));
 
 
   

@@ -100,69 +100,69 @@ contract VaultTest is Setup, ExponentialNoError {
         );
     }
 
-    function test_GetPriceSimpleDecay() public {
-        uint inputreth = 2 ether;
-        uint inputnuma = 1000 ether;
+    // function test_GetPriceSimpleDecay() public {
+    //     uint inputreth = 2 ether;
+    //     uint inputnuma = 1000 ether;
 
-        // decay not started
-        uint removedSupply = 4000000 ether;
+    //     // decay not started
+    //     uint removedSupply = 4000000 ether;
 
-        vm.prank(deployer);
-        vaultManager.setDecayValues(removedSupply, 400 * 24 * 3600, 0, 0, 0);
+    //     vm.prank(deployer);
+    //     vaultManager.setDecayValues(removedSupply, 400 * 24 * 3600, 0, 0, 0);
 
-        // DECAY NOT STARTED
-        checkPrices(
-            inputreth,
-            inputnuma,
-            numa.totalSupply() - removedSupply,
-            (rEth.balanceOf(address(vault)) * vault.last_lsttokenvalueWei()) /
-                1 ether
-        );
+    //     // DECAY NOT STARTED
+    //     checkPrices(
+    //         inputreth,
+    //         inputnuma,
+    //         numa.totalSupply() - removedSupply,
+    //         (rEth.balanceOf(address(vault)) * vault.last_lsttokenvalueWei()) /
+    //             1 ether
+    //     );
 
-        // START DECAY
-        vm.prank(deployer);
-        vaultManager.startDecay();
+    //     // START DECAY
+    //     vm.prank(deployer);
+    //     vaultManager.startDecay();
 
-        vm.warp(block.timestamp + 300 * 24 * 3600);
+    //     vm.warp(block.timestamp + 300 * 24 * 3600);
 
-        uint decayedSupply = numaSupply - removedSupply / 4;
-        assertEq(decayedSupply, vaultManager.getNumaSupply());
+    //     uint decayedSupply = numaSupply - removedSupply / 4;
+    //     assertEq(decayedSupply, vaultManager.getNumaSupply());
 
-        checkPrices(
-            inputreth,
-            inputnuma,
-            decayedSupply,
-            (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether
-        );
+    //     checkPrices(
+    //         inputreth,
+    //         inputnuma,
+    //         decayedSupply,
+    //         (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether
+    //     );
 
-        // DECAY OVER
-        vm.warp(block.timestamp + 100 * 24 * 3600 + 1);
-        decayedSupply = numaSupply;
-        assertEq(decayedSupply, vaultManager.getNumaSupply());
+    //     // DECAY OVER
+    //     vm.warp(block.timestamp + 100 * 24 * 3600 + 1);
+    //     decayedSupply = numaSupply;
+    //     assertEq(decayedSupply, vaultManager.getNumaSupply());
 
-        checkPrices(
-            inputreth,
-            inputnuma,
-            decayedSupply,
-            (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether
-        );
+    //     checkPrices(
+    //         inputreth,
+    //         inputnuma,
+    //         decayedSupply,
+    //         (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether
+    //     );
 
-        // START NEW DECAY
-        vm.prank(deployer);
-        removedSupply = numaSupply / 2;
-        vaultManager.setDecayValues(removedSupply, 100 * 24 * 3600, 0, 0, 0);
-        vm.prank(deployer);
-        vaultManager.startDecay();
-        vm.warp(block.timestamp + 25 * 24 * 3600);
-        decayedSupply = numaSupply - (3 * removedSupply) / 4;
+    //     // START NEW DECAY
+    //     vm.prank(deployer);
+    //     removedSupply = numaSupply / 2;
+    //     vaultManager.setDecayValues(removedSupply, 100 * 24 * 3600, 0, 0, 0);
+    //     vm.prank(deployer);
+    //     vaultManager.startDecay();
+    //     vm.warp(block.timestamp + 25 * 24 * 3600);
+    //     decayedSupply = numaSupply - (3 * removedSupply) / 4;
 
-        checkPrices(
-            inputreth,
-            inputnuma,
-            decayedSupply,
-            (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether
-        );
-    }
+    //     checkPrices(
+    //         inputreth,
+    //         inputnuma,
+    //         decayedSupply,
+    //         (vaultBalance * vault.last_lsttokenvalueWei()) / 1 ether
+    //     );
+    // }
 
     function test_GetPriceConstantDecay() public {
         // TODO, & test 2nd decay too & test cancel decay?
@@ -418,28 +418,28 @@ contract VaultTest is Setup, ExponentialNoError {
             receivedREth + feesRwd
         );
     }
-    function test_BuySellDecay() public {
-        uint inputnuma = 1000 ether;
-        vm.prank(deployer);
-        uint removedSupply = numaSupply / 2;
-        vaultManager.setDecayValues(removedSupply, 100 * 24 * 3600, 0, 0, 0);
-        vm.prank(deployer);
-        vaultManager.startDecay();
-        vm.warp(block.timestamp + 25 * 24 * 3600);
-        uint decayedSupply = numaSupply - (3 * removedSupply) / 4;
+    // function test_BuySellDecay() public {
+    //     uint inputnuma = 1000 ether;
+    //     vm.prank(deployer);
+    //     uint removedSupply = numaSupply / 2;
+    //     vaultManager.setDecayValues(removedSupply, 100 * 24 * 3600, 0, 0, 0);
+    //     vm.prank(deployer);
+    //     vaultManager.startDecay();
+    //     vm.warp(block.timestamp + 25 * 24 * 3600);
+    //     uint decayedSupply = numaSupply - (3 * removedSupply) / 4;
 
-        assertLt(vaultManager.getNumaSupply(), numaSupply);
-        assertEq(vaultManager.getNumaSupply(), decayedSupply);
+    //     assertLt(vaultManager.getNumaSupply(), numaSupply);
+    //     assertEq(vaultManager.getNumaSupply(), decayedSupply);
 
-        uint rethAmount = vault.numaToLst(inputnuma);
+    //     uint rethAmount = vault.numaToLst(inputnuma);
 
-        uint balUserA = rEth.balanceOf(userA);
-        vm.startPrank(userA);
-        numa.approve(address(vault), inputnuma);
-        uint buyAmount = vault.sell(inputnuma, rethAmount, userA);
-        assertEq(buyAmount, rethAmount);
-        assertEq(rEth.balanceOf(userA) - balUserA, rethAmount);
-    }
+    //     uint balUserA = rEth.balanceOf(userA);
+    //     vm.startPrank(userA);
+    //     numa.approve(address(vault), inputnuma);
+    //     uint buyAmount = vault.sell(inputnuma, rethAmount, userA);
+    //     assertEq(buyAmount, rethAmount);
+    //     assertEq(rEth.balanceOf(userA) - balUserA, rethAmount);
+    // }
 
     function test_BuySellSynthSupply() public {
         uint inputreth = 2 ether;

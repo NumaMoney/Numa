@@ -160,14 +160,19 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
         uint newPeriod = vaultManagerOld.decayPeriod() -
             (block.timestamp - vaultManagerOld.startTime());
 
+        // vaultManager.setDecayValues(
+        //     diff / 2,
+        //     newPeriod,
+        //     diff / 2,
+        //     newPeriod,
+        //     vaultManagerOld.constantRemovedSupply() // same constant
+        // );
+        // vaultManager.startDecay();
+
         vaultManager.setDecayValues(
-            diff / 2,
-            newPeriod,
-            diff / 2,
-            newPeriod,
+
             vaultManagerOld.constantRemovedSupply() // same constant
         );
-        vaultManager.startDecay();
 
         // unpause
         vault.unpause();
@@ -231,17 +236,21 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
             vaultManager.constantRemovedSupply();
 
         // keep same period
-        uint newPeriod = vaultManager.decayPeriod() -
-            (block.timestamp - vaultManager.startTime());
+        // uint newPeriod = vaultManager.decayPeriod() -
+        //     (block.timestamp - vaultManager.startTime());
 
+        // vaultManager2.setDecayValues(
+        //     diff / 2,
+        //     newPeriod,
+        //     diff / 2,
+        //     newPeriod,
+        //     vaultManager.constantRemovedSupply() // same constant
+        // );
+        //vaultManager2.startDecay();
         vaultManager2.setDecayValues(
-            diff / 2,
-            newPeriod,
-            diff / 2,
-            newPeriod,
+            
             vaultManager.constantRemovedSupply() // same constant
         );
-        vaultManager2.startDecay();
 
         // check numa supply
         numaSupplyOld = vaultManager.getNumaSupply();

@@ -54,6 +54,8 @@ contract DeployLending is Script {
     uint256 liquidationIncentive;
     uint256 maxLiquidationProfit;
     uint256 borrowRateMaxMantissaARBI;
+    uint ltvMinBadDebtLiquidations;
+    uint ltvMinPartialLiquidations;
 
 
     // out
@@ -98,6 +100,10 @@ contract DeployLending is Script {
         liquidationIncentive = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".liquidationIncentive")));
         maxLiquidationProfit = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".maxLiquidationProfit")));
         borrowRateMaxMantissaARBI = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".borrowRateMaxMantissaARBI")));
+        ltvMinBadDebtLiquidations = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".ltvMinBadDebtLiquidations")));
+        ltvMinPartialLiquidations = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".ltvMinPartialLiquidations")));
+
+
 
 
         // current deployment config
@@ -190,10 +196,13 @@ contract DeployLending is Script {
         );
 
         // arbitrum values
-        cReth._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI);
+        // add a x10 for reth because due to variable interest rate model we can go high
+        cReth._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI*10);
         cNuma._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI);
 
-        vault.setMaxBorrow(1000 ether);
+        cReth._setReserveFactor(0.5 ether);
+
+
         vault.setCTokens(address(cNuma), address(cReth));
 
         // add markets (has to be done before _setcollateralFactor)
@@ -209,8 +218,12 @@ contract DeployLending is Script {
         // 100% liquidation close factor
         comptroller._setCloseFactor(closeFactor);
         comptroller._setLiquidationIncentive(liquidationIncentive);
-        comptroller._setLtvThresholds(0.98 ether,1.1 ether);
-        vault.setMaxLiquidationsProfit(maxLiquidationProfit);
+        //comptroller._setLtvThresholds(0.98 ether,1.1 ether);
+        comptroller._setLtvThresholds(ltvMinBadDebtLiquidations,ltvMinPartialLiquidations);
+
+
+
+
 
         // pause everything
         comptroller._setBorrowPaused(cNuma,true);

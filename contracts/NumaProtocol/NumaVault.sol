@@ -67,7 +67,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     // lending parameters
     uint public maxBorrow;
-    uint public cf_liquid_warning = 2000; // 200%
+    uint public cf_liquid_warning = 200; // 20%
     uint debt;
     uint public rewardsFromDebt;
     uint maxLstProfitForLiquidations;

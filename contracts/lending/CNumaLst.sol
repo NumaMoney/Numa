@@ -11,6 +11,9 @@ import "@openzeppelin/contracts_5.0.2/token/ERC20/utils/SafeERC20.sol";
  * @author
  */
 contract CNumaLst is CNumaToken {
+
+
+    bool public transferReservesToVault = false;
     constructor(
         address underlying_,
         ComptrollerInterface comptroller_,
@@ -37,6 +40,16 @@ contract CNumaLst is CNumaToken {
         )
     {}
 
+    function allowReservesTransferToVault(bool _allow) external {
+        require(
+            msg.sender == admin,
+            "only admin"
+            );
+        transferReservesToVault = _allow;
+    }
+
+
+     
     /**
      * @notice Returns the current per-block borrow interest rate for this cToken
      * @return The borrow interest rate per block, scaled by 1e18
@@ -254,6 +267,38 @@ contract CNumaLst is CNumaToken {
         emit Borrow(borrower, borrowAmount, accountBorrowsNew, totalBorrowsNew);
     }
 
+
+
+    function _reduceReservesToVault() internal returns (uint) {
+
+        // if (getcashprior > totalReserves) --> we can send totalReserves
+        // if (getcashprior < totalReserves) --> we can reduce from getcashprior
+        uint cashPrior = getCashPrior();
+        uint reduceAmount = totalReserves;
+        if (cashPrior < reduceAmount) {
+            reduceAmount = cashPrior;
+        }
+
+        // totalReserves - reduceAmount
+        uint totalReservesNew;
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        totalReservesNew = totalReserves - reduceAmount;
+
+        // Store reserves[n+1] = reserves[n] - reduceAmount
+        totalReserves = totalReservesNew;
+
+        // doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
+        doTransferOut(payable(address(vault)), reduceAmount);
+
+        emit ReservesReduced(address(vault), reduceAmount, totalReservesNew);
+
+        return NO_ERROR;
+    }
+
     /**
      * @notice Borrows are repaid by another user (possibly the borrower).
      * @param payer the account paying off the borrow
@@ -283,6 +328,8 @@ contract CNumaLst is CNumaToken {
             EIP20Interface(underlying).approve(address(vault), repayToVault);
             vault.repay(repayToVault);
         }
+        if (transferReservesToVault)
+            _reduceReservesToVault();
 
         return actualRepayAmount;
     }

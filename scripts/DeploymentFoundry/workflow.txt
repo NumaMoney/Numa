@@ -1,0 +1,75 @@
+0)
+
+
+interests for vault:
+    - test setreserves at 50% works
+    - add option for reserves transfer
+OK
+
+
+TODO: check config + update param drew
+OK
+
+1.66% to fix --> DONT FIX
+
+
+
+
+
+voir OFT si il faut le set ou pas
+
+semble OK
+
+
+
+test fork
+test sepolia if possible
+
+
+0) test fork & sepolia
+
+forge script --chain arbitrum .\scripts\DeploymentFoundry\01_MigrateVaultV1V2_Core.sol:MigrateV1V2 --rpc-url 127.0.0.1:8545 --broadcast -vv --verify
+--ledger
+
+check that everything is paused until the end
+
+0bis)
+
+review new code, review scripts & config
+review smartgit diffs
+
+run tests 
+
+1) deploy vault CONTRACTS 01 
+check contracts
+
+2) set parameters 02
+DONT transfer
+DONT unpause
+
+
+3) deploy lending 04 
+
+check contracts
+
+4) deploy DeployPrinter 05
+
+check contracts
+
+
+5) 
+
+
+- grantrole(minter) needs numa admin rights INuma(numa_address).grantRole(MINTER_ROLE, address(numaMinter));
+
+
+- transfer reth 03 needs vault01 admin rights
+
+check price
+
+- unpause vault
+
+- unpause lending borrow/mint
+
+6) 
+transfer ownership of each contract

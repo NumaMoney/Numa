@@ -54,8 +54,25 @@ contract MigrateV1V2 is Script {
         address vaultOldAddress = vm.parseJsonAddress(configData, string(abi.encodePacked(path, ".vaultOldAddress")));
         address vaultManagerOldAddress = vm.parseJsonAddress(configData, string(abi.encodePacked(path, ".vaultManagerOldAddress")));
 
+        uint buyfee = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".buy_fee")));
+        uint sellfee = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".sell_fee")));
+        uint16 fees = uint16(vm.parseJsonUint(configData, string(abi.encodePacked(path, ".fees"))));
+        uint16 maxFeePct = uint16(vm.parseJsonUint(configData, string(abi.encodePacked(path, ".maxFeePct"))));
+
+        uint maxBorrowVault = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".maxBorrowVault")));
+        uint maxLstProfitForLiquidations = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".maxLstProfitForLiquidations")));
+        uint minBorrowAmountAllowPartialLiquidation = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".minBorrowAmountAllowPartialLiquidation")));
+
+
+
+
+
+
+
+
+
         // current deployment config
-                // Create the filename with the chain ID
+        // Create the filename with the chain ID
         string memory filename = string(
             abi.encodePacked("./scripts/DeploymentFoundry/deployed_addresses_", vm.toString(block.chainid), ".json")
         );
@@ -93,30 +110,40 @@ contract MigrateV1V2 is Script {
 
 
         // set buy/sell fees to match old price
-        vaultManager.setSellFee((uint(vaultOld.sell_fee()) * 1 ether) / 1000);
-        vaultManager.setBuyFee((uint(vaultOld.buy_fee()) * 1 ether) / 1000);
+        // vaultManager.setSellFee((uint(vaultOld.sell_fee()) * 1 ether) / 1000);
+        // vaultManager.setBuyFee((uint(vaultOld.buy_fee()) * 1 ether) / 1000);
 
-        // first we need to match numa supply
-        uint numaSupplyOld = vaultManagerOld.getNumaSupply();
-        uint numaSupplyNew = vaultManager.getNumaSupply();
+        vaultManager.setSellFee(sellfee);
+        vaultManager.setBuyFee(buyfee);
+
+        vault.setFee(fees,maxFeePct);
+        vault.setMaxBorrow(maxBorrowVault);
+        vault.setMaxLiquidationsProfit(maxLstProfitForLiquidations);
+        vault.setMinBorrowAmountAllowPartialLiquidation(minBorrowAmountAllowPartialLiquidation);
+
+
+
+        // // first we need to match numa supply
+        // uint numaSupplyOld = vaultManagerOld.getNumaSupply();
+        // uint numaSupplyNew = vaultManager.getNumaSupply();
       
 
-        uint diff = numaSupplyNew -
-            numaSupplyOld -
-            vaultManagerOld.constantRemovedSupply();
+        // uint diff = numaSupplyNew -
+        //     numaSupplyOld -
+        //     vaultManagerOld.constantRemovedSupply();
 
-        // keep same period
-        uint newPeriod = vaultManagerOld.decayPeriod() -
-            (block.timestamp - vaultManagerOld.startTime());
+        // // keep same period
+        // uint newPeriod = vaultManagerOld.decayPeriod() -
+        //     (block.timestamp - vaultManagerOld.startTime());
 
         vaultManager.setDecayValues(
-            diff / 2,
-            newPeriod,
-            diff / 2,
-            newPeriod,
+            // diff / 2,
+            // newPeriod,
+            // diff / 2,
+            // newPeriod,
             vaultManagerOld.constantRemovedSupply() // same constant
         );
-        vaultManager.startDecay();
+        //vaultManager.startDecay();
 
         vm.stopBroadcast();
                 
