@@ -275,9 +275,19 @@ contract CNumaToken is CErc20Immutable {
     function closeLeverageStrategy(
         CNumaToken _collateral,
         uint _borrowtorepay,
-        uint _minRedeemedAmount,
+        uint _maxRedeemedAmount,
         uint _strategyIndex
     ) external {
+
+        // Sherlock-issue 120
+        require(
+            (
+            ((address(this) == vault.getcLstAddress()) && (address(_collateral) == vault.getcNumaAddress()))
+            ||
+            ((address(this) == vault.getcNumaAddress()) && (address(_collateral) == vault.getcLstAddress()))
+            )
+             , "invalid collateral");
+
         // AUDITV2FIX
         accrueInterest();
         _collateral.accrueInterest();
@@ -306,7 +316,8 @@ contract CNumaToken is CErc20Immutable {
             _strategyIndex
         );
         // sherlock issue-182
-        require(swapAmountIn >= _minRedeemedAmount); 
+        //require(swapAmountIn >= _minRedeemedAmount); 
+        require(swapAmountIn <= _maxRedeemedAmount); 
 
         SafeERC20.safeTransferFrom(
             IERC20(address(_collateral)),
