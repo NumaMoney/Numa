@@ -15,7 +15,7 @@ import {VaultManagerOld} from "../../contracts/oldV1/VaultManagerOld.sol";
 import {NumaVaultOld} from "../../contracts/oldV1/NumaVaultOld.sol";
 
 import {VaultMockOracle} from "../../contracts/Test/mocks/VaultMockOracle.sol";
-
+import {INumaOFT} from "../../contracts/interfaces/INumaOFT.sol";
 
 import {Script} from "forge-std/Script.sol";
 import "forge-std/console2.sol";
@@ -23,7 +23,7 @@ import "forge-std/console2.sol";
 
 
 
-contract MigrateV1V2 is Script {
+contract DeployV2 is Script {
 
 
 
@@ -48,9 +48,6 @@ contract MigrateV1V2 is Script {
         
         address numa_address = vm.parseJsonAddress(configData, string(abi.encodePacked(path, ".numa_address")));
         address lstAddress = vm.parseJsonAddress(configData, string(abi.encodePacked(path, ".lstAddress")));
-        
-        address vaultOldAddress = vm.parseJsonAddress(configData, string(abi.encodePacked(path, ".vaultOldAddress")));
-        address vaultManagerOldAddress = vm.parseJsonAddress(configData, string(abi.encodePacked(path, ".vaultManagerOldAddress")));
 
         uint buyfee = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".buy_fee")));
         uint sellfee = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".sell_fee")));
@@ -87,30 +84,11 @@ contract MigrateV1V2 is Script {
         vm.startBroadcast();
         // Tokens
         ERC20 rEth = ERC20(lstAddress);
+        INumaOFT numa = INumaOFT(numa_address);
 
         vaultManager = VaultManager(vaultManagerAddress);
         vault = NumaVault(vaultAddress);
-        NumaVaultOld vaultOld = NumaVaultOld(vaultOldAddress);
-        VaultManagerOld vaultManagerOld = VaultManagerOld(vaultManagerOldAddress);
-       
-
-        uint amount1 = vaultOld.getBuyNuma(1 ether);
-        uint amount2 = vaultOld.getBuyNumaSimulateExtract(1 ether);
-        uint amount3 = vaultOld.getSellNuma(1 ether);
-        uint amount4 = vaultOld.getSellNumaSimulateExtract(1 ether);
-
-        console2.log("numa supply",vaultManagerOld.getNumaSupply());
-        console2.log("vault balance",rEth.balanceOf(address(vaultOld)));
-        console2.log("getBuyNuma",amount1);
-        console2.log("getBuyNumaSimulateExtract",amount2);
-        console2.log("getSellNuma",amount3);
-        console2.log("getSellNumaSimulateExtract",amount4);
-        console2.log("***********************************");
-
-
-        // set buy/sell fees to match old price
-        // vaultManager.setSellFee((uint(vaultOld.sell_fee()) * 1 ether) / 1000);
-        // vaultManager.setBuyFee((uint(vaultOld.buy_fee()) * 1 ether) / 1000);
+      
 
         vaultManager.setSellFee(sellfee);
         vaultManager.setBuyFee(buyfee);
@@ -121,28 +99,34 @@ contract MigrateV1V2 is Script {
         vault.setMinBorrowAmountAllowPartialLiquidation(minBorrowAmountAllowPartialLiquidation);
 
 
-
-        // // first we need to match numa supply
-        // uint numaSupplyOld = vaultManagerOld.getNumaSupply();
-        // uint numaSupplyNew = vaultManager.getNumaSupply();
-      
-
-        // uint diff = numaSupplyNew -
-        //     numaSupplyOld -
-        //     vaultManagerOld.constantRemovedSupply();
-
-        // // keep same period
-        // uint newPeriod = vaultManagerOld.decayPeriod() -
-        //     (block.timestamp - vaultManagerOld.startTime());
-
         vaultManager.setDecayValues(
             // diff / 2,
             // newPeriod,
             // diff / 2,
             // newPeriod,
-            vaultManagerOld.constantRemovedSupply() // same constant
+            0 // same constant
         );
+
+
+        // Set Supply
+        // expected numa price = 0.5 usd 
+        // 1 reth = 2000 usd 
+        // 0.1 lst sent --> mint 2000 x 0.1/0.5 = 400 numa
+
+
+        // sepolia supply = 8206652 717251752541129973 - 500000000000000000000000
+        // sepolia vault balance lst = 653 437310028263588107
+        // 1 lst =  8206652717251752541129973/653437310028263588107
+        // = 11,794.02
+        // 
         //vaultManager.startDecay();
+        // at this point minter is not setup as numa minter
+        // deployer can mint numa
+        numa.setMinter(msg.sender);
+        numa.mint(msg.sender,12559.20 ether);// could be vault or address(0)
+
+        //
+        rEth.transfer(vaultAddress,1 ether);
 
         vm.stopBroadcast();
                 

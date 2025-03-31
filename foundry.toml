@@ -18,5 +18,5 @@ sepolia = "${URL4}"
 
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
-arbitrum = { key = "${ETHERSCAN_API_KEY}" }
+arbitrum = { key = "${ARBISCAN_API_KEY}" }
 

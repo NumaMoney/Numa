@@ -98,7 +98,6 @@ contract DeployLending is Script {
         rEthCollateralFactor = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".rEthCollateralFactor")));
         closeFactor = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".closeFactor")));
         liquidationIncentive = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".liquidationIncentive")));
-        maxLiquidationProfit = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".maxLiquidationProfit")));
         borrowRateMaxMantissaARBI = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".borrowRateMaxMantissaARBI")));
         ltvMinBadDebtLiquidations = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".ltvMinBadDebtLiquidations")));
         ltvMinPartialLiquidations = vm.parseJsonUint(configData, string(abi.encodePacked(path, ".ltvMinPartialLiquidations")));
@@ -118,9 +117,9 @@ contract DeployLending is Script {
 
 
 
-        uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
-        vm.startBroadcast(deployerPrivateKey);
-
+        // uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
+        // vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
         address deployer = msg.sender;
         console2.log("deployer",deployer);
 
@@ -200,7 +199,7 @@ contract DeployLending is Script {
         cReth._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI*10);
         cNuma._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI);
 
-        cReth._setReserveFactor(0.5 ether);
+        cReth._setReserveFactor(0.99 ether);
 
 
         vault.setCTokens(address(cNuma), address(cReth));
@@ -210,8 +209,9 @@ contract DeployLending is Script {
         comptroller._supportMarket((cReth));
 
         // collateral factors
-        comptroller._setCollateralFactor((cNuma), numaCollateralFactor);
-        comptroller._setCollateralFactor((cReth), rEthCollateralFactor);
+        // TODOAFTEREND
+        // comptroller._setCollateralFactor((cNuma), numaCollateralFactor);
+        // comptroller._setCollateralFactor((cReth), rEthCollateralFactor);
 
 
 

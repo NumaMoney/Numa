@@ -64,9 +64,9 @@ contract MigrateV1V2 is Script {
 
 
 
-        uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
-        vm.startBroadcast(deployerPrivateKey);
-
+        // uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
+        // vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
         // Tokens
         
         ERC20 rEth = ERC20(lstAddress);

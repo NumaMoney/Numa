@@ -29,7 +29,7 @@ contract nuAssetManager2 is INuAssetManager, OracleUtils2, Ownable2Step {
 
     // max number of nuAssets this contract can handle
     uint constant max_nuasset = 200;
-
+ 
     bool public renounceAddingRemovingAssets = false;
 
  

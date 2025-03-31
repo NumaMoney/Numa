@@ -66,7 +66,7 @@ contract Setup is SetupBase {
         uint256 arbitrumFork = vm.createFork(ARBI_RPC_URL);
 
         vm.selectFork(arbitrumFork);
-        vm.rollFork(269602000);
+        //vm.rollFork(269602000);
 
         // prank deployer
         vm.startPrank(deployer);

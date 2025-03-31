@@ -21,14 +21,10 @@ import {Script} from "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 
-
-contract MigrateV1V2 is Script  {
-
-    
-
+// used on satellite chains using numa OFT
+contract DeployVaultV2 is Script  {
 
     
-  
     //
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
@@ -42,8 +38,7 @@ contract MigrateV1V2 is Script  {
     VaultManager public vaultManager;
     NumaVault public vault;
 
-    //forge script --chain sepolia .\scripts\MigrateVaultV1V2.sol:MigrateV1V2 --rpc-url 'SEPOLIA_RPC' --broadcast -vv --verify
-
+    //forge script --chain 421614 .\scripts\DeploymentFoundry\01_DeployVaultV2_Core.sol:DeployVaultV2 --rpc-url 'https://arbitrum-sepolia.infura.io/v3/530deb6300b14ec095b8f6bbbab6a187' --broadcast -vv --verify --sender 0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69 --private-key 0xe71401816181e3dfaf484d06034b23349a5cd63b22fc4df2c10184e0b622d65b --etherscan-api-key "7QJ5HEMUC13QIS29HDZGVMXYSW17EF56VK" 
     function run() external {
 
         string memory configData = vm.readFile("./scripts/DeploymentFoundry/config.json");

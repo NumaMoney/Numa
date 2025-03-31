@@ -90,7 +90,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint public buyPID_incTriggerPct = 20; // 2%
 
     //uint buyPID_decTriggerPct = 1.66%
-    uint public buyPID_decTriggerPct = 16; //1.6%
+    uint public buyPID_decTriggerPct = 25; //2.5%
 
     // is the maximum rate at which PID can increment in a xhr period. Default to the buyFee_base.
     uint public buyPID_incMaxRate = 0.0166 ether; //1.66%

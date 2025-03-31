@@ -35,7 +35,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     // percentage of buy/sell fee in base 1000
     uint16 public fees = 200; //20%
     // amount percentage limit sent to fee_address
-    uint16 public feesMaxAmountPct = 50; //5%
+    uint16 public feesMaxAmountPct = 100; //10%
 
     mapping(address => bool) feeWhitelisted;
 

@@ -1238,8 +1238,8 @@ contract PrinterTest is Setup {
         // or modifying cf_warning 
         vaultManager.setScalingParameters(
             vaultManager.cf_critical(),
-            vaultManager.cf_warning() -1000,
-            vaultManager.cf_severe(),
+            vaultManager.cf_warning() ,
+            globalCF + 1,//vaultManager.cf_severe(),
             vaultManager.debaseValue(),
             vaultManager.rebaseValue(),
             1 hours,

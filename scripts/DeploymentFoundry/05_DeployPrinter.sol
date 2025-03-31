@@ -89,10 +89,10 @@ contract DeployPrinter is Script {
 
 
 
-        uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
+        // uint256 deployerPrivateKey = vm.envUint("PKEYFoundry");
       
-        vm.startBroadcast(deployerPrivateKey);
-
+        // vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
 
         address deployer = msg.sender;
         console2.log("deployer",deployer);

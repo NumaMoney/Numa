@@ -17,7 +17,7 @@
       "buy_fee" : 800000000000000000,
       "sell_fee" : 950000000000000000,
       "fees" : 200,
-      "maxFeePct" : 500,
+      "maxFeePct" : 100,
       "maxBorrowVault": 100000000000000000000,
       "maxLstProfitForLiquidations": 50000000000000000,
       "minBorrowAmountAllowPartialLiquidation" : 100000000000000000000,
@@ -52,7 +52,8 @@
       "burnFee" : 800, 
       "swapFee" : 300, 
       "feePct" : 5000,
-      "feeAddressPrinter" : "0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69"
+      "feeAddressPrinter" : "0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69",
+      "numaOFTAdapter" : "0x25db8c03376f3fe5349cc42768dc9268e3f6d1ba"
     },
     "42161": {
       "isTestNet": false,
@@ -67,12 +68,12 @@
       "rwdReceiver": "0x52fAb8465f3ce229Fd104FD8155C02990A0E1326",
       "debt": 0,
       "rwdFromDebt": 0,
-      "borrowRateMaxMantissaARBI":500000000000, 
+      "borrowRateMaxMantissaARBI":5000000000000,
       "blocksPerYear" : 126144000,
       "buy_fee" : 800000000000000000,
       "sell_fee" : 950000000000000000,
       "fees" : 200,
-      "maxFeePct" : 500,
+      "maxFeePct" : 100,
       "maxBorrowVault": 100000000000000000000,
       "maxLstProfitForLiquidations": 50000000000000000,
       "minBorrowAmountAllowPartialLiquidation" : 100000000000000000000,
@@ -94,7 +95,7 @@
       "closeFactor" : 1000000000000000000,
       "liquidationIncentive" : 1020000000000000000,
       "ltvMinBadDebtLiquidations" : 980000000000000000,
-      "ltvMinPartialLiquidations " : 1100000000000000000,
+      "ltvMinPartialLiquidations" : 1100000000000000000,
       "usdc_address" : "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
       "INTERVAL_SHORT" : 180,
       "INTERVAL_LONG" : 1800,
@@ -108,6 +109,28 @@
       "swapFee" : 300, 
       "feePct" : 5000,
       "feeAddressPrinter" : "0xe5F8aA3f4000Bc6A0F07E9E3a1b9C9A3d48ed4a4"
+    },
+    "421614": {
+      "isTestNet": true,
+      "uptime_feed": "0x0000000000000000000000000000000000000000",
+      "price_feed": "0x0000000000000000000000000000000000000000",
+      "numa_address": "0xe6ce8c45efb71db0ea6e150c9928e9664d874151",
+      "lstAddress": "0x26e4b4f3037c8973d2FE20235f346afae00cDAe0",
+      "heartbeat": 100000,
+      "feeReceiver": "0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69",
+      "rwdReceiver": "0xe8153Afbe4739D4477C1fF86a26Ab9085C4eDC69",
+      "debt": 0,
+      "rwdFromDebt": 0,
+      "borrowRateMaxMantissaARBI":5000000000000,
+      "blocksPerYear" : 2425846,
+      "buy_fee" : 800000000000000000,
+      "sell_fee" : 950000000000000000,
+      "fees" : 200,
+      "maxFeePct" : 100,
+      "maxBorrowVault": 100000000000000000000,
+      "maxLstProfitForLiquidations": 50000000000000000,
+      "minBorrowAmountAllowPartialLiquidation" : 100000000000000000000
+
     }
   }
 
