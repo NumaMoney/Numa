@@ -98,32 +98,23 @@ contract DeployV2 is Script {
         vault.setMaxLiquidationsProfit(maxLstProfitForLiquidations);
         vault.setMinBorrowAmountAllowPartialLiquidation(minBorrowAmountAllowPartialLiquidation);
 
-
+        // initial supply that is removed from the vault
+        // for this testnet test, LP supply will be bought
+        // no initial mint 
+        uint initialMint = 0;//500000 ether;
         vaultManager.setDecayValues(
             // diff / 2,
             // newPeriod,
             // diff / 2,
             // newPeriod,
-            0 // same constant
+            initialMint // same constant
         );
 
 
-        // Set Supply
-        // expected numa price = 0.5 usd 
-        // 1 reth = 2000 usd 
-        // 0.1 lst sent --> mint 2000 x 0.1/0.5 = 400 numa
-
-
-        // sepolia supply = 8206652 717251752541129973 - 500000000000000000000000
-        // sepolia vault balance lst = 653 437310028263588107
-        // 1 lst =  8206652717251752541129973/653437310028263588107
-        // = 11,794.02
-        // 
-        //vaultManager.startDecay();
-        // at this point minter is not setup as numa minter
         // deployer can mint numa
+        // sonic testnet: 1 sonic = 1 numa initial price
         numa.setMinter(msg.sender);
-        numa.mint(msg.sender,12559.20 ether);// could be vault or address(0)
+        numa.mint(msg.sender,1 ether);// could be vault or address(0), either this solution or the +1 thing
 
         //
         rEth.transfer(vaultAddress,1 ether);
