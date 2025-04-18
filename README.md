@@ -1,15 +1,46 @@
-# Numa token Project
+# Numa protocol
 
-Implementation of the token contract.
+## Numa protocol V2
 
-Hardhat tests and useful scripts;
+### contracts/lending/*
+### contracts/NumaProtocol/*
+### contracts/nuAssets/*
 
-Try running some of the following tasks:
+## Foundry testing
+
+- Use lite foundry config for faster build: $Env:FOUNDRY_PROFILE = 'lite'
+- define URLARBI = Arbitrum rpc  in .env file (tests are running on arbitrum fork)
+
+### vault testing
 
 ```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deployAndMint.js
+forge test --match-contract VaultTest -vv 
+```
+
+
+### vault buy/sell fees testing
+
+```shell
+forge test --match-contract VaultBuySellFeeTest -vv 
+```
+
+
+### printer testing
+
+```shell
+forge test --match-contract PrinterTest -vv 
+```
+
+
+### lending testing
+
+```shell
+forge test --match-contract LendingTest -vv 
+```
+
+
+### vault migrations testing
+
+```shell
+forge test --match-contract VaultTest -vv 
 ```

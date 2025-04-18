@@ -1,0 +1,46 @@
+[profile.default]
+fs_permissions = [{ access = "read-write", path = "./"}]
+src = 'contracts'
+out = 'out'
+viaIR = true
+libs = ['node_modules', 'lib']
+test = 'test'
+cache_path  = 'cache_forge'
+offline = true
+evm_version = 'shanghai'
+optimizer_runs = 100
+
+[profile.lite.optimizer_details.yulDetails]
+optimizerSteps = ''
+
+[rpc_endpoints]
+sepolia = "${URL4}"
+
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+arbitrum = { key = "${ARBISCAN_API_KEY}" }
+
+[profile.default]
+fs_permissions = [{ access = "read-write", path = "./"}]
+src = 'contracts'
+out = 'out'
+viaIR = true
+libs = ['node_modules', 'lib']
+test = 'test'
+cache_path  = 'cache_forge'
+offline = true
+evm_version = 'shanghai'
+optimizer_runs = 100
+
+[profile.lite.optimizer_details.yulDetails]
+optimizerSteps = ''
+
+[rpc_endpoints]
+sepolia = "${URL4}"
+
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+arbitrum = { key = "${ARBISCAN_API_KEY}" }
+unknown_chain = { key = "${SONICSCAN_API_KEY}", url = "https://testnet.sonicscan.org/api" }
+57054 = { key = "${SONICSCAN_API_KEY}", url = "https://testnet.sonicscan.org" }
+

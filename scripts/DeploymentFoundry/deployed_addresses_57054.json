@@ -1,0 +1,9 @@
+{
+  "Numa": "0xa121817a5ceb293971344640094e3e1fc6ce337a",
+  "Lst": "0x51a10ec73c1c8ad34685f73cec98a2ba9cd9045c",
+  "nuAssetManager": "0xdb6aff826a8c480705ce33f832dfff5bfbedd66c",
+  "numaMinter": "0xc19b58815f3739348457ee9167c3da3747f15b2b",
+  "vaultOracle": "0xa3ef6528290dbdc86f7a68bd85472f7163e4a8be",
+  "vaultManager": "0x26e4b4f3037c8973d2fe20235f346afae00cdae0",
+  "vault": "0x4e6383d38ca3627b900636664f8a6c23ebcc3560"
+}

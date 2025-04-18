@@ -6,9 +6,9 @@ async function main () {
 
 
     // TOken address
-    let deployedAddress = "0x15B2F0Df5659585b3030274168319185CFC9a9f4";
+    let deployedAddress = "0x7FB7EDe54259Cb3D4E1EaF230C7e2b1FfC951E9A";
     // name of the new contract
-    let newContractName = "NUMAV2";
+    let newContractName = "NumaV2";
     // we can use following code if we use an already deployed version
     const contract = await Numa.attach(
         deployedAddress

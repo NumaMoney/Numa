@@ -6,15 +6,16 @@ const { Pool, nearestUsableTick, TickMath, TICK_SPACINGS, FeeAmount, Trade: V3Tr
 const { MixedRouteTrade, Trade: RouterTrade } = require('@uniswap/router-sdk');
 const IUniswapV3Pool = require('@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
 const JSBI = require('jsbi');
-const erc20Abi = require('../abis/erc20.json');
+//const erc20Abi = require('../abis/erc20.json');
 
 const artifacts = {
-  UniswapV3Factory: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"),
-  SwapRouter: require("@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json"),
-  NFTDescriptor: require("@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json"),
-  NonfungibleTokenPositionDescriptor: require("@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json"),
-  NonfungiblePositionManager: require("@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json"),
+ 
+  SwapRouter: require("uniV3periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json"),
+  NFTDescriptor: require("uniV3periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json"),
+  NonfungibleTokenPositionDescriptor: require("uniV3periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json"),
+  NonfungiblePositionManager: require("uniV3periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json"),
   UniswapV3Pool: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json"),
+  UniswapV3Factory: require("@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"),
   AggregatorV3: require("@chainlink/contracts/abi/v0.8/AggregatorV3Interface.json"),
 };
 
@@ -46,40 +47,10 @@ const linkLibraries = ({ bytecode, linkReferences }, libraries) => {
 }
 
 
-let initPool = async function (token0_, token1_, fee_, EthPriceInNuma_,nonfungiblePositionManager,wethAddress) {
-  // const pool = await IUniswapV3Pool.at(pool_) //Pool we're fetching init price from
-  // const slot0 = await pool.slot0()
-  // const price = slot0.sqrtPriceX96
-  const fee = fee_;
-
-  // Uniswap reverts pool initialization if you don't sort by address number, beware!
-  let token0, token1
-  if (token1_ > token0_) {
-    token1 = token1_
-    token0 = token0_
-  } else {
-    token1 = token0_
-    token0 = token1_
-  }
 
 
-  let sqrtPrice = Math.sqrt(EthPriceInNuma_)
-
-  if (token0 === wethAddress) 
-  {
-      price = BigInt(sqrtPrice*2**96);
-  }
-  else 
-  {
-      price = BigInt(2**96/sqrtPrice);
-  }
-
-
-  await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee, price)
-}
-
-
-let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePositionManager,wethAddress) {
+let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePositionManager,wethAddress) 
+{  
   // Uniswap reverts pool initialization if you don't sort by address number, beware!
   let sqrtPrice = Math.sqrt(price_);
   let token0, token1, price;
@@ -98,11 +69,16 @@ let initPoolETH = async function (token0_, token1_, fee_, price_,nonfungiblePosi
   if (token0 === wethAddress) 
   {
       price = BigInt(sqrtPrice*2**96);
+      console.log("****************");
+
   }
   else 
   {
       price = BigInt(2**96/sqrtPrice);
+      console.log("++++++++");
   }
+  console.log("price");
+
   await nonfungiblePositionManager.createAndInitializePoolIfNecessary(token0, token1, fee_, price)
 }
 
@@ -162,18 +138,21 @@ let addLiquidity = async function (
       await token0.approve(nonfungiblePositionManagerAddress, amount0ToMint);
       await token1.approve(nonfungiblePositionManagerAddress, amount1ToMint);
 
+
+
+
       const tx = await nonfungiblePositionManager.mint(
           mintParams,
           { gasLimit: '30000000' }
           );
-      const receipt = await tx.wait();
-      //console.log(receipt);
 
-      //const {logs} = await nonfungiblePositionManager.mint(mintParams);
-      //console.log(logs);
+      // which id is it ?
+      // let info0 = await nonfungiblePositionManager.positions(1);
+      // console.log(info0);
+      
 
-      // const tokenId = logs[1].args.tokenId;
-      // return tokenId;
+
+
 } 
 
 
@@ -271,7 +250,6 @@ function buildTrade(trades) {
   module.exports.buildTrade = buildTrade;
   module.exports.getPoolData = getPoolData;
   module.exports.initPoolETH = initPoolETH;
-  module.exports.initPool = initPool;
   module.exports.addLiquidity = addLiquidity;
   module.exports.weth9 = weth9;
   module.exports.artifacts = artifacts;
