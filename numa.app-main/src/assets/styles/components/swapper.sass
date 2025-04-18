@@ -1,0 +1,106 @@
+.swapper
+  @include box
+
+  max-width: 480px
+  width: 100%
+  padding: 24px
+
+  &__header
+    display: flex
+    justify-content: space-between
+    align-items: center
+    margin-bottom: 24px
+
+    &-actions
+      display: flex
+      align-items: center
+      gap: 12px
+
+    &-action
+      height: 20px
+      width: 20px
+      color: white
+      cursor: pointer
+
+  &__description
+    margin-bottom: 24px
+    display: flex
+    flex-direction: column
+    gap: 16px
+
+    &-point
+      color: var(--color-secondary)
+
+      b
+        color: white
+
+  &__section
+    padding: 24px 12px
+    border: 1px solid rgba(85, 86, 90, 1)
+    border-radius: 6px
+
+    &-header
+      display: flex
+      justify-content: space-between
+      font-size: 14px
+      margin-bottom: 16px
+      color: var(--color-secondary)
+
+    &-body
+      display: flex
+      gap: 12px
+      justify-content: space-between
+
+    &-input
+      font-size: 20px
+      font-weight: 600
+      width: 100%
+
+  &__token
+    display: flex
+    align-items: center
+    gap: 12px
+    cursor: pointer
+    user-select: none
+
+    &-image
+      height: 22px
+      width: 22px
+      border-radius: 50%
+
+    &-title
+      font-size: 20px
+      font-weight: 500
+
+    &-arrow
+      height: 16px
+      width: 16px
+
+  &__center
+    display: flex
+    justify-content: center
+    padding: 20px 0
+
+    &-image
+      height: 24px
+      width: 24px
+      transform: rotate(90deg)
+      cursor: pointer
+
+  &__buttons
+    margin-top: 24px
+
+    &-button
+      width: 100%
+      font-size: 18px
+      padding: 12px 12px
+      display: flex
+      justify-content: center
+      align-items: center
+
+  @media screen and (max-width: $breakpointMobile)
+    padding: 16px
+
+    &__header
+      &-title
+        font-size: 26px
