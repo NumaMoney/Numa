@@ -1,0 +1,8 @@
+{
+  "Comptroller": "0x30047cca309b7aac3613ae5b990cf460253c9b98",
+  "PriceOracle": "0xa92025d87128c1e2dcc0a08afbc945547ca3b084",
+  "rateModelV4": "0x36e97ca2077a61e706ea3871ede108f1b99ffe2a",
+  "rateModel": "0x6319b1d09492235623a87ebf783ece84d62a8496",
+  "cNuma": "0x16d4b53de6aba4b68480c7a3b6711df25fcb12d7",
+  "cReth": "0xb2a43445b97cd6a179033788d763b8d0c0487e36"
+}
