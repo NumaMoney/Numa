@@ -19,8 +19,3 @@ sepolia = "${URL4}"
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
 arbitrum = { key = "${ARBISCAN_API_KEY}" }
-unknown_chain = { key = "HHF66JHNVPNPEQB4NF8E7E9GVKKMXAFUZN", url = "https://testnet.sonicscan.org/api" }
-57054 = { key = "HHF66JHNVPNPEQB4NF8E7E9GVKKMXAFUZN", url = "https://testnet.sonicscan.org" }
-146 = { key = "HHF66JHNVPNPEQB4NF8E7E9GVKKMXAFUZN", url = "https://api.sonicscan.org/api" }
-
-
