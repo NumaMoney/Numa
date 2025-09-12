@@ -98,26 +98,19 @@ contract DeployV2 is Script {
         vault.setMaxLiquidationsProfit(maxLstProfitForLiquidations);
         vault.setMinBorrowAmountAllowPartialLiquidation(minBorrowAmountAllowPartialLiquidation);
 
-        // initial supply that is removed from the vault
-        // for this testnet test, LP supply will be bought
-        // no initial mint 
-        uint initialMint = 0;//500000 ether;
+ 
+        uint initialMint = 500000 ether;// 500k pre-mint excluded from price
         vaultManager.setDecayValues(
-            // diff / 2,
-            // newPeriod,
-            // diff / 2,
-            // newPeriod,
             initialMint // same constant
         );
 
 
         // deployer can mint numa
-        // sonic testnet: 1 sonic = 1 numa initial price
         numa.setMinter(msg.sender);
-        numa.mint(msg.sender,1 ether);// could be vault or address(0), either this solution or the +1 thing
+        numa.mint(msg.sender,initialMint);// could be vault or address(0), either this solution or the +1 thing
 
         //
-        rEth.transfer(vaultAddress,1 ether);
+        //rEth.transfer(vaultAddress,1 ether);
 
         vm.stopBroadcast();
                 

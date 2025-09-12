@@ -15,6 +15,8 @@ import "../interfaces/INumaPrinter.sol";
 import "../utils/constants.sol";
 import "../interfaces/IOFTBridgedSupplyManager.sol";
 
+
+
 contract VaultManager is IVaultManager, Ownable2Step {
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet vaultsList;
@@ -23,9 +25,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
     INumaPrinter public printer;
     NUMA public immutable numa;
 
-    uint public initialRemovedSupply;
-    uint public initialLPRemovedSupply;
-
+    
     uint public constantRemovedSupply;
 
     //address public oftAdapter;
@@ -34,11 +34,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
     bool public islockedSupply;
     uint public lockedSupply;
 
-    // uint public decayPeriod;
-    // uint public decayPeriodLP;
+    uint public initialRemovedSupply;
+    uint public decayPeriod;
+    uint public startTime;
+    bool public isDecaying;
+    //uint public decayPeriodLP;
 
-    // uint public startTime;
-    // bool public isDecaying;
+
 
     uint constant max_vault = 50;
 
@@ -77,6 +79,9 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint lastSynthPID = BASE_SCALE;
     uint lastBlockTime;
 
+    
+
+
     // the amount by which buyFee_PID increments/decrements at each event
     // uint public buyPID_decAmt = 0.000001 ether; //0.0001%
     // uint public buyPID_incAmt = 0.000001 ether; //0.0001%
@@ -102,7 +107,8 @@ contract VaultManager is IVaultManager, Ownable2Step {
     uint public buy_fee_PID = 0;
     uint public buyPIDXhrAgo = 0;
     uint public nextCheckBlock;
-    uint public nextCheckBlockWindowDelta = 4 hours;
+    //uint public nextCheckBlockWindowDelta = 4 hours;
+    uint public nextCheckBlockWindowDelta = 20 minutes;
 
     //
     event SetOFTAdapterAddress(address);
@@ -153,10 +159,10 @@ contract VaultManager is IVaultManager, Ownable2Step {
         return nuAssetManager;
     }
 
-    // function startDecay() external onlyOwner {
-    //     startTime = block.timestamp;
-    //     isDecaying = true;
-    // }
+    function startDecay() external onlyOwner {
+        startTime = block.timestamp;
+        isDecaying = true;
+    }
 
 
     function setMinimumNumaPriceEth(uint _minimumPriceEth) external onlyOwner {
@@ -609,30 +615,20 @@ contract VaultManager is IVaultManager, Ownable2Step {
         islockedSupply = _lock;
     }
 
-    // function setDecayValues(
-    //     uint _initialRemovedSupply,
-    //     uint _decayPeriod,
-    //     uint _initialRemovedSupplyLP,
-    //     uint _decayPeriodLP,
-    //     uint _constantRemovedSupply
-    // ) external onlyOwner {
-    //     initialRemovedSupply = _initialRemovedSupply;
-    //     initialLPRemovedSupply = _initialRemovedSupplyLP;
-    //     constantRemovedSupply = _constantRemovedSupply;
-    //     decayPeriod = _decayPeriod;
-    //     decayPeriodLP = _decayPeriodLP;
-    //     // start decay will have to be called again
-    //     // CAREFUL: IF DECAYING, ALL VAULTS HAVE TO BE PAUSED WHEN CHANGING THESE VALUES, UNTIL startDecay IS CALLED
-    //     isDecaying = false;
-    // }
-
-
-
     function setDecayValues(
-        uint _constantRemovedSupply
+        uint _initialRemovedSupply,
+        uint _decayPeriod
     ) external onlyOwner {
-        constantRemovedSupply = _constantRemovedSupply;
+        initialRemovedSupply = _initialRemovedSupply;  
+        decayPeriod = _decayPeriod;
+
+        // start decay will have to be called again
+        // CAREFUL: IF DECAYING, ALL VAULTS HAVE TO BE PAUSED WHEN CHANGING THESE VALUES, UNTIL startDecay IS CALLED
+        isDecaying = false;
     }
+
+
+
 
     function isVault(address _addy) public view returns (bool) {
         return (vaultsList.contains(_addy));
@@ -728,6 +724,7 @@ contract VaultManager is IVaultManager, Ownable2Step {
         uint circulatingNuma = getNumaSupply();
 
         require(circulatingNuma > 0, "no numa in circulation");
+
 
         uint result;
         if (EthBalance <= synthValueInEth) {
@@ -839,30 +836,21 @@ contract VaultManager is IVaultManager, Ownable2Step {
         if (islockedSupply) return lockedSupply;
 
         uint circulatingNuma = numa.totalSupply();
-        // uint currentRemovedSupply = initialRemovedSupply;
-        // uint currentLPRemovedSupply = initialLPRemovedSupply;
-
-        // uint currentTime = block.timestamp;
-        // if (isDecaying && (currentTime > startTime)) {
-        //     if (decayPeriod > 0) {
-        //         if (currentTime >= startTime + decayPeriod) {
-        //             currentRemovedSupply = 0;
-        //         } else {
-        //             uint delta = ((currentTime - startTime) *
-        //                 initialRemovedSupply) / decayPeriod;
-        //             currentRemovedSupply -= (delta);
-        //         }
-        //     }
-        //     if (decayPeriodLP > 0) {
-        //         if (currentTime >= startTime + decayPeriodLP) {
-        //             currentLPRemovedSupply = 0;
-        //         } else {
-        //             uint delta = ((currentTime - startTime) *
-        //                 initialLPRemovedSupply) / decayPeriodLP;
-        //             currentLPRemovedSupply -= (delta);
-        //         }
-        //     }
-        // }
+        uint currentRemovedSupply = initialRemovedSupply;
+       
+        uint currentTime = block.timestamp;
+        if (isDecaying && (currentTime > startTime)) {
+            if (decayPeriod > 0) {
+                if (currentTime >= startTime + decayPeriod) {
+                    currentRemovedSupply = 0;
+                } else {
+                    uint delta = ((currentTime - startTime) *
+                        initialRemovedSupply) / decayPeriod;
+                    currentRemovedSupply -= (delta);
+                }
+            }
+           
+        }
         uint numaLockedOFT = 0;
         if (address(bridgedSupplyManager) != address(0)) {
             //numaLockedOFT = numa.balanceOf(oftAdapter);
@@ -872,10 +860,13 @@ contract VaultManager is IVaultManager, Ownable2Step {
 
         circulatingNuma =
             circulatingNuma -
-            //currentRemovedSupply -
-            //currentLPRemovedSupply -
+            currentRemovedSupply -
             constantRemovedSupply - 
             numaLockedOFT;// numa locked in adapter is removed as it's considered bridged
+        
+        // adding 1 to avoid division by 0, in case no numa have been minted yet
+        if (circulatingNuma == 0) 
+            circulatingNuma = 1;
         return circulatingNuma;
     }
 

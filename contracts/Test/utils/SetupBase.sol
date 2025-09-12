@@ -38,6 +38,7 @@ import "../../interfaces/INumaTokenToEthConverter.sol";
 import "../../NumaProtocol/USDCToEthConverter.sol";
 import {NumaLeverageVaultSwap} from "../../lending/NumaLeverageVaultSwap.sol";
 import {NumaComptroller} from "../../lending/NumaComptroller.sol";
+import {Unitroller} from "../../lending/Unitroller.sol";
 import "../../lending/JumpRateModelVariable.sol";
 import "../../lending/JumpRateModelV4.sol";
 import "../../lending/CNumaLst.sol";
@@ -261,6 +262,15 @@ contract SetupBase is
     function _setupLending(NumaVault _vault) internal {
         // COMPTROLLER
         comptroller = new NumaComptroller();
+
+        // test use unitroller to be able to transfer ownership
+        Unitroller unitroller = new Unitroller();
+        unitroller._setPendingImplementation(address(comptroller));
+        comptroller._become(unitroller);
+        comptroller = NumaComptroller(address(unitroller));
+        
+        // end test
+
         comptroller._setBorrowCapGuardian(deployer);
         comptroller._setPauseGuardian(deployer);
    

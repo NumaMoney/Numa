@@ -169,7 +169,7 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
         // );
         // vaultManager.startDecay();
 
-        vaultManager.setDecayValues(
+        vaultManager.setConstantRemovedSupply(
 
             vaultManagerOld.constantRemovedSupply() // same constant
         );
@@ -247,7 +247,7 @@ contract VaultMigrationTest is Setup, ExponentialNoError {
         //     vaultManager.constantRemovedSupply() // same constant
         // );
         //vaultManager2.startDecay();
-        vaultManager2.setDecayValues(
+        vaultManager2.setConstantRemovedSupply(
             
             vaultManager.constantRemovedSupply() // same constant
         );

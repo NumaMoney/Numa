@@ -59,7 +59,7 @@ contract CNumaLst is CNumaToken {
         // borrow rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
-            maxBorrowableAmountFromVault = vault.getMaxBorrow();
+            maxBorrowableAmountFromVault = vault.getMaxBorrow(false);
 
         uint currentTimestamp = block.timestamp;
         uint timestampPrior = accrualBlockTimestamp;
@@ -84,7 +84,7 @@ contract CNumaLst is CNumaToken {
         // supply rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
-            maxBorrowableAmountFromVault = vault.getMaxBorrow();
+            maxBorrowableAmountFromVault = vault.getMaxBorrow(false);
 
         uint currentTimestamp = block.timestamp;
         uint timestampPrior = accrualBlockTimestamp;
@@ -120,7 +120,7 @@ contract CNumaLst is CNumaToken {
         // interest rate is based on lending contract cash & vault available to borrow
         uint maxBorrowableAmountFromVault;
         if (address(vault) != address(0))
-            maxBorrowableAmountFromVault = vault.getMaxBorrow();
+            maxBorrowableAmountFromVault = vault.getMaxBorrow(false);
 
         uint cashPrior = getCashPrior() + maxBorrowableAmountFromVault;
         uint borrowsPrior = totalBorrows;
@@ -229,7 +229,7 @@ contract CNumaLst is CNumaToken {
             //
             if (address(vault) != address(0)) {
                 uint amountNeeded = borrowAmount - cashPrior;
-                uint maxBorrowableAmountFromVault = vault.getMaxBorrow();
+                uint maxBorrowableAmountFromVault = vault.getMaxBorrow(true);
                 if (amountNeeded <= maxBorrowableAmountFromVault) {
                     // if ok, borrow from vault
                     vault.borrow(amountNeeded);
@@ -403,7 +403,7 @@ contract CNumaLst is CNumaToken {
             uint amountNeeded = redeemAmount - getCashPrior();
             uint maxBorrowableAmountFromVault;
             if (address(vault) != address(0))
-                maxBorrowableAmountFromVault = vault.getMaxBorrow();
+                maxBorrowableAmountFromVault = vault.getMaxBorrow(true);
             if (amountNeeded <= maxBorrowableAmountFromVault) {
                 // if ok, borrow from vault
                 vault.borrow(amountNeeded);

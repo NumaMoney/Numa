@@ -31,6 +31,9 @@ contract NumaPrinter is Pausable, Ownable2Step {
 
     uint public printBurnAssetFeeSentBps;
     address payable private fee_address;
+    //
+    bool public whitelistingEnabled = true;
+    mapping(address => bool) private whitelisted;
 
     event SetOracle(address oracle);
     event SetChainlinkFeed(address _chainlink);
@@ -67,6 +70,10 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _amountToSwap,
         uint256 _amountReceived
     );
+    //
+    event WhitelistUpdated(address indexed account, bool status);
+    event WhitelistingModeChanged(bool enabled);
+
 
     // sherlock issue 41
     // CF warning can be bypassed
@@ -75,6 +82,14 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint currentCF = vaultManager.getGlobalCF();
         require(currentCF > vaultManager.getWarningCF(), "minting forbidden");
     }
+    //
+    modifier onlyWhitelisted() {
+        if (whitelistingEnabled) {
+            require(whitelisted[msg.sender], "Not whitelisted");
+        }
+        _;
+    }
+
 
     constructor(
         address _numaAddress,
@@ -173,6 +188,20 @@ contract NumaPrinter is Pausable, Ownable2Step {
         burnAssetFeeBps = _burnAssetFeeBps;
         emit BurnAssetFeeBps(_burnAssetFeeBps);
     }
+    //
+    function setWhitelistingEnabled(bool _enabled) external onlyOwner {
+        whitelistingEnabled = _enabled;
+        emit WhitelistingModeChanged(_enabled);
+    }
+
+    function updateWhitelist(address account, bool status) external onlyOwner {
+        whitelisted[account] = status;
+        emit WhitelistUpdated(account, status);
+    }
+
+    function isWhitelisted(address account) external view returns (bool) {
+        return whitelisted[account];
+    }
 
     /**
      * @dev mints a newAsset by burning numa
@@ -184,9 +213,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint _amount,
         uint _numaAmount
     ) internal notInWarningCF {
-        // uint currentCF = vaultManager.getGlobalCF();
-        // require(currentCF > vaultManager.getWarningCF(), "minting forbidden");
-
+ 
         // mint
         _asset.mint(_recipient, _amount);
         vaultManager.updateBuyFeePID(_numaAmount, false);
@@ -511,7 +538,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint _numaAmount,
         uint _minNuAssetAmount,
         address _recipient
-    ) public whenNotPaused returns (uint256) {
+    ) public whenNotPaused onlyWhitelisted returns (uint256) {
         require(address(oracle) != address(0), "oracle not set");
         require(numaPool != address(0), "uniswap pool not set");
 
@@ -557,7 +584,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint _nuAssetamount,
         uint _maxNumaAmount,
         address _recipient
-    ) external whenNotPaused {
+    ) external whenNotPaused onlyWhitelisted{
         require(address(oracle) != address(0), "oracle not set");
         require(numaPool != address(0), "uniswap pool not set");
 
@@ -604,7 +631,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _nuAssetAmount,
         uint256 _minimumReceivedAmount,
         address _recipient
-    ) external whenNotPaused returns (uint) {
+    ) external whenNotPaused onlyWhitelisted returns (uint) {
         updateVaultAndInterest();
 
         INuAsset nuAsset = INuAsset(_nuAsset);
@@ -649,7 +676,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         uint256 _numaAmount,
         uint256 _maximumAmountIn,
         address _recipient
-    ) external whenNotPaused returns (uint) {
+    ) external whenNotPaused onlyWhitelisted returns (uint) {
         updateVaultAndInterest();
         INuAsset nuAsset = INuAsset(_nuAsset);
 
@@ -696,7 +723,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _receiver,
         uint256 _amountToSwap,
         uint256 _amountOutMinimum
-    ) external whenNotPaused notInWarningCF returns (uint256 amountOut) {
+    ) external whenNotPaused onlyWhitelisted notInWarningCF returns (uint256 amountOut) {
         require(_nuAssetFrom != address(0), "input asset not set");
         require(_nuAssetTo != address(0), "output asset not set");
         require(_receiver != address(0), "receiver not set");
@@ -763,7 +790,7 @@ contract NumaPrinter is Pausable, Ownable2Step {
         address _receiver,
         uint256 _amountToReceive,
         uint256 _amountInMaximum
-    ) external whenNotPaused notInWarningCF returns (uint256 amountOut) {
+    ) external whenNotPaused onlyWhitelisted notInWarningCF returns (uint256 amountOut) {
         require(_nuAssetFrom != address(0), "input asset not set");
         require(_nuAssetTo != address(0), "output asset not set");
         require(_receiver != address(0), "receiver not set");

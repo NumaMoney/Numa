@@ -18,7 +18,6 @@ import "../lending/NumaComptroller.sol";
 import "@openzeppelin/contracts_5.0.2/utils/structs/EnumerableSet.sol";
 import "../utils/constants.sol";
 
-
 /// @title Numa vault to mint/burn Numa to lst token
 contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -39,7 +38,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     mapping(address => bool) feeWhitelisted;
 
-    uint16 public max_percent = 100; //10%
+    uint16 public max_percent = 500; //50%
 
     // threshold for reward extraction
     uint public rwd_threshold = 0;
@@ -84,6 +83,11 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
 
     // for reth borrowers only
     uint public minBorrowAmountAllowPartialLiquidation = 10 ether;
+
+    //
+    bool public whitelistingEnabled = true;
+    mapping(address => bool) private whitelisted;
+
     // Events
     event SetOracle(address oracle);
     event SetVaultManager(address vaultManager);
@@ -106,12 +110,22 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     event SetMaxProfit(uint _maxProfit);
     event SetCFLiquidWarning(uint _cfLiquidWarning);
     event Whitelisted(address _addy, bool _wl);
+    event WhitelistUpdated(address indexed account, bool status);
+    event WhitelistingModeChanged(bool enabled);
 
     // AUDITV2FIX: added in liquidation functions
     modifier notBorrower(address _borrower) {
         require(msg.sender != _borrower, "cant liquidate your own position");
         _;
     }
+
+    modifier onlyWhitelisted() {
+        if (whitelistingEnabled) {
+            require(whitelisted[msg.sender], "Not whitelisted");
+        }
+        _;
+    }
+
     constructor(
         address _numaAddress,
         address _tokenAddress,
@@ -319,7 +333,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
      * @dev max buy amount in percentage of vault's balance
      */
     function setMaxPercent(uint16 _maxPercent) external onlyOwner {
-        require(max_percent <= BASE_1000, "Percent above 100");
+        require(_maxPercent <= BASE_1000, "Percent above 100");
         max_percent = _maxPercent;
         emit MaxPercentUpdated(_maxPercent);
     }
@@ -331,6 +345,21 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         rwd_threshold = _threshold;
         emit ThresholdUpdated(_threshold);
     }
+
+    function setWhitelistingEnabled(bool _enabled) external onlyOwner {
+        whitelistingEnabled = _enabled;
+        emit WhitelistingModeChanged(_enabled);
+    }
+
+    function updateWhitelist(address account, bool status) external onlyOwner {
+        whitelisted[account] = status;
+        emit WhitelistUpdated(account, status);
+    }
+
+    function isWhitelisted(address account) external view returns (bool) {
+        return whitelisted[account];
+    }
+
 
     /**
      * @dev vault balance including debt from lending protocol
@@ -671,7 +700,8 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             emit Fee(feeAmount, fee_address);
         }
 
-        vaultManager.updateBuyFeePID(_numaAmount, false);
+        // removing buy fee update on sells
+        //vaultManager.updateBuyFeePID(_numaAmount, false);
     }
 
     /**
@@ -765,6 +795,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             criticalScaleForNumaPriceAndSellFee
         );
 
+
         (uint sellFee, , ) = vaultManager.getSellFeeScaling();
         return (tokenAmount * sellFee) / 1 ether;
     }
@@ -772,7 +803,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     /**
      * @dev max borrowable amount from vault, will also impact utilization rate of lending protocol
      */
-    function getMaxBorrow() public view returns (uint256) {
+    function getMaxBorrow(bool _useCapParameter) public view returns (uint256) {
         uint synthValueInEth = vaultManager.getTotalSynthValueEth();
 
         // single vault balance
@@ -793,10 +824,13 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             );
 
             // clamp it with our parameter
-            uint maxBorrowLeft = 0;
-            if (maxBorrow > debt)
-                maxBorrowLeft = maxBorrow - debt;
-            if (resultToken > maxBorrowLeft) resultToken = maxBorrowLeft;
+            if (_useCapParameter) {
+                uint maxBorrowLeft = 0;
+                if (maxBorrow > debt)
+                    maxBorrowLeft = maxBorrow - debt;
+                if (resultToken > maxBorrowLeft) resultToken = maxBorrowLeft;
+
+            }
 
             return resultToken;
         }
@@ -862,7 +896,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
     function borrow(uint _amount) external {
         require(msg.sender == address(cLstToken));
         updateVaultAndUpdateDebasing();
-        uint maxAmount = getMaxBorrow();
+        uint maxAmount = getMaxBorrow(true);
         require(_amount <= maxAmount, "max borrow");
 
         debt = debt + _amount;
@@ -924,7 +958,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         address _borrower,
         uint _percentagePosition1000,
         CNumaToken collateralToken
-    ) external whenNotPaused notBorrower(_borrower) {
+    ) external whenNotPaused onlyWhitelisted notBorrower(_borrower) {
         require(
             (_percentagePosition1000 > 0 && _percentagePosition1000 <= 1000),
             "percentage"
@@ -1007,7 +1041,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint _numaAmount,
         bool _swapToInput,
         bool _flashloan
-    ) external whenNotPaused notBorrower(_borrower) {
+    ) external whenNotPaused onlyWhitelisted notBorrower(_borrower) {
         // if using flashloan, you have to swap collateral seized to repay flashloan
         require(
             ((_flashloan && _swapToInput) || (!_flashloan)),
@@ -1085,7 +1119,10 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             // sherlock 101 153 
             // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
             // should not be capped 
-            if ((badDebt ==  0) && (numaLiquidatorProfit > maxNumaProfitForLiquidations))
+            // if ((badDebt ==  0) && (numaLiquidatorProfit > maxNumaProfitForLiquidations))
+            //     numaLiquidatorProfit = maxNumaProfitForLiquidations;
+            // Following sonic hack we decide to put back the maxLstProfitForLiquidations
+            if (numaLiquidatorProfit > maxNumaProfitForLiquidations)
                 numaLiquidatorProfit = maxNumaProfitForLiquidations;
 
             uint numaToSend = numaLiquidatorProfit;
@@ -1126,8 +1163,14 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             // sherlock 101 153 
             // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
             // should not be capped 
+            // uint vaultProfit;
+            // if ((badDebt == 0) && (lstLiquidatorProfit > maxLstProfitForLiquidations)) {
+            //     vaultProfit = lstLiquidatorProfit - maxLstProfitForLiquidations;
+            // }
+
+            // Following sonic hack we decide to put back the maxLstProfitForLiquidations
             uint vaultProfit;
-            if ((badDebt == 0) && (lstLiquidatorProfit > maxLstProfitForLiquidations)) {
+            if (lstLiquidatorProfit > maxLstProfitForLiquidations) {
                 vaultProfit = lstLiquidatorProfit - maxLstProfitForLiquidations;
             }
 
@@ -1155,7 +1198,7 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
         uint _lstAmount,
         bool _swapToInput,
         bool _flashloan
-    ) external whenNotPaused notBorrower(_borrower) {
+    ) external whenNotPaused onlyWhitelisted notBorrower(_borrower) {
         // if using flashloan, you have to swap colletral seized to repay flashloan
         require(
             ((_flashloan && _swapToInput) || (!_flashloan)),
@@ -1216,8 +1259,12 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             // sherlock 101 153 
             // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
             // should not be capped
-            if ((badDebt == 0) && (lstLiquidatorProfit > maxLstProfitForLiquidations))
+            // if ((badDebt == 0) && (lstLiquidatorProfit > maxLstProfitForLiquidations))
+            //     lstLiquidatorProfit = maxLstProfitForLiquidations;
+            // Following sonic hack we decide to put back the maxLstProfitForLiquidations
+            if (lstLiquidatorProfit > maxLstProfitForLiquidations)
                 lstLiquidatorProfit = maxLstProfitForLiquidations;
+
 
             uint lstToSend = lstLiquidatorProfit;
             if (!_flashloan) {
@@ -1260,11 +1307,19 @@ contract NumaVault is Ownable2Step, ReentrancyGuard, Pausable, INumaVault {
             // sherlock 101 153 
             // cap only if there is no bad debt, because if we are in bad debt it means this is a partial liquidation which 
             // should not be capped
-            if ((badDebt == 0) && (numaLiquidatorProfit > maxNumaProfitForLiquidations)) {
+            // if ((badDebt == 0) && (numaLiquidatorProfit > maxNumaProfitForLiquidations)) {
+            //     vaultProfit =
+            //         numaLiquidatorProfit -
+            //         maxNumaProfitForLiquidations;
+            // }
+
+            // Following sonic hack we decide to put back the maxLstProfitForLiquidation
+            if (numaLiquidatorProfit > maxNumaProfitForLiquidations) {
                 vaultProfit =
                     numaLiquidatorProfit -
                     maxNumaProfitForLiquidations;
             }
+
 
             uint numaToSend = receivedNuma - vaultProfit;
             // send to liquidator

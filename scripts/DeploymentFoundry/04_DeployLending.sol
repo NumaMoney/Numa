@@ -199,6 +199,8 @@ contract DeployLending is Script {
         cReth._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI*10);
         cNuma._setBorrowRateMaxMantissa(borrowRateMaxMantissaARBI);
 
+
+        // we do that so that interest rates don't go fully to reth providers but can be retrieved by protocol
         cReth._setReserveFactor(0.99 ether);
 
 
@@ -208,10 +210,9 @@ contract DeployLending is Script {
         comptroller._supportMarket((cNuma));
         comptroller._supportMarket((cReth));
 
-        // collateral factors
-        // TODOAFTEREND
-        // comptroller._setCollateralFactor((cNuma), numaCollateralFactor);
-        // comptroller._setCollateralFactor((cReth), rEthCollateralFactor);
+        // collateral factors        
+        comptroller._setCollateralFactor((cNuma), numaCollateralFactor);
+        comptroller._setCollateralFactor((cReth), rEthCollateralFactor);
 
 
 
